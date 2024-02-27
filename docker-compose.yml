@@ -1,0 +1,65 @@
+services:
+  next:
+    container_name: next
+    build:
+      context: ./next
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./next:/app
+      - node_modules:/app/node_modules
+    command: sh -c "npm run dev"
+    networks:
+      - docker_network
+
+  fastapi:
+    container_name: fastapi
+    volumes:
+      - ./fastapi/api:/app
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - docker_network
+    environment:
+      PYTHONPATH: /app
+
+  db: #ユーザ名：root, パスワード：なし
+    container_name: db
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile.dev
+    tty: true
+    ports:
+      - "3306:3306"
+    # env_file:
+    #   - ./mysql/.env #FastAPIから接続させるため，コメントアウト
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_DATABASE: "demo"
+      TZ: "Asia/Tokyo"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - docker_network
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin:latest
+    ports:
+      - "8081:80"
+    networks:
+      - docker_network
+
+volumes:
+  node_modules:
+  mysql_data:
+
+networks:
+  docker_network:
+    external: true
