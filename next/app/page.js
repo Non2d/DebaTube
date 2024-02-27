@@ -1,15 +1,13 @@
-import Image from "next/image";
-import Link from "next/link";
+import BarChart from '../components/BarChart';
+import DynamicChart from '../components/DynamicChart';
+import * as d3 from 'd3';
 
-export default function BlogPage() {
+export default function Home() {
+  const data = [12, 36, 6, 25, 30, 10, 12]; // 例えば、このデータをビジュアライズします。
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <h2 className="text-6xl font-bold">Home Page</h2>
-      <Link href="/blog" passHref>
-        <div className="mt-6 text-2xl cursor-pointer bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-          Go to Blog
-        </div>
-      </Link>
+    <div>
+      <BarChart data={data} />
+      <DynamicChart m={200} n={10} k={10}/>
     </div>
-  )
+  );
 }
