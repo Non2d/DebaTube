@@ -1,4 +1,5 @@
-import DebateFlow from '../componentsRF/DebateFlow';
+import DebateFlow from '../components/ReactFlow/DebateFlow';
+import ReactFlow from "reactflow";
 
 export default function Home() {
   return (

@@ -2,7 +2,7 @@ import React from 'react';
 
 const CustomNode = ({ data }) => {
   return (
-    <div style={{ width: '100px', border: '1px solid #222', padding: '10px' }}>
+    <div className="w-48 border-1 border-black p-2 text-black">
       {data.label}
     </div>
   );
