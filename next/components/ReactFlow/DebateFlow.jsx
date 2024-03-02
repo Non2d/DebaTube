@@ -68,6 +68,7 @@ export default function DebateFlow() {
   return (
     consoleSize(),
     <div style={{ width: '100vw', height: '100vh' }}>
+      <h1>This is Developper. Debate Flow</h1>
       <button onClick={onAddNode}>Add Node</button>
       <ReactFlow
         nodes={nodes}
