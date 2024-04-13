@@ -1,0 +1,34 @@
+[
+    {
+        "key": "身代金違法化2",
+        "source": {
+            "title": "銀杏杯 2016 Oct. Gov.NitA Opp.KDS",
+            "URL": "https://www.youtube.com/watch?v=8PjDjvBUOYo"
+        },
+        "motion": {
+            "original": "THW criminalize the payment of ransom to terrorist groups",
+            "translated_JP": "本議会は、テロリスト集団に対する身代金の支払いを犯罪とする"
+        },
+        "attacks": [
+            {
+                "from": 13,
+                "to": 1
+            }
+        ],
+        "POIs": [
+            30
+        ],
+        "speeches": [
+            {
+                "side": "Gov",
+                "ADUs": [
+                    {
+                        "id": 0,
+                        "transcript": "Thank you, Mr. Speaker and ladies and gentlemen in this house. Our side believes that we want to protect most moral people, every people, so every innocent people. And now another thing that's called the technology of hacking system or security camera is developing now and police can capture surprise information in the group of terrorists. So, thanks to those things, we can search those terrorists' move and act. ",
+                        "translated_JP": "議長、そしてこの家の紳士淑女の皆様、ありがとうございました。私たちの側は、ほとんどの道徳的な人々、すべての人々、つまりすべての罪のない人々を守りたいと信じています。そして現在、ハッキングシステムや監視カメラと呼ばれる技術が発展しており、警察はテロリスト集団の意外な情報を捉えることができるようになりました。そういったもののおかげで、テロリストの動きや行動を探ることができるのです。"
+                    }
+                ]
+            }
+        ]
+    }
+]

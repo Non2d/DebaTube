@@ -1,0 +1,34 @@
+[
+    {
+        "key": str,
+        "source": {
+            "title": str,
+            "URL": str
+        },
+        "motion": {
+            "original": str,
+            "translated_JP": str
+        },
+        "attacks": [
+            {
+                "from": int,
+                "to": int
+            }
+        ],
+        "POIs": [
+            int
+        ],
+        "speeches": [
+            {
+                "side": str,
+                "ADUs": [
+                    {
+                        "id": int,
+                        "transcript": str,
+                        "translated_JP": str
+                    }
+                ]
+            }
+        ]
+    }
+]

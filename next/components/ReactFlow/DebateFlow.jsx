@@ -10,6 +10,7 @@ import ReactFlow, {
 } from 'reactflow';
 
 import CustomNode from './CustomNode';
+import CustomNodeEditable from './CustomNodeEditable';
 import RootNode from './RootNode';
 import GovNode from './GovNode';
 import OppNode from './OppNode';
@@ -23,7 +24,7 @@ import 'tailwindcss/tailwind.css';
 export default function DebateFlow() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const nodeTypes = useMemo(() => ({ customNode: CustomNode, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
+  const nodeTypes = useMemo(() => ({ customNode: CustomNode, customNodeE:CustomNodeEditable, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
   const edgeTypes = useMemo(() => ({ customEdge: CustomEdge }), []);
 
   const consoleSize = () => {
@@ -68,7 +69,7 @@ export default function DebateFlow() {
   return (
     consoleSize(),
     <div style={{ width: '100vw', height: '100vh' }}>
-      <button onClick={onAddNode}>Add Node</button>
+      <button onClick={onAddNode}>ノードを追加</button>
       <ReactFlow
         nodes={nodes}
         edges={edges}

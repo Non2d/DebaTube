@@ -1,0 +1,25 @@
+[
+    {
+        "round_id":int,
+        "source":{
+            "title":str,
+            "URL":str
+        },
+        "motion":str,
+        "ADUs":[
+            str
+        ],
+        "rebuttals":[
+            {
+                "from":int,
+                "to":int
+            }
+        ],
+        "POIs":[
+            int
+        ],
+        "Speeches":[
+            int
+        ],
+    }
+]
