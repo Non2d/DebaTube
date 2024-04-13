@@ -10,8 +10,8 @@ class Motion(BaseModel):
     translated_JP:str
 
 class Rebuttal(BaseModel):
-    from_field: int = Field(..., alias="from")
-    to: int
+    src: int
+    dst: int
 
 class ADU(BaseModel):
     id:int
@@ -22,10 +22,26 @@ class Speech(BaseModel):
     side: str
     ADUs: List[ADU]
 
-class Rounds(BaseModel):
-    id: int
+class RoundBase(BaseModel):
     source: Source
     motion: Motion
     rebuttals: List[Rebuttal]
     POIs: List[int]
     speeches: List[Speech]
+
+class RoundCreate(RoundBase):
+    pass
+
+class RoundCreateResponse(RoundCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+class Round(RoundBase):
+    id: int
+
+    #ここで、PydanticのORMモードを有効にして、PydanticモデルをPydanticモデルからORMモデルに変換できるようにしている
+    #のちにDBとの接続に使う
+    class Config:
+        orm_mode = True

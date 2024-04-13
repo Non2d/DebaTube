@@ -4,9 +4,9 @@ import schemas.debate as debate_schema
 
 router = APIRouter()
 
-@router.get("/rounds", response_model=List[debate_schema.Rounds])
+@router.get("/rounds", response_model=List[debate_schema.Round])
 async def list_rounds():
-    return [debate_schema.Rounds(
+    return [debate_schema.Round(
         id=1,
         source={"title":"【スマホでpolice brutalityを潰そう】mixidea高校定期練習", "URL":"https://www.youtube.com/watch?v=p4tcFAPn2bo"},
         motion= {
@@ -14,96 +14,16 @@ async def list_rounds():
             "translated_JP": "本議会は、テロリスト集団に対する身代金の支払いを犯罪とする"
         },
         rebuttals=[{
-                "from": 13,
-                "to": 1
+                "src": 13,
+                "dst": 1
             },
             {
-                "from": 13,
-                "to": 6
+                "src": 13,
+                "dst": 6
             },
             {
-                "from": 16,
-                "to": 1
-            },
-            {
-                "from": 24,
-                "to": 7
-            },
-            {
-                "from": 27,
-                "to": 13
-            },
-            {
-                "from": 30,
-                "to": 27
-            },
-            {
-                "from": 31,
-                "to": 30
-            },
-            {
-                "from": 37,
-                "to": 28
-            },
-            {
-                "from": 38,
-                "to": 28
-            },
-            {
-                "from": 45,
-                "to": 7
-            },
-            {
-                "from": 55,
-                "to": 1
-            },
-            {
-                "from": 56,
-                "to": 27
-            },
-            {
-                "from": 59,
-                "to": 26
-            },
-            {
-                "from": 59,
-                "to": 33
-            },
-            {
-                "from": 60,
-                "to": 7
-            },
-            {
-                "from": 63,
-                "to": 20
-            },
-            {
-                "from": 63,
-                "to": 49
-            },
-            {
-                "from": 64,
-                "to": 41
-            },
-            {
-                "from": 64,
-                "to": 58
-            },
-            {
-                "from": 65,
-                "to": 45
-            },
-            {
-                "from": 65,
-                "to": 60
-            },
-            {
-                "from": 66,
-                "to": 15
-            },
-            {
-                "from": 67,
-                "to": 59
+                "src": 16,
+                "dst": 1
             }],
         POIs= [11,30],
         speeches= [
@@ -137,3 +57,16 @@ async def list_rounds():
             }
         ]
     )]
+
+@router.post("/rounds", response_model=debate_schema.RoundCreateResponse)
+async def create_round(round_body:debate_schema.RoundCreate):
+    return debate_schema.RoundCreateResponse(id=1, **round_body.model_dump())
+
+@router.put("/rounds/{round_id}", response_model=debate_schema.RoundCreateResponse)
+async def update_round(round_id:int, round_body:debate_schema.RoundCreate):
+    return debate_schema.RoundCreateResponse(id=round_id, **round_body.model_dump())
+#将来的にRebuttalだけ更新できるエンドポイントも作成したい!
+
+@router.delete("/rounds/{round_id}", response_model=None)
+async def delete_round(round_id:int):
+    return
