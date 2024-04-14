@@ -1,5 +1,10 @@
 from typing import List
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+import cruds.debate as debate_crud
+from db import get_db
+
 import schemas.debate as debate_schema
 
 router = APIRouter()
@@ -59,8 +64,8 @@ async def list_rounds():
     )]
 
 @router.post("/rounds", response_model=debate_schema.RoundCreateResponse)
-async def create_round(round_body:debate_schema.RoundCreate):
-    return debate_schema.RoundCreateResponse(id=1, **round_body.model_dump())
+async def create_round(round_body:debate_schema.RoundCreate, db:AsyncSession = Depends(get_db)):
+    return await debate_crud.create_round(db, round_body)
 
 @router.put("/rounds/{round_id}", response_model=debate_schema.RoundCreateResponse)
 async def update_round(round_id:int, round_body:debate_schema.RoundCreate):

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, JSON
-from api.db import Base  # Baseはデータベースのベースクラスです。
+from db import Base  # Baseはデータベースのベースクラスです。
 
-class Debate(Base):
+class Round(Base):
     __tablename__ = "debates"
 
     id = Column(Integer, primary_key=True)
