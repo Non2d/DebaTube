@@ -11,3 +11,11 @@ async def create_round(
     await db.commit()
     await db.refresh(debate)
     return debate
+
+from typing import List
+from sqlalchemy.sql import select
+from sqlalchemy.engine import Result
+
+async def get_rounds(db: AsyncSession) -> List[debate_model.Round]:
+    result : Result = await db.execute(select(debate_model.Round))
+    return result.all()
