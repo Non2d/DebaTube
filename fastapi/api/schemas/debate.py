@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class Source(BaseModel):
     title: str
-    URL: str
+    url: str
 
 class Motion(BaseModel):
     original:str
