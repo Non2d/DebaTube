@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field #BaseModelはFastAPIで使われるスキ�
 
 class TaskBase(BaseModel): #共通のフィールドを持つベースクラスを定義
     motion: Optional[str] = Field(None, example="This House Would Ban Tabacco.")
-
+    source: Optional[str] = Field(None, example="WSDC_2019_R1_sKJoTL0Amk0.mp3")
 
 class TaskCreate(TaskBase):
     pass

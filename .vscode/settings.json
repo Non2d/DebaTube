@@ -1,3 +1,4 @@
 {
-    "CodeGPT.apiKey": "Cohere"
+    "CodeGPT.apiKey": "Cohere",
+    "workbench.preferredHighContrastColorTheme": "Anysphere"
 }

@@ -12,7 +12,7 @@ import schemas.task as task_schema
 async def create_task(
     db: AsyncSession, task_create: task_schema.TaskCreate
 ) -> task_model.Task:
-    task = task_model.Task(**task_create.model_dump())
+    task = task_model.Task(**task_create.model_dump()) #よくみたらこれこんすとらくたか
     db.add(task)
     await db.commit()
     await db.refresh(task)
@@ -23,7 +23,8 @@ async def get_tasks_with_done(db: AsyncSession) -> List[Tuple[int, str, bool]]:
         db.execute(
             select(
                 task_model.Task.id,
-                task_model.Task.title,
+                task_model.Task.motion,
+                task_model.Task.source,
                 task_model.Done.id.isnot(None).label("done"),
             ).outerjoin(task_model.Done)
         )
