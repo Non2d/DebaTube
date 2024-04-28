@@ -2,7 +2,8 @@ from typing import Optional
 from pydantic import BaseModel, Field #BaseModelはFastAPIで使われるスキーマモデルクラスのベースクラス
 
 class TaskBase(BaseModel): #共通のフィールドを持つベースクラスを定義
-    title: Optional[str] = Field(None, example="クリーニングを取りに行く")
+    motion: Optional[str] = Field(None, example="This House Would Ban Tabacco.")
+
 
 class TaskCreate(TaskBase):
     pass
