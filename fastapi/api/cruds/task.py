@@ -4,15 +4,18 @@ from sqlalchemy import select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 import models.task as task_model
 import schemas.task as task_schema
-
 
 async def create_task(
     db: AsyncSession, task_create: task_schema.TaskCreate
 ) -> task_model.Task:
-    task = task_model.Task(**task_create.model_dump()) #よくみたらこれこんすとらくたか
+    task = task_model.Task(**task_create.model_dump()) #よくみたらコンストラクタか
+    # task = task_model.Task(
+    #     motion=task_create.motion,
+    #     source=[task_model.Source(title=source.title, url=source.url) for source in task_create.source],
+    #     POIs=task_create.POIs,
+    # )
     db.add(task)
     await db.commit()
     await db.refresh(task)

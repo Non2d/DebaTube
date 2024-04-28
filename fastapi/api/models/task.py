@@ -8,7 +8,7 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True)
     motion = Column(String(1024))
-    source = Column(String(1024))
+    source = Column(JSON)
     POIs = Column(JSON)
 
     done = relationship("Done", back_populates="task", cascade="delete")

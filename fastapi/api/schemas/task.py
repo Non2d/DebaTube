@@ -1,10 +1,14 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field #BaseModelはFastAPIで使われるスキーマモデルクラスのベースクラス
 
+class Source(BaseModel):
+    title: Optional[str] = Field(None, example="WSDC 2019 Round 1")
+    url: Optional[str] = Field(None, example="www.youtube.com")
+
 class TaskBase(BaseModel): #共通のフィールドを持つベースクラスを定義
     motion: Optional[str] = Field(None, example="This House Would Ban Tabacco.")
-    source: Optional[str] = Field(None, example="WSDC_2019_R1_sKJoTL0Amk0.mp3")
-    POIs: List[int] = Field(None, example="[1, 2, 3]")
+    source: Source = Field(None, example={"title": "WSDC 2019 Round 1", "url": "www.youtube.com"})
+    POIs: List[int] = Field(None, example="[11, 22, 33]")
 
 class TaskCreate(TaskBase):
     pass
