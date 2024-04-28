@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 
 from db import Base
@@ -9,6 +9,7 @@ class Task(Base):
     id = Column(Integer, primary_key=True)
     motion = Column(String(1024))
     source = Column(String(1024))
+    POIs = Column(JSON)
 
     done = relationship("Done", back_populates="task", cascade="delete")
 
