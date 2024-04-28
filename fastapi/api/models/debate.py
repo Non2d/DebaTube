@@ -6,10 +6,10 @@ class Round(Base):
     __tablename__ = "rounds"
 
     id = Column(Integer, primary_key=True)
-    source = relationship("Source", back_populates="round", uselist=False)
-    motion = relationship("Motion", back_populates="round", uselist=False)
-    speeches = relationship("Speech", back_populates="round", uselist=True)
-    rebuttals = relationship("Rebuttal", back_populates="round", uselist=True)
+    source = relationship("Source", back_populates="round", uselist=False, lazy="joined")
+    motion = relationship("Motion", back_populates="round", uselist=False, lazy="joined")
+    speeches = relationship("Speech", back_populates="round", uselist=True, lazy="joined")
+    rebuttals = relationship("Rebuttal", back_populates="round", uselist=True, lazy="joined")
     POIs = Column(JSON)
 
 class Source(Base):

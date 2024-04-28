@@ -7,6 +7,8 @@ from typing import List
 from sqlalchemy.sql import select
 from sqlalchemy.engine import Result
 
+from sqlalchemy.orm import joinedload
+
 async def create_round(
         db: AsyncSession, debate_create: debate_schema.RoundCreate
 ) -> debate_model.Round:
@@ -37,7 +39,7 @@ async def get_rounds(db: AsyncSession) -> List[debate_model.Round]:
 async def get_round(db: AsyncSession, round_id:int) -> debate_model.Round:
     result : Result = await (
         db.execute(
-            select(debate_model.Round).filter(debate_model.Round.id == round_id)
+            select(debate_model.Round).options(joinedload(debate_model.Round.speeches)).filter(debate_model.Round.id == round_id)
         )
     )
     round: debate_model.Round = result.first()
