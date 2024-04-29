@@ -10,12 +10,13 @@ import schemas.task as task_schema
 async def create_task(
     db: AsyncSession, task_create: task_schema.TaskCreate
 ) -> task_model.Task:
-    task = task_model.Task(**task_create.model_dump()) #よくみたらコンストラクタか
-    # task = task_model.Task(
-    #     motion=task_create.motion,
-    #     source=[task_model.Source(title=source.title, url=source.url) for source in task_create.source],
-    #     POIs=task_create.POIs,
-    # )
+    # task = task_model.Task(**task_create.model_dump()) #よくみたらコンストラクタか
+    task = task_model.Task(
+        motion=task_create.motion,
+        source=task_create.source.model_dump(),
+        POIs=task_create.POIs,
+        rebuttals = [rebuttal.model_dump() for rebuttal in task_create.rebuttals],
+    )
     db.add(task)
     await db.commit()
     await db.refresh(task)
@@ -29,8 +30,8 @@ async def get_tasks_with_done(db: AsyncSession) -> List[Tuple[int, str, bool]]:
                 task_model.Task.motion,
                 task_model.Task.source,
                 task_model.Task.POIs,
-                task_model.Done.id.isnot(None).label("done"),
-            ).outerjoin(task_model.Done)
+                task_model.Task.rebuttals,
+            )
         )
     )
     return result.all()

@@ -10,6 +10,7 @@ class Task(Base):
     motion = Column(String(1024))
     source = Column(JSON)
     POIs = Column(JSON)
+    rebuttals = Column(JSON)
 
     done = relationship("Done", back_populates="task", cascade="delete")
 
