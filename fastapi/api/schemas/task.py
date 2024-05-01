@@ -13,12 +13,11 @@ class TaskBase(BaseModel): #共通のフィールドを持つベースクラス�
     motion: str = Field(..., example="This House Would Ban Tabacco.")
     source: Source = Field(..., example={"title": "WSDC 2019 Round 1", "url": "www.youtube.com"})
     POIs: Optional[List[int]] = Field(None, example="[11, 22, 33]")
-    rebuttals: List[Rebuttal] = Field(..., example=[{'src': 11, 'tgt': 22}, {'src': 22, 'tgt': 33}])
 
 class TaskCreate(TaskBase):
-    pass
+    rebuttals: Optional[List[Rebuttal]] = Field(None, example=[{'src': 11, 'tgt': 22}, {'src': 22, 'tgt': 33}])
 
-class TaskCreateResponse(TaskCreate):
+class TaskCreateResponse(TaskBase):
     id: int
 
     class Config:
@@ -26,6 +25,7 @@ class TaskCreateResponse(TaskCreate):
 
 class Task(TaskBase):
     id: int
+    rebuttals: Optional[List[Rebuttal]] = Field(None, example=[{'src': 11, 'tgt': 22}, {'src': 22, 'tgt': 33}])
     # done: bool = Field(False, description="完了フラグ")
 
     class Config: #DBとの接続に使う

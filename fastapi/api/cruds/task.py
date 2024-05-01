@@ -1,8 +1,9 @@
 from typing import List, Tuple, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, join
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 import models.task as task_model
 import schemas.task as task_schema
@@ -15,26 +16,25 @@ async def create_task(
         motion=task_create.motion,
         source=task_create.source.model_dump(),
         POIs=task_create.POIs,
-        rebuttals = [rebuttal.model_dump() for rebuttal in task_create.rebuttals],
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
+
+    rebuttals = [task_model.Rebuttal(src=rebuttal.src, tgt=rebuttal.tgt, task_id=task.id) for rebuttal in task_create.rebuttals]
+    db.add_all(rebuttals)
+    await db.commit()
+    await db.refresh(task)
+
+    
     return task
 
-async def get_tasks_with_done(db: AsyncSession) -> List[Tuple[int, str, bool]]:
-    result: Result = await(
-        db.execute(
-            select(
-                task_model.Task.id,
-                task_model.Task.motion,
-                task_model.Task.source,
-                task_model.Task.POIs,
-                task_model.Task.rebuttals,
-            )
-        )
+async def get_tasks_with_done(db: AsyncSession) -> List[any]:
+    result = await db.execute(
+        select(task_model.Task).options(joinedload(task_model.Task.rebuttals))
     )
-    return result.all()
+    tasks = result.scalars().unique().all()
+    return tasks
 
 async def get_task(db: AsyncSession, task_id: int) -> Optional[task_model.Task]:
     result: Result = await db.execute(
