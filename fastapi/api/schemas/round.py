@@ -9,6 +9,7 @@ class Rebuttal(BaseModel):
     src: int = Field(..., example=11)
     tgt: int = Field(..., example=22)
 
+
 class RoundBase(BaseModel): #共通のフィールドを持つベースクラスを定義
     motion: str = Field(..., example="This House Would Ban Tabacco.")
     source: Source = Field(..., example={"title": "WSDC 2019 Round 1", "url": "www.youtube.com"})
@@ -26,7 +27,6 @@ class RoundCreateResponse(RoundBase):
 class Round(RoundBase):
     id: int
     rebuttals: Optional[List[Rebuttal]] = Field(None, example=[{'src': 11, 'tgt': 22}, {'src': 22, 'tgt': 33}])
-    # done: bool = Field(False, description="完了フラグ")
 
     class Config: #DBとの接続に使う
         orm_mode = True

@@ -27,7 +27,7 @@ async def create_round(
     await db.refresh(round)
     return round
 
-async def get_rounds_with_done(db: AsyncSession) -> List[any]:
+async def get_rounds_with_rebuttals(db: AsyncSession) -> List[any]:
     result = await db.execute(
         select(round_model.Round).options(joinedload(round_model.Round.rebuttals))
     )

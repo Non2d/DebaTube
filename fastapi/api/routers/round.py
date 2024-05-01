@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/rounds", response_model=List[round_schema.Round])
 async def list_rounds(db: AsyncSession = Depends(get_db)):
-    return await round_crud.get_rounds_with_done(db)
+    return await round_crud.get_rounds_with_rebuttals(db)
 
 
 @router.post("/rounds", response_model=round_schema.RoundCreateResponse)
