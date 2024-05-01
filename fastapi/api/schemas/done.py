@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+# from pydantic import BaseModel
 
-class DoneResponse(BaseModel):
-    id: int
+# class DoneResponse(BaseModel):
+#     id: int
 
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True
