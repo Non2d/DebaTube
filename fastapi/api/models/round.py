@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, Text
 from sqlalchemy.orm import relationship
 
 from db import Base
@@ -12,7 +12,7 @@ class Round(Base):
     POIs = Column(JSON)
 
     rebuttals = relationship("Rebuttal", back_populates="round", cascade="delete")
-    done = relationship("Done", back_populates="round", cascade="delete")
+    speeches = relationship("Speech", back_populates="round", cascade="delete")
 
 class Rebuttal(Base):
     __tablename__ = "rebuttals"
@@ -25,9 +25,25 @@ class Rebuttal(Base):
     round_id = Column(Integer, ForeignKey("rounds.id"))
     round = relationship("Round", back_populates="rebuttals")
 
-class Done(Base):
-    __tablename__ = "dones"
+class Speech(Base):
+    __tablename__ = "speeches"
 
-    id = Column(Integer, ForeignKey("rounds.id"), primary_key=True)
+    id = Column(Integer, primary_key=True)
 
-    round = relationship("Round", back_populates="done")
+    start_time = Column(Float)
+
+    round_id = Column(Integer, ForeignKey("rounds.id"))
+    round = relationship("Round", back_populates="speeches")
+
+    ADUs = relationship("ADU", back_populates="speech", cascade="delete")
+
+class ADU(Base):
+    __tablename__ = "ADUs"
+
+    id = Column(Integer, primary_key=True)
+
+    sequence_id = Column(Integer)
+    transcript = Column(Text)
+
+    speech_id = Column(Integer, ForeignKey("speeches.id"))
+    speech = relationship("Speech", back_populates="ADUs")
