@@ -27,7 +27,7 @@ async def create_round(
     db.add_all(rebuttals)
     await db.commit()
     await db.refresh(round)
-
+    
     for speech_create in round_create.speeches:
         speech = round_model.Speech(start_time=speech_create.start_time, round_id=round.id)
         db.add(speech)
@@ -40,7 +40,7 @@ async def create_round(
         db.add_all(ADUs)
         await db.commit()
         await db.refresh(round)
-        await db.refresh(speech)
+        await db.refresh(speech)  
 
     round_response_model = round_model.Round(
         id=round.id,
@@ -48,7 +48,6 @@ async def create_round(
         source=round.source,
         POIs=round.POIs,
         rebuttals = [round_model.Rebuttal(src=rebuttal.src, tgt=rebuttal.tgt, round_id=round.id) for rebuttal in round_create.rebuttals],
-        # speeches = [round_model.Speech(start_time=speech.start_time, round_id=round.id) for speech in round_create.speeches]
         speeches = [round_model.Speech(start_time=speech.start_time, round_id=round.id) for speech in round_create.speeches]
     )
 
