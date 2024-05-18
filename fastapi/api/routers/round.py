@@ -1,7 +1,7 @@
 from typing import List
 import schemas.round as round_schema #import api.schemas.roundだとエラーになる
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import cruds.round as round_crud

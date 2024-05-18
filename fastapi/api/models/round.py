@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, Text, DateTime
 from sqlalchemy.orm import relationship
+import datetime
 
 from db import Base
 
@@ -7,6 +8,9 @@ class Round(Base):
     __tablename__ = "rounds"
 
     id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
+    deleted_at = Column(DateTime, nullable=True)
     motion = Column(String(1024))
     source = Column(JSON)
     POIs = Column(JSON)
@@ -55,8 +59,8 @@ class Segment(Base):
 
     id = Column(Integer, primary_key=True)
 
-    start_time = Column(Float)
-    end_time = Column(Float)
+    start = Column(Float)
+    end = Column(Float)
     text = Column(Text)
 
     ADU_id = Column(Integer, ForeignKey("ADUs.id"), nullable=True)
