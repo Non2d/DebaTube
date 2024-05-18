@@ -10,7 +10,7 @@ speeches_example = [
             {
               "start_time": 0,
               "end_time": 100,
-              "transcript": "We are proud to propose."
+              "text": "We are proud to propose."
             }
           ],
           "sequence_id": 1,
@@ -35,7 +35,7 @@ class Segment(BaseModel):
 
 class ADU(BaseModel):
     sequence_id: int = Field(..., example=1)
-    segments: List[Segment] = Field(..., example=[{"start_time": 0, "end_time": 100, "transcript": "We are proud to propose."}, {"start_time": 100, "end_time": 300, "transcript": "Thank you."}])
+    segments: List[Segment] = Field(..., example=[{"start_time": 0, "end_time": 100, "text": "We are proud to propose."}, {"start_time": 100, "end_time": 300, "text": "Thank you."}])
     transcript: str = Field(..., example="We are proud to propose.")
 
 class Speech(BaseModel):
