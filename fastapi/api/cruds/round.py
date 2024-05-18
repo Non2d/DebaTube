@@ -3,7 +3,7 @@ from typing import List, Tuple, Optional
 from sqlalchemy import select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 import models.round as round_model
 import schemas.round as round_schema
@@ -40,7 +40,7 @@ async def create_round(
         db.add_all(ADUs)
         await db.commit()
         await db.refresh(round)
-        await db.refresh(speech)  
+        await db.refresh(speech)
 
     round_response_model = round_model.Round(
         id=round.id,
@@ -57,7 +57,7 @@ async def create_round(
 
 async def get_rounds_with_done(db: AsyncSession) -> List[any]:
     result = await db.execute(
-        select(round_model.Round).options(joinedload(round_model.Round.rebuttals))
+        select(round_model.Round).options(selectinload(round_model.Round.rebuttals), selectinload(round_model.Round.speeches).selectinload(round_model.Speech.ADUs))
     )
     rounds = result.scalars().unique().all()
     return rounds

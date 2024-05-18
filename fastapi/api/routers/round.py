@@ -23,21 +23,21 @@ async def create_round(
 # awaitを忘れると，文法は問題ないがround_crud.create_round(db, round_body) の応答を待たずにレスポンスを返してしまい，エラーになる
 
 
-@router.put("/rounds/{round_id}", response_model=round_schema.RoundCreateResponse)
-async def update_round(
-    round_id: int, round_body: round_schema.RoundCreate, db: AsyncSession = Depends(get_db)
-):
-    round = await round_crud.get_round(db, round_id=round_id)
-    if round is None:
-        raise HTTPException(status_code=404, detail="Round not found")
+# @router.put("/rounds/{round_id}", response_model=round_schema.RoundCreateResponse)
+# async def update_round(
+#     round_id: int, round_body: round_schema.RoundCreate, db: AsyncSession = Depends(get_db)
+# ):
+#     round = await round_crud.get_round(db, round_id=round_id)
+#     if round is None:
+#         raise HTTPException(status_code=404, detail="Round not found")
 
-    return await round_crud.update_round(db, round_body, original=round)
+#     return await round_crud.update_round(db, round_body, original=round)
 
 
-@router.delete("/rounds/{round_id}", response_model=None)
-async def delete_round(round_id: int, db: AsyncSession = Depends(get_db)):
-    round = await round_crud.get_round(db, round_id=round_id)
-    if round is None:
-        raise HTTPException(status_code=404, detail="Round not found")
+# @router.delete("/rounds/{round_id}", response_model=None)
+# async def delete_round(round_id: int, db: AsyncSession = Depends(get_db)):
+#     round = await round_crud.get_round(db, round_id=round_id)
+#     if round is None:
+#         raise HTTPException(status_code=404, detail="Round not found")
     
-    return await round_crud.delete_round(db, original=round)
+#     return await round_crud.delete_round(db, original=round)
