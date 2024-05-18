@@ -6,19 +6,19 @@ speeches_example = [
       "start_time": 60.12,
       "ADUs": [
         {
-        #   "segments": [
-        #     {
-        #       "end_time": 100,
-        #       "start_time": 0,
-        #       "transcript": "We are proud to propose."
-        #     }
-        #   ],
+          "segments": [
+            {
+              "start_time": 0,
+              "end_time": 100,
+              "transcript": "We are proud to propose."
+            }
+          ],
           "sequence_id": 1,
           "transcript": "Some transcript"
         }
       ]
     }
-  ]
+]
 
 class Source(BaseModel):
     title: str = Field(..., example="WSDC 2019 Round 1")
@@ -28,14 +28,14 @@ class Rebuttal(BaseModel):
     src: int = Field(..., example=11)
     tgt: int = Field(..., example=22)
 
-# class Segment(BaseModel):
-#     start_time: float = Field(..., example=0)
-#     end_time: float = Field(..., example=100)
-#     transcript: str = Field(..., example="We are proud to propose.")
+class Segment(BaseModel):
+    start_time: float = Field(..., example=0)
+    end_time: float = Field(..., example=100)
+    text: str = Field(..., example="We are proud to propose.")
 
 class ADU(BaseModel):
     sequence_id: int = Field(..., example=1)
-    # segments: List[Segment] = Field(..., example=[{"start_time": 0, "end_time": 100, "transcript": "We are proud to propose."}, {"start_time": 100, "end_time": 300, "transcript": "Thank you."}])
+    segments: List[Segment] = Field(..., example=[{"start_time": 0, "end_time": 100, "transcript": "We are proud to propose."}, {"start_time": 100, "end_time": 300, "transcript": "Thank you."}])
     transcript: str = Field(..., example="We are proud to propose.")
 
 class Speech(BaseModel):

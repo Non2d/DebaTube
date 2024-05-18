@@ -1,7 +1,7 @@
 from typing import List
 import schemas.round as round_schema #import api.schemas.roundだとエラーになる
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import cruds.round as round_crud
@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/rounds", response_model=List[round_schema.Round])
 async def list_rounds(db: AsyncSession = Depends(get_db)):
-    return await round_crud.get_rounds_with_done(db)
+    return await round_crud.get_rounds(db)
 
 
 @router.post("/rounds", response_model=round_schema.RoundCreateResponse)
