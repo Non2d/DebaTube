@@ -74,7 +74,7 @@ export default function Home() {
                 body: JSON.stringify(req_body),
             })
 
-            const response2 = await fetch('http://localhost:8080/segments', {
+            const response2 = await fetch('http://localhost:8080/speech/{speech_id}/asr', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

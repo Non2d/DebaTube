@@ -2,6 +2,8 @@ from typing import Optional, List
 from pydantic import BaseModel, Field #BaseModelはFastAPIで使われるスキーマモデルクラスのベースクラス
 from datetime import datetime
 
+# exampleでsegmentが定義されている場合でも、segmentはADU_id:nullとして登録され、responseではsegmentは[]として返される
+# ただし、データベースでは正しいspeech_idと共にしっかりと登録される
 speeches_example = [
     {
       "start_time": 60.12,
@@ -11,11 +13,65 @@ speeches_example = [
             {
               "start": 0,
               "end": 100,
-              "text": "We are proud to propose."
+              "text": "We are proud to propose.",
+            },{
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
             }
           ],
           "sequence_id": 1,
-          "transcript": "Some transcript"
+          "transcript": ""
+        },
+        {
+          "segments": [
+            {
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
+            },{
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
+            }
+          ],
+          "sequence_id": 2,
+          "transcript": ""
+        }
+      ]
+    },
+    {
+      "start_time": 160.12,
+      "ADUs": [
+        {
+          "segments": [
+            {
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
+            },{
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
+            }
+          ],
+          "sequence_id": 1,
+          "transcript": ""
+        },
+        {
+          "segments": [
+            {
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
+            },{
+              "start": 0,
+              "end": 100,
+              "text": "We are proud to propose.",
+            }
+          ],
+          "sequence_id": 2,
+          "transcript": ""
         }
       ]
     }
@@ -33,6 +89,7 @@ class Segment(BaseModel):
     start: float = Field(..., example=0)
     end: float = Field(..., example=100)
     text: str = Field(..., example="We are proud to propose.")
+    speech_id: Optional[int] = Field(None, example=1)
 
 class ADU(BaseModel):
     sequence_id: Optional[int] = Field(None, example=1)
@@ -40,6 +97,7 @@ class ADU(BaseModel):
     transcript: Optional[str] = Field(None, example="We are proud to propose.")
 
 class Speech(BaseModel):
+    id: Optional[int] = Field(None, example=1) #Segmentを登録するときに使う。/speech/{speech_id}/asr
     start_time: Optional[float] = Field(None, example=0)
     ADUs: List[ADU] = Field(..., example= [{"sequence_id":1, "transcript":"We agree."}])
 
@@ -63,6 +121,5 @@ class RoundCreateResponse(RoundBase):
 
 class Round(RoundBase):
     id: int
-
     class Config: #DBとの接続に使う
         orm_mode = True

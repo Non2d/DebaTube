@@ -40,6 +40,7 @@ class Speech(Base):
     round = relationship("Round", back_populates="speeches")
 
     ADUs = relationship("ADU", back_populates="speech", cascade="delete")
+    segments = relationship("Segment", back_populates="speech", cascade="delete")
 
 class ADU(Base):
     __tablename__ = "ADUs"
@@ -65,3 +66,6 @@ class Segment(Base):
 
     ADU_id = Column(Integer, ForeignKey("ADUs.id"), nullable=True)
     ADU = relationship("ADU", back_populates="segments")
+
+    speech_id = Column(Integer, ForeignKey("speeches.id"))
+    speech = relationship("Speech", back_populates="segments")
