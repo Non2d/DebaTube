@@ -45,9 +45,9 @@ async def create_round(
 #     return await round_crud.delete_round(db, original=round)
 
 # speech_idのスピーチのSegmentを更新
-@router.post("/speech/{speech_id}/asr", response_model=List[round_schema.Segment])
+@router.post("/speech/{speech_id}/asr", response_model=List[round_schema.Segment], response_model_exclude_unset=True)
 async def register_speech_asr(
-    speech_id: int, segments: List[round_schema.Segment], db: AsyncSession = Depends(get_db)
+    speech_id: int, segments: List[round_schema.SegmentCreate], db: AsyncSession = Depends(get_db)
 ):
     return await round_crud.create_speech_asr(db, speech_id=speech_id, segments=segments)
 

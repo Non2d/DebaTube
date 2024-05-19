@@ -1,40 +1,54 @@
 'use client'
+import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
 
 export default function Home() {
     // API Input
     const [motion, setMotion] = useState('');
-    const [source, setSource] = useState('');
+    const [title, setTitle] = useState('');
+    const [url, setUrl] = useState('');
 
     const [fileNames, setFileNames] = useState([])
     const [transcripts, setTranscripts] = useState([]) // filesをtranscriptsに変更
     const [error, setError] = useState('')
-    const maxFiles = 8
+    const fileNums = [1, 4, 6, 8];
 
     const handleFileChange = async (event) => {
         const selectedFiles = Array.from(event.target.files);
-        if (selectedFiles.length > maxFiles) {
-            setError(`You can only upload up to ${maxFiles} files.`);
+        if (!fileNums.includes(selectedFiles.length)) {
+            setError(`You can only upload ${fileNums} files.`);
         } else {
             setError('');
             setFileNames(selectedFiles.map(file => file.name));
-    
-            const readers = selectedFiles.map(file => {
-                const reader = new FileReader();
-                reader.readAsText(file);
-                return new Promise(resolve => {
-                    reader.onload = () => resolve(JSON.parse(reader.result)); // JSONオブジェクトにパース
+
+            try {
+                const readers = selectedFiles.map(file => {
+                    const reader = new FileReader();
+                    reader.readAsText(file);
+                    return new Promise((resolve, reject) => {
+                        reader.onload = () => {
+                            try {
+                                resolve(JSON.parse(reader.result)); // JSONオブジェクトにパース
+                            } catch (error) {
+                                reject(error);
+                            }
+                        };
+                        reader.onerror = () => reject(new Error('Failed to read file'));
+                    });
                 });
-            });
-    
-            const contents = await Promise.all(readers);
-            const filteredContents = contents.map(content => content.segments.map(segment => ({
-                text: segment.text,
-                start: segment.start,
-                end: segment.end
-            })));
-            setTranscripts(filteredContents);
+
+                const contents = await Promise.all(readers);
+                const filteredContents = contents.map(content => content.segments.map(segment => ({
+                    text: segment.text,
+                    start: segment.start,
+                    end: segment.end
+                })));
+                setTranscripts(filteredContents);
+            } catch (error) {
+                handleCancel();
+                toast.error('Error reading files: ' + error.message);
+            }
         }
     }
 
@@ -42,26 +56,22 @@ export default function Home() {
         event.preventDefault()
 
         try {
-            console.log(transcripts[0]);
-
             const req_body = {
                 "motion": motion,
                 "source": {
-                    "title": "WSDC 2019 Round 1",
+                    "title": title,
                     "url": null
                 },
                 "POIs": [],
                 "rebuttals": [],
                 "speeches": [
                     {
-                        "ADUs": [
-                            {
-                                "segments": [],//transcripts[0],
-                                "sequence_id": null,
-                                "transcript": null
-                            }
-                        ],
-                        "start_time": null
+                        "ADUs": [],
+                        "start_time": 120.121
+                    },
+                    {
+                        "ADUs": [],
+                        "start_time": 120.121
                     }
                 ]
             }
@@ -74,24 +84,39 @@ export default function Home() {
                 body: JSON.stringify(req_body),
             })
 
-            const response2 = await fetch('http://localhost:8080/speech/{speech_id}/asr', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(transcripts[0]),
-            })
-
-            if (response.ok && response2.ok) {
-                alert('Files uploaded successfully')
-            } else {
-                alert('Failed to upload files')
+            if (!response.ok) {
+                throw new Error('Round files failed to upload');
             }
+
+            const data = await response.json();
+            const speechIds = data.speeches.map(speech => speech.id);
+
+            for (let i = 0; i < transcripts.length; i++) {
+                console.log(i, transcripts[i]);
+                const response2 = await fetch(`http://localhost:8080/speech/${speechIds[i]}/asr`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(transcripts[i]),
+                })
+
+                if (!response2.ok) {
+                    throw new Error('Failed to upload speech file[' + i + "], whose speech id=" + speechIds[i]);
+                }
+            }
+
+            toast.success(`Successfully uploaded!`);
         } catch (error) {
             console.error('Error processing files:', error)
-            alert('An error occurred while uploading files')
+            toast.error(`Error: ` + error.message);
         }
     }
+
+    const handleCancel = () => {
+        document.getElementById('dropzone-file').value = "";
+        setFileNames([]);
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -99,7 +124,8 @@ export default function Home() {
                 <title>Registration Page</title>
             </Head>
 
-            <div className="bg-white p-8 rounded shadow-md w-96">
+            <div className="bg-white p-8 rounded shadow-md w-full">
+
                 <h1 className="text-2xl font-bold mb-6">Registration Page</h1>
 
                 <form onSubmit={handleSubmit}>
@@ -110,7 +136,7 @@ export default function Home() {
                         <input
                             type="text"
                             id="motion"
-                            placeholder="This House Would ..."
+                            placeholder="This House Supports Hate Speech"
                             className="mt-1 p-2 border w-full rounded"
                             value={motion}
                             onChange={(e) => setMotion(e.target.value)}
@@ -119,13 +145,29 @@ export default function Home() {
 
                     <div className="mb-4">
                         <label className="block text-gray-700 mb-2" htmlFor="source">
-                            Source
+                            Title
                         </label>
                         <input
                             type="text"
-                            id="source"
-                            placeholder="xxx.mp3"
+                            id="title"
+                            placeholder="WSDC_2017_GF"
                             className="mt-1 p-2 border w-full rounded"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="mb-4">
+                        <label className="block text-gray-700 mb-2" htmlFor="source">
+                            URL <span className="text-red-500">(*Optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="url"
+                            placeholder="https://www.youtube.com/watch?v=4HUFM3JZaLQ"
+                            className="mt-1 p-2 border w-full rounded"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
                         />
                     </div>
 
@@ -135,45 +177,65 @@ export default function Home() {
                         </label>
                         <label
                             htmlFor="dropzone-file"
-                            className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                            className="flex flex-col items-center justify-center w-full h-21 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
                         >
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <svg
-                                    className="w-8 h-8 mb-4 text-gray-500"
-                                    aria-hidden="true"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 20 16"
-                                >
-                                    <path
-                                        stroke="currentColor"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                                    />
-                                </svg>
-                                {fileNames.length > 0 ? (
-                                    <ul className="mb-2 text-sm text-gray-500">
-                                        {fileNames.map((name, index) => (
-                                            <li key={index}>{name}</li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <>
-                                        <p className="mb-2 text-sm text-gray-500">
-                                            <span className="font-semibold">Click to upload</span> or
-                                            drag and drop
-                                        </p>
-                                        <p className="text-xs text-gray-500">.json only</p>
-                                    </>
-                                )}
+                                {(() => {
+                                    switch (fileNames.length) {
+                                        case 0:
+                                            return (
+                                                <>
+                                                    <svg
+                                                        className="w-8 h-8 mb-4 text-gray-500"
+                                                        aria-hidden="true"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 20 16"
+                                                    >
+                                                        <path
+                                                            stroke="currentColor"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth="2"
+                                                            d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                                                        />
+                                                    </svg>
+                                                    <p className="mb-2 text-sm text-gray-500">
+                                                        <span className="font-semibold">Click or drag & drop</span> files here
+                                                    </p>
+                                                </>
+                                            );
+                                        case 1:
+                                            return (
+                                                <>
+                                                    <div className="mb-2 text-sm text-gray-500">
+                                                        {fileNames[0]}
+                                                    </div>
+                                                    <button onClick={handleCancel} className="text-blue-500 underline">Cancel</button>
+                                                </>
+                                            );
+                                        default:
+                                            return (
+                                                <>
+                                                    <ul className="mb-2 text-sm text-gray-500 grid grid-cols-2 gap-4">
+                                                        {fileNames.map((name, index) => (
+                                                            <li key={index} className="break-words">{index + 1}: {name}</li>
+                                                        ))}
+                                                    </ul>
+                                                    <button onClick={handleCancel} className="text-blue-500 underline">Cancel</button>
+                                                </>
+                                            );
+                                    }
+                                })()}
+
+
                             </div>
                             <input
                                 id="dropzone-file"
                                 type="file"
                                 className="hidden"
                                 multiple
+                                accept=".json"
                                 onChange={handleFileChange}
                             />
                         </label>

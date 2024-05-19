@@ -32,30 +32,11 @@ async def create_round(
     db.add_all(rebuttals)
 
     # SpeechesおよびADUsオブジェクトを作成
-    for speech_create in round_create.speeches:
-        speech = round_model.Speech(start_time=speech_create.start_time, round=round)
-        db.add(speech)
-        db.commit()
-        db.refresh(speech)
-
-        # ADUs = [
-        #     round_model.ADU(sequence_id=ADU.sequence_id, speech=speech)
-        #     for ADU in speech_create.ADUs
-        # ]
-        # db.add_all(ADUs)
-
-        # # Segmentsオブジェクトを作成
-        # for adu_create in speech_create.ADUs:
-        #     segments = [
-        #         round_model.Segment(
-        #             start=segment.start,
-        #             end=segment.end,
-        #             text=segment.text,
-        #             speech=speech,
-        #         )
-        #         for segment in adu_create.segments
-        #     ]
-        #     db.add_all(segments)
+    speeches = [
+        round_model.Speech(start_time=speech_create.start_time, round=round)
+        for speech_create in round_create.speeches
+    ]
+    db.add_all(speeches)
 
     # 一度にコミット
     await db.commit()
@@ -89,7 +70,7 @@ async def get_rounds(db: AsyncSession) -> List[any]:
 
 # speech_idのスピーチのSegmentを更新
 async def create_speech_asr(
-    db: AsyncSession, speech_id: int, segments: List[round_schema.Segment]
+    db: AsyncSession, speech_id: int, segments: List[round_schema.SegmentCreate]
 ) -> List[round_model.Segment]:
     db_segments = [
         round_model.Segment(
@@ -99,7 +80,9 @@ async def create_speech_asr(
     ]
     db.add_all(db_segments)
     await db.commit()
-    return segments
+    for db_segment in db_segments:
+        await db.refresh(db_segment)
+    return db_segments
 
 
 async def get_speech_asr(db: AsyncSession, speech_id: int) -> round_model.Segment:

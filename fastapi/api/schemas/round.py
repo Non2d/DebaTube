@@ -7,73 +7,11 @@ from datetime import datetime
 speeches_example = [
     {
       "start_time": 60.12,
-      "ADUs": [
-        {
-          "segments": [
-            {
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            },{
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            }
-          ],
-          "sequence_id": 1,
-          "transcript": ""
-        },
-        {
-          "segments": [
-            {
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            },{
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            }
-          ],
-          "sequence_id": 2,
-          "transcript": ""
-        }
-      ]
+      "ADUs": []
     },
     {
       "start_time": 160.12,
-      "ADUs": [
-        {
-          "segments": [
-            {
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            },{
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            }
-          ],
-          "sequence_id": 1,
-          "transcript": ""
-        },
-        {
-          "segments": [
-            {
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            },{
-              "start": 0,
-              "end": 100,
-              "text": "We are proud to propose.",
-            }
-          ],
-          "sequence_id": 2,
-          "transcript": ""
-        }
-      ]
+      "ADUs": []
     }
 ]
 
@@ -85,21 +23,33 @@ class Rebuttal(BaseModel):
     src: int = Field(..., example=11)
     tgt: int = Field(..., example=22)
 
-class Segment(BaseModel):
+class SegmentBase(BaseModel):
     start: float = Field(..., example=0)
     end: float = Field(..., example=100)
     text: str = Field(..., example="We are proud to propose.")
+
+class Segment(SegmentBase):
     speech_id: Optional[int] = Field(None, example=1)
+
+class SegmentCreate(SegmentBase):
+    pass
 
 class ADU(BaseModel):
     sequence_id: Optional[int] = Field(None, example=1)
     segments: List[Segment] = Field(..., example=[{"start": 0, "end": 100, "text": "We are proud to propose."}, {"start": 100, "end": 300, "text": "Thank you."}])
     transcript: Optional[str] = Field(None, example="We are proud to propose.")
 
-class Speech(BaseModel):
-    id: Optional[int] = Field(None, example=1) #Segmentを登録するときに使う。/speech/{speech_id}/asr
-    start_time: Optional[float] = Field(None, example=0)
+class SpeechBase(BaseModel):
+    start_time: float = Field(..., example=0)
     ADUs: List[ADU] = Field(..., example= [{"sequence_id":1, "transcript":"We agree."}])
+
+class Speech(SpeechBase):
+    pass
+
+class SpeechCreateResponse(SpeechBase):
+    id: Optional[int] = Field(None, example=1) #Segmentを登録するときに使う。/speech/{speech_id}/asr
+    class Config:
+        orm_mode = True
 
 class RoundBase(BaseModel): #共通のフィールドを持つベースクラスを定義
     created_at: datetime = Field(None, example=datetime.now())
@@ -116,6 +66,7 @@ class RoundCreate(RoundBase):
 
 class RoundCreateResponse(RoundBase):
     id: int
+    speeches: List[SpeechCreateResponse] = Field(..., example=[1,2,3])
     class Config:
         orm_mode = True
 

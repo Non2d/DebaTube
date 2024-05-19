@@ -1,6 +1,20 @@
+# ベースイメージを設定
 FROM node:lts-alpine3.19
 
+# 作業ディレクトリを設定
 WORKDIR /app/
 
-COPY ./package.json ./
+# package.jsonとpackage-lock.jsonをコピー
+COPY package.json package-lock.json ./
+
+# 依存関係をインストール
 RUN npm install
+
+# アプリケーションのソースコードをコピー
+COPY . .
+
+# ポートを公開
+EXPOSE 3000
+
+# 開発サーバーを起動
+CMD ["npm", "start"]
