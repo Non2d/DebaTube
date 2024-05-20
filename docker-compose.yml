@@ -43,7 +43,7 @@ services:
     #   - ./mysql/.env #FastAPIから接続させるため，コメントアウト
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-      MYSQL_DATABASE: "demo"
+      MYSQL_DATABASE: "debate"
       TZ: "Asia/Tokyo"
     volumes:
       - mysql_data:/var/lib/mysql

@@ -32,5 +32,3 @@ async def handler(request:Request, exc:RequestValidationError):
     return JSONResponse(content={}, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 app.include_router(round.router)
-# app.include_router(done.router)
-# app.include_router(debate.router)
