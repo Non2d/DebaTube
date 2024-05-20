@@ -1,16 +1,32 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+import time
+from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
+from models.round import Base
 
-ASYNC_DB_URL = "mysql+aiomysql://root@db:3306/debate?charset=utf8"
+DB_URL = "mysql+pymysql://root@db:3306/debate?charset=utf8"
+engine = create_engine(DB_URL, echo=True)
 
-async_engine = create_async_engine(ASYNC_DB_URL, echo=True)
-async_session = sessionmaker(
-    autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession
-)
+def wait_for_db_connection(max_retries=5, wait_interval=5):
+    retries = 0
+    while retries < max_retries:
+        try:
+            # Try to connect to the database
+            engine.connect()
+            print("Database connection successful")
+            return True
+        except OperationalError:
+            retries += 1
+            print(f"Database connection failed. Retrying in {wait_interval} seconds...")
+            time.sleep(wait_interval)
+    print("Could not connect to the database. Exiting.")
+    return False
 
-Base = declarative_base()
+def reset_database():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
-
-async def get_db():
-    async with async_session() as session:
-        yield session
+if __name__ == "__main__":
+    if wait_for_db_connection():
+        reset_database()
+    else:
+        print("Exiting due to database connection failure.")

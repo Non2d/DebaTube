@@ -9,6 +9,7 @@ import models.round as round_model
 import schemas.round as round_schema
 import datetime
 
+from fastapi import BackgroundTasks
 
 async def create_round(
     db: AsyncSession, round_create: round_schema.RoundCreate
@@ -67,10 +68,12 @@ async def get_rounds(db: AsyncSession) -> List[any]:
     rounds = result.scalars().unique().all()
     return rounds
 
+def myBackgroundFunction(db: AsyncSession, db_segments: List[round_model.Segment]):
+    print(db_segments)
 
 # speech_idのスピーチのSegmentを更新
 async def create_speech_asr(
-    db: AsyncSession, speech_id: int, segments: List[round_schema.SegmentCreate]
+    db: AsyncSession, background_tasks:BackgroundTasks, speech_id: int, segments: List[round_schema.SegmentCreate]
 ) -> List[round_model.Segment]:
     db_segments = [
         round_model.Segment(
@@ -82,6 +85,7 @@ async def create_speech_asr(
     await db.commit()
     for db_segment in db_segments:
         await db.refresh(db_segment)
+    background_tasks.add_task(myBackgroundFunction, db, db_segments)
     return db_segments
 
 

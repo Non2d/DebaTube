@@ -3,11 +3,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from models.round import Base
 
-DB_URL = "mysql+pymysql://root@db:3306/debate_manager?charset=utf8"
+DB_URL = "mysql+pymysql://root@db:3306/debate?charset=utf8"
 engine = create_engine(DB_URL, echo=True)
 
-# リトライロジックを追加
-def wait_for_db_connection(max_retries=15, wait_interval=5):
+def wait_for_db_connection(max_retries=5, wait_interval=5):
     retries = 0
     while retries < max_retries:
         try:
