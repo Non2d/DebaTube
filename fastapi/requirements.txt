@@ -3,3 +3,5 @@ uvicorn
 pymysql
 sqlalchemy
 aiomysql
+python-dotenv
+openai

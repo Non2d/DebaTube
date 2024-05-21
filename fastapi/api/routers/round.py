@@ -1,14 +1,13 @@
 from typing import List, Any
 import schemas.round as round_schema  # import api.schemas.roundだとエラーになる
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import cruds.round as round_crud
 from db import get_db
 
 router = APIRouter()
-
 
 @router.get("/rounds", response_model=List[round_schema.Round])
 async def list_rounds(db: AsyncSession = Depends(get_db)):
@@ -47,9 +46,9 @@ async def create_round(
 # speech_idのスピーチのSegmentを更新
 @router.post("/speech/{speech_id}/asr", response_model=List[round_schema.Segment], response_model_exclude_unset=True)
 async def register_speech_asr(
-    speech_id: int, segments: List[round_schema.SegmentCreate], db: AsyncSession = Depends(get_db)
+    background_tasks: BackgroundTasks, speech_id: int, segments: List[round_schema.SegmentCreate], db: AsyncSession = Depends(get_db)
 ):
-    return await round_crud.create_speech_asr(db, speech_id=speech_id, segments=segments)
+    return await round_crud.create_speech_asr(db=db, background_tasks=background_tasks, speech_id=speech_id, segments=segments)
 
 # @router.get("/speeches/{speech_id}/asr", response_model=Any)#List[round_schema.Segment])
 # async def get_speech_asr(speech_id: int, db: AsyncSession = Depends(get_db)):
