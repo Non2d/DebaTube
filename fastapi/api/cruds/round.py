@@ -13,7 +13,6 @@ import datetime
 from fastapi import BackgroundTasks
 
 from logging_config import logger
-
 from openai_client import argumentMiningByLLM
 
 async def create_round(
@@ -87,7 +86,7 @@ async def create_speech_asr(
     await db.commit()
     for db_segment in db_segments:
         await db.refresh(db_segment)
-    background_tasks.add_task(argumentMiningByLLM, db, db_segments)
+    background_tasks.add_task(argumentMiningByLLM, db, db_segments, speech_id)
     return db_segments
 
 

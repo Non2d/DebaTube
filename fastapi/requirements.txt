@@ -5,3 +5,4 @@ sqlalchemy
 aiomysql
 python-dotenv
 openai
+httpx
