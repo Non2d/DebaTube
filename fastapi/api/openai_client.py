@@ -13,6 +13,7 @@ client = AsyncOpenAI()
 
 async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Segment], speech_id: int):
     try:
+        answer = "test"
         logger.info("Starting grouping segments to ADUs.")
         #ここでOpenAI APIを呼び出す
         # logger.info("APIKEY: %s", os.getenv("OPENAI_API_KEY"))
