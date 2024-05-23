@@ -13,7 +13,6 @@ client = AsyncOpenAI()
 
 async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Segment], speech_id: int):
     try:
-        answer = "test"
         logger.info("Starting grouping segments to ADUs.")
         #ここでOpenAI APIを呼び出す
         # logger.info("APIKEY: %s", os.getenv("OPENAI_API_KEY"))
@@ -35,8 +34,8 @@ async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Se
             model="gpt-3.5-turbo",
             response_format={"type":"json_object"},
             messages=[
-                {"role": "system", "content": "You are a helpful assistant designed to output JSON. The scheme is just a list of segments: [{'segment':'A'},{'segment':'B'},{'segment':'C'},...]"},
-                {"role": "user", "content": "Please regroup the following segments to semantic paragraphs: " + formatted_segments + "."}
+                {"role": "system", "content": "You are a helpful debater designed to output JSON. You know a lot about competitive debates and deeply analyze the argument structures. The scheme is just a list of segments: [{'last_segment':str}]"},
+                {"role": "user", "content": "Please regroup the following segments to argumentative discourse units, and return the first segment's text data in each argumentative discourse unit:"+formatted_segments+". Argumentative discourse unit is a minimal unit of argumentative analysis. It is either a claim or a reasoning of argumentation."}
             ]
         )
 
