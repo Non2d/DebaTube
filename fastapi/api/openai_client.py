@@ -13,7 +13,6 @@ client = AsyncOpenAI()
 
 async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Segment], speech_id: int):
     try:
-        answer = "test"
         logger.info("Starting grouping segments to ADUs.")
         #ここでOpenAI APIを呼び出す
         # logger.info("APIKEY: %s", os.getenv("OPENAI_API_KEY"))
@@ -33,7 +32,7 @@ async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Se
             response_format={"type":"json_object"},
             messages=[
                 {"role": "system", "content": "You are a helpful assistant designed to output JSON. The scheme is just a list of segments: [{'segment':'A'},{'segment':'B'},{'segment':'C'},...]"},
-                {"role": "user", "content": "Please regroup the following segments to semantic paragraphs: " + formatted_segments + "."}
+                {"role": "user", "content": "Please regroup the following segments to argumentative discourse units: " + formatted_segments + "."}
             ]
         )
 
