@@ -53,7 +53,7 @@ class ADU(Base):
     speech_id = Column(Integer, ForeignKey("speeches.id"))
     speech = relationship("Speech", back_populates="ADUs")
 
-    segments = relationship("Segment", cascade="delete")
+    segments = relationship("Segment")
 
 class Segment(Base):
     __tablename__ = "segments"
