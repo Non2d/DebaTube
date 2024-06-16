@@ -13,6 +13,7 @@ export default function Home() {
     const [transcripts, setTranscripts] = useState([]) // filesをtranscriptsに変更
     const [error, setError] = useState('')
     const fileNums = [1, 4, 6, 8];
+    const [jsonNum, setJsonNum] = useState(0);
 
     const handleFileChange = async (event) => {
         const selectedFiles = Array.from(event.target.files);
@@ -20,6 +21,7 @@ export default function Home() {
             setError(`You can only upload ${fileNums} files.`);
         } else {
             setError('');
+            setJsonNum(selectedFiles.length);
             setFileNames(selectedFiles.map(file => file.name));
 
             try {
@@ -64,16 +66,17 @@ export default function Home() {
                 },
                 "POIs": [],
                 "rebuttals": [],
-                "speeches": [
-                    {
-                        "ADUs": [],
-                        "start_time": 120.121
-                    },
-                    {
-                        "ADUs": [],
-                        "start_time": 120.121
-                    }
-                ]
+                // "speeches": [
+                //     {
+                //         "ADUs": [],
+                //         "start_time": 120.121
+                //     },
+                //     {
+                //         "ADUs": [],
+                //         "start_time": 120.121
+                //     }
+                // ] //どういう仕組みでこのふざけたreq_bodyで動いてるんだ・・・？ 毎回speechIdが奇数になる理由はこれだ。ここで毎回必ず2個のspeechが作られるから。
+                "speeches": Array.from({length: jsonNum}, () => ({ "ADUs": [], "start_time": 120.121 }))
             }
 
             const response = await fetch('http://localhost:8080/rounds', {
@@ -90,6 +93,7 @@ export default function Home() {
 
             const data = await response.json();
             const speechIds = data.speeches.map(speech => speech.id);
+            console.log(speechIds);
 
             for (let i = 0; i < transcripts.length; i++) {
                 console.log(i, transcripts[i]);

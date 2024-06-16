@@ -31,7 +31,7 @@ async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Se
         )
 
         first_segment_list = [int(str_num) for str_num in response.choices[0].message.content[1:-1].split(",")]
-        logger.info("OpenAI API response and ADU id list: %s", response.choices[0].message.content, first_segment_list)
+        logger.info("OpenAI API response and ADU id list: %s %s", response.choices[0].message.content, first_segment_list)
 
         # first_segment_listを用いてADUを作成。具体的には、[0,5,9]のとき、0~4, 5~8, 9~len-1のsegmentをADUに代入する。
         # ただし、segment_idからtextを取得する処理はリスナに任せるので、ここではsegment_idのリストを渡すだけにする。
@@ -41,10 +41,13 @@ async def argumentMiningByLLM(db: AsyncSession, db_segments: List[round_model.Se
             segments = []
             for segment in db_segments[first_segment_id:]:
                 segments.append(segment) # 既存のSegmentインスタンスを参照するだけなので、オーバーヘッドは生じない
-            # ADUs.append(round_model.ADU(segments=segments, speech_id=speech_id))
+            ADUs.append(round_model.ADU(segments=segments, speech_id=speech_id))
 
-        # db.add_all(ADUs)
-        # await db.commit() # 普通にdbを扱える
+        db.add_all(ADUs)
+        await db.commit() # 普通にdbを扱える
+
+        # ADU.transcriptの更新は未実装。
+        # segmentsとの緊密な整合性の維持が重要なため、background taskで実装する。
 
         logger.info("Background tasks completed successfully")
         
