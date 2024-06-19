@@ -3,9 +3,10 @@ import schemas.round as round_schema  # import api.schemas.roundだとエラー�
 
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 import cruds.round as round_crud
-from db import get_db
+from db import get_db, get_db_sync
 
 router = APIRouter()
 
@@ -44,16 +45,28 @@ async def create_round(
 #     return await round_crud.delete_round(db, original=round)
 
 # speech_idのスピーチのSegmentを更新
-@router.post("/speech/{speech_id}/asr", response_model=List[round_schema.Segment], response_model_exclude_unset=True)
-async def register_speech_asr(
-    background_tasks: BackgroundTasks, speech_id: int, segments: List[round_schema.SegmentCreate], db: AsyncSession = Depends(get_db)
+# @router.put("/speech/{speech_id}/asr", response_model=List[round_schema.Segment], response_model_exclude_unset=True)
+# async def register_speech_asr(
+#     background_tasks: BackgroundTasks, speech_id: int, segments: List[round_schema.SegmentCreate], db: AsyncSession = Depends(get_db)
+# ):
+#     return await round_crud.update_speech_asr(db=db, background_tasks=background_tasks, speech_id=speech_id, segments=segments)
+
+# speech_idのスピーチのSegmentを同期的に更新
+# @router.put("/speech/{speech_id}/asr", response_model=List[round_schema.ADU])
+# def register_speech_asr(
+#     speech_id: int, segments: List[round_schema.SegmentCreate], db: Session = Depends(get_db_sync)
+# ):
+#     return round_crud.update_speech_asr_sync(db=db, speech_id=speech_id, segments=segments)
+    # return await round_crud.update_speech_asr(db=db, background_tasks=background_tasks, speech_id=speech_id, segments=segments)
+
+@router.put("/round/{round_id}/asr", response_model=List[List[round_schema.ADU]])
+def register_round_asr(
+    round_id: int, segments_list: List[List[round_schema.SegmentCreate]], db: Session = Depends(get_db_sync)
 ):
-    return await round_crud.create_speech_asr(db=db, background_tasks=background_tasks, speech_id=speech_id, segments=segments)
+    return round_crud.update_round_asr_sync(db=db, round_id=round_id, segments_list=segments_list)
 
-# @router.get("/speeches/{speech_id}/asr", response_model=Any)#List[round_schema.Segment])
-# async def get_speech_asr(speech_id: int, db: AsyncSession = Depends(get_db)):
-#     return await round_crud.get_speech_asrs(db, speech_id=speech_id)
-
-# @router.get("/rounds/{round_id}/asr", response_model=round_schema.Round)
-# async def get_round_asrs(round_id: int, db: AsyncSession = Depends(get_db)):
-#     return await round_crud.get_round_asrs(db, round_id=round_id)
+# @router.put("/round/{round_id}/asr", response_model=List[List[round_schema.Segment]], response_model_exclude_unset=True)
+# async def register_round_asr(
+#     background_tasks: BackgroundTasks, round_id: int, segments_list: List[List[round_schema.SegmentCreate]], db: AsyncSession = Depends(get_db)
+# ):
+#     return await round_crud.update_round_asr(db=db, background_tasks=background_tasks, round_id=round_id, segments_list=segments_list)

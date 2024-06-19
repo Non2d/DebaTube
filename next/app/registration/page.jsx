@@ -93,21 +93,35 @@ export default function Home() {
 
             const data = await response.json();
             const speechIds = data.speeches.map(speech => speech.id);
-            console.log(speechIds);
+            const roundId = data.id;
 
-            for (let i = 0; i < transcripts.length; i++) {
-                console.log(i, transcripts[i]);
-                const response2 = await fetch(`http://localhost:8080/speech/${speechIds[i]}/asr`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(transcripts[i]),
-                })
+            // for (let i = 0; i < transcripts.length; i++) {
+            //     const response2 = await fetch(`http://localhost:8080/speech/${speechIds[i]}/asr`, {
+            //         method: 'PUT',
+            //         headers: {
+            //             'Content-Type': 'application/json',
+            //         },
+            //         body: JSON.stringify(transcripts[i]),
+            //     })
 
-                if (!response2.ok) {
-                    throw new Error('Failed to upload speech file[' + i + "], whose speech id=" + speechIds[i]);
-                }
+            //     if (!response2.ok) {
+            //         throw new Error('Failed to upload speech file[' + i + "], whose speech id=" + speechIds[i]);
+            //     }
+
+            //     const data2 = await response2.json();
+            //     console.log(data2);
+            // }
+
+            const response2 = await fetch(`http://localhost:8080/round/${roundId}/asr`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(transcripts),
+            })
+
+            if (!response2.ok) {
+                throw new Error('Failed to upload speech files whose round id=' + roundId);
             }
 
             toast.success(`Successfully uploaded!`);

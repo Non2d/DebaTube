@@ -1,5 +1,9 @@
 from typing import List
 
+from logging_config import logger
+
+import asyncio
+
 import sqlalchemy
 
 from sqlalchemy import select
@@ -13,7 +17,9 @@ import datetime
 from fastapi import BackgroundTasks
 
 from logging_config import logger
-from openai_client import argumentMiningByLLM
+from openai_client import argument_mining_by_llm, argument_mining_by_llm_sync
+
+from starlette.concurrency import run_in_threadpool
 
 async def create_round(
     db: AsyncSession, round_create: round_schema.RoundCreate
@@ -72,8 +78,8 @@ async def get_rounds(db: AsyncSession) -> List[any]:
     rounds = result.scalars().unique().all()
     return rounds
 
-# speech_idのスピーチのSegmentを更新
-async def create_speech_asr(
+# 非同期でspeech_idのスピーチのSegmentを更新
+async def update_speech_asr(
     db: AsyncSession, background_tasks:BackgroundTasks, speech_id: int, segments: List[round_schema.SegmentCreate]
 ) -> List[round_model.Segment]:
     db_segments = [
@@ -86,8 +92,88 @@ async def create_speech_asr(
     await db.commit()
     for db_segment in db_segments:
         await db.refresh(db_segment)
-    background_tasks.add_task(argumentMiningByLLM, db, db_segments, speech_id)
+    background_tasks.add_task(argument_mining_by_llm, db, db_segments, speech_id)
     return db_segments
+
+# 同期的にspeech_idのスピーチのSegmentを更新し、返り値としてADUを返す
+def update_speech_asr_sync(
+    db: AsyncSession, speech_id: int, segments: List[round_schema.SegmentCreate]
+) -> List[round_model.ADU]:
+    db_segments = [
+        round_model.Segment(
+            start=segment.start, end=segment.end, text=segment.text, speech_id=speech_id
+        )
+        for segment in segments
+    ]
+    db.add_all(db_segments)
+    db.commit()
+    for db_segment in db_segments:
+        db.refresh(db_segment)
+    ADUs = argument_mining_by_llm_sync(db, db_segments, speech_id)
+    logger.info("This is our presenttaion: %s", ADUs)
+
+    return ADUs
+    
+async def update_round_asr(
+    db: AsyncSession, background_tasks: BackgroundTasks, round_id: int, segments_list: List[List[round_schema.SegmentCreate]]
+) -> List[List[round_model.Segment]]:
+    #ここでは一切dbに触れない
+    #round_idのspeech_idのリストを取得
+    result = await db.execute(
+        select(round_model.Speech).filter(round_model.Speech.round_id == round_id)
+    )
+    speeches = result.scalars().unique().all()
+    speech_ids = [speech.id for speech in speeches]
+    logger.info("segments_list is: %s", speech_ids)
+    logger.info("segments_list is: %s", segments_list)
+    
+    #全てのspeech_idに対して、update_speech_asrを実行
+    db_segments_list = []
+    for i, speech_id in enumerate(speech_ids):
+        db_segments = await update_speech_asr(db, background_tasks, speech_id, segments_list[i])
+    db_segments_list = [db_segments]
+    return db_segments_list
+
+def update_round_asr_sync(
+    db: AsyncSession, round_id: int, segments_list: List[List[round_schema.SegmentCreate]]
+) -> List[round_model.ADU]:
+    result = db.execute(
+        select(round_model.Speech).filter(round_model.Speech.round_id == round_id)
+    )
+    speeches = result.scalars().unique().all()
+    speech_ids = [speech.id for speech in speeches]
+
+    if len(speech_ids)!=len(segments_list):
+        raise ValueError("speech_ids and segments_list length must be the same")
+    
+    ADUs_list = []
+    for speech_id, segments in zip(speech_ids, segments_list):
+        ADUs_list.append(update_speech_asr_sync(db, speech_id, segments))
+    
+    rebuttal_input = {}
+    adu_id = 0
+    speech_num = len(speech_ids)
+    for speech_id, speech in enumerate(ADUs_list):
+        side = "prop" if speech_id % 2 == 0 else "opp" #原則
+        if speech_id+1 == speech_num-1: #例外
+            side="opp"
+        elif speech_id+1 == speech_num:
+            side="prop"
+
+        tmp_adu_list = []
+        for adu in speech:
+            tmp_adu_dict = {}
+            tmp_adu_dict[adu_id] = adu.transcript
+            tmp_adu_list.append(tmp_adu_dict)
+            adu_id += 1
+        rebuttal_input[f"{side}{int(speech_id/2)+1}"] = tmp_adu_list
+    logger.info("This is our rebuttal_input: %s", rebuttal_input)
+
+    #ついに反論を生成する
+    rebuttal_output = []
+    
+
+    return [] #リファクタ必須やな
 
 
 async def get_speech_asr(db: AsyncSession, speech_id: int) -> round_model.Segment:
