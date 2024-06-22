@@ -154,7 +154,7 @@ def identify_rebuttal_sync(db: Session, input:str, round_id: int):
         user_prompt = "Identify the rebuttals for the given argumentative discourse units. Return the list of tuples of rebuttals i.e., (id of rebuttal source, id of rebuttal target). YOU MUST NOT RETURN ANYTHING OTHER THAN THAT. Given Input:" + input
 
         response = client_sync.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": "You are a judge in the competitive debate and have to objectively analyze structures of arguments"},
                 {"role": "user", "content": user_prompt}

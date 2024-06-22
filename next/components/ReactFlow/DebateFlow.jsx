@@ -7,6 +7,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   addEdge,
+  SelectionMode
 } from 'reactflow';
 
 import CustomNode from './CustomNode';
@@ -21,10 +22,12 @@ import fetchEdges from './edgesDb';
 import 'reactflow/dist/style.css';
 import 'tailwindcss/tailwind.css';
 
+const panOnDrag = [1, 2]; //ビューポート操作
+
 export default function DebateFlow() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const nodeTypes = useMemo(() => ({ customNode: CustomNode, customNodeE:CustomNodeEditable, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
+  const nodeTypes = useMemo(() => ({ customNode: CustomNode, customNodeE: CustomNodeEditable, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
   const edgeTypes = useMemo(() => ({ customEdge: CustomEdge }), []);
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export default function DebateFlow() {
   const onAddNode = () => {
     //ランダムな文を生成
     const words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'ice', 'jackfruit', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'pineapple', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'victoria', 'watermelon', 'xigua', 'yellow', 'zucchini'];
-    let sentenceLength = Math.floor(5+Math.random()*25); // Change this to the desired sentence length
+    let sentenceLength = Math.floor(5 + Math.random() * 25); // Change this to the desired sentence length
     let sentence = '';
     for (let i = 0; i < sentenceLength; i++) {
       const randomIndex = Math.floor(Math.random() * words.length);
@@ -86,6 +89,10 @@ export default function DebateFlow() {
         nodesDraggable={false}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        panOnScroll
+        selectionOnDrag
+        panOnDrag={panOnDrag}
+        selectionMode={SelectionMode.Partial}
       >
         <Controls />
         <MiniMap />

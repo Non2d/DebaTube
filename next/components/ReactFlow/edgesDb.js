@@ -1,7 +1,7 @@
 const fetchEdges = async () => {
     try {
         const edges = []
-        const response = await fetch('http://localhost:8080/round/46');
+        const response = await fetch('http://localhost:8080/round/47');
         const data = await response.json();
 
         for (let edge_id in data.rebuttals) {
