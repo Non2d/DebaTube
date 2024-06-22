@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import json
 import models.round as round_model
 
+import ast
+
 from openai import AsyncOpenAI
 from openai import OpenAI
 
@@ -56,7 +58,7 @@ async def group_segments(db: AsyncSession, db_segments: List[round_model.Segment
                 segments.append(segment) # 既存のSegmentインスタンスを参照するだけなので、オーバーヘッドは生じない
             ADUs.append(round_model.ADU(segments=segments, speech_id=speech_id))
 
-        db.add_all(ADUs)
+        db.add_all(ADUs) 
         await db.commit() # 普通にdbを扱える
 
         for ADU in ADUs:
@@ -116,6 +118,7 @@ def group_segments_sync(db: Session, db_segments: List[round_model.Segment], spe
         # ただし、segment_idからADU.textを取得する処理はリスナに任せるつもりだったが、同期版ではまぁいっかという気持ち
         # 当然一つ目の要素は必ず0である。
 
+        #今更思ったけど、DBいじったりAPI叩いたり、関心がグチャグチャだな。リファクタリングしたい。
         ADUs = []
         for i in range(len(first_segment_list)):
             segments = []
@@ -125,16 +128,12 @@ def group_segments_sync(db: Session, db_segments: List[round_model.Segment], spe
                 adu_transcript += segment.text
             adu_transcript = adu_transcript.lstrip() #先頭の空白を削除
             ADUs.append(round_model.ADU(segments=segments, speech_id=speech_id, transcript=adu_transcript))
-        
-
 
         db.add_all(ADUs)
         db.commit() # 普通にdbを扱える
 
         for ADU in ADUs:
             db.refresh(ADU)
-        
-
 
         logger.info("Background tasks completed successfully")
 
@@ -147,3 +146,37 @@ def group_segments_sync(db: Session, db_segments: List[round_model.Segment], spe
     finally:
         db.close()  # セッションを明示的に閉じる
         logger.info("Database session closed")
+
+def identify_rebuttal_sync(db: Session, input:str, round_id: int):
+    try:
+        rebuttals = []
+        #ここでOpenAI APIを呼び出す
+        user_prompt = "Identify the rebuttals for the given argumentative discourse units. Return the list of tuples of rebuttals i.e., (id of rebuttal source, id of rebuttal target). YOU MUST NOT RETURN ANYTHING OTHER THAN THAT. Given Input:" + input
+
+        response = client_sync.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a judge in the competitive debate and have to objectively analyze structures of arguments"},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+
+        rebuttals = ast.literal_eval(response.choices[0].message.content[1:-1])
+
+        Rebuttals = []
+        for rebuttal in rebuttals:
+            Rebuttals.append(round_model.Rebuttal(src=rebuttal[0], tgt=rebuttal[1]))
+            logger.info("REB REB REB", rebuttal)
+        
+        db.add_all(Rebuttals)
+        db.commit()
+        for Rebuttal in Rebuttals:
+            db.refresh(Rebuttal)
+
+        logger.info("OpenAI API response and rebuttal list: %s", rebuttals)
+        return rebuttals
+    except Exception as e:
+        logger.error(f"Error in background task: {e}")
+        raise e
+    finally:
+        logger.info("Background tasks completed successfully")

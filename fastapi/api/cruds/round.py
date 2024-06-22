@@ -17,7 +17,7 @@ import datetime
 from fastapi import BackgroundTasks
 
 from logging_config import logger
-from openai_client import argument_mining_by_llm, argument_mining_by_llm_sync
+from openai_client import argument_mining_by_llm, argument_mining_by_llm_sync, identify_rebuttal_sync
 
 from starlette.concurrency import run_in_threadpool
 
@@ -167,11 +167,12 @@ def update_round_asr_sync(
             tmp_adu_list.append(tmp_adu_dict)
             adu_id += 1
         rebuttal_input[f"{side}{int(speech_id/2)+1}"] = tmp_adu_list
-    logger.info("This is our rebuttal_input: %s", rebuttal_input)
+    logger.info("This is our rebuttal_input: %s", str(rebuttal_input))
 
     #ついに反論を生成する
-    rebuttal_output = []
     
+    rebuttals = identify_rebuttal_sync(db, input=str(rebuttal_input), round_id=round_id)
+
 
     return [] #リファクタ必須やな
 
