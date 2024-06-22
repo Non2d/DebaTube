@@ -6,6 +6,8 @@ import asyncio
 
 import sqlalchemy
 
+from sqlalchemy.orm import Session
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -78,6 +80,20 @@ async def get_rounds(db: AsyncSession) -> List[any]:
     rounds = result.scalars().unique().all()
     return rounds
 
+async def get_round(db: AsyncSession, round_id: int) -> round_model.Round:
+    result = await db.execute(
+        select(round_model.Round)
+        .options(
+            selectinload(round_model.Round.rebuttals),
+            selectinload(round_model.Round.speeches)
+            .selectinload(round_model.Speech.ADUs)
+            .selectinload(round_model.ADU.segments),
+        )
+        .filter(round_model.Round.id == round_id)
+    )
+    round = result.scalars().unique().first()
+    return round
+
 # 非同期でspeech_idのスピーチのSegmentを更新
 async def update_speech_asr(
     db: AsyncSession, background_tasks:BackgroundTasks, speech_id: int, segments: List[round_schema.SegmentCreate]
@@ -135,7 +151,7 @@ async def update_round_asr(
     return db_segments_list
 
 def update_round_asr_sync(
-    db: AsyncSession, round_id: int, segments_list: List[List[round_schema.SegmentCreate]]
+    db: Session, round_id: int, segments_list: List[List[round_schema.SegmentCreate]]
 ) -> List[round_model.ADU]:
     result = db.execute(
         select(round_model.Speech).filter(round_model.Speech.round_id == round_id)
@@ -165,14 +181,18 @@ def update_round_asr_sync(
             tmp_adu_dict = {}
             tmp_adu_dict[adu_id] = adu.transcript
             tmp_adu_list.append(tmp_adu_dict)
-            adu_id += 1
+
+            adu.sequence_id = adu_id #このaduのレコードに、sequence_idを追加。反論生成時の入力との一貫性を担保するため、このタイミングで計算・追加する
+            db.add(adu)
+
+            adu_id += 1 #超注意！！！adu_idの更新はこのループの一番最後に行う！！！！
         rebuttal_input[f"{side}{int(speech_id/2)+1}"] = tmp_adu_list
+    db.commit()
     logger.info("This is our rebuttal_input: %s", str(rebuttal_input))
 
     #ついに反論を生成する
-    
     rebuttals = identify_rebuttal_sync(db, input=str(rebuttal_input), round_id=round_id)
-
+    # 関心グチャグチャだけど、どうしようかな。現状、identify関数内でdbを更新
 
     return [] #リファクタ必須やな
 

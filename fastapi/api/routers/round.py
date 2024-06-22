@@ -59,6 +59,10 @@ async def create_round(
 #     return round_crud.update_speech_asr_sync(db=db, speech_id=speech_id, segments=segments)
     # return await round_crud.update_speech_asr(db=db, background_tasks=background_tasks, speech_id=speech_id, segments=segments)
 
+@router.get("/round/{round_id}", response_model=round_schema.Round)
+async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
+    return await round_crud.get_round(db, round_id=round_id)
+
 @router.put("/round/{round_id}/asr", response_model=List[List[round_schema.ADU]])
 def register_round_asr(
     round_id: int, segments_list: List[List[round_schema.SegmentCreate]], db: Session = Depends(get_db_sync)

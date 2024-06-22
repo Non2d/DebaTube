@@ -15,25 +15,32 @@ import RootNode from './RootNode';
 import GovNode from './GovNode';
 import OppNode from './OppNode';
 import CustomEdge from './CustomEdge';
-import initialNodes from './nodes';
-import initialEdges from './edges';
+import fetchNodes from './nodesDb';
+import fetchEdges from './edgesDb';
 
 import 'reactflow/dist/style.css';
 import 'tailwindcss/tailwind.css';
 
 export default function DebateFlow() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const nodeTypes = useMemo(() => ({ customNode: CustomNode, customNodeE:CustomNodeEditable, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
   const edgeTypes = useMemo(() => ({ customEdge: CustomEdge }), []);
 
+  useEffect(() => {
+    fetchNodes().then(setNodes);
+    fetchEdges().then(setEdges);
+  }, []);
+
   const consoleSize = () => {
-    let height = 0;
+    let height = 50;
     for (let node of nodes) {
       if (node.height === undefined) {
         return;
       }
-      // console.log(height, node.height);
+      if (node.type === "rootNode") {
+        continue;
+      }
       node.position.y = height;
       height += parseInt(node.height) + 10;
     }
@@ -69,7 +76,7 @@ export default function DebateFlow() {
   return (
     consoleSize(),
     <div style={{ width: '100vw', height: '100vh' }}>
-      <button onClick={onAddNode}>ノードを追加</button>
+      {/* <button onClick={onAddNode}>ノードを追加</button> */}
       <ReactFlow
         nodes={nodes}
         edges={edges}

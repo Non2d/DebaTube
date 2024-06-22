@@ -165,8 +165,7 @@ def identify_rebuttal_sync(db: Session, input:str, round_id: int):
 
         Rebuttals = []
         for rebuttal in rebuttals:
-            Rebuttals.append(round_model.Rebuttal(src=rebuttal[0], tgt=rebuttal[1]))
-            logger.info("REB REB REB", rebuttal)
+            Rebuttals.append(round_model.Rebuttal(src=rebuttal[0], tgt=rebuttal[1], round_id=round_id))
         
         db.add_all(Rebuttals)
         db.commit()
