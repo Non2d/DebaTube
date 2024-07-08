@@ -1,8 +1,8 @@
-const fetchNodes = async () => {
+const fetchNodes = async (roundId) => {
   try {
     const xpos = 800;
     const nodes = []
-    const response = await fetch('http://localhost:8080/round/47');
+    const response = await fetch(`http://localhost:8080/round/${roundId}`);
     const data = await response.json();
 
     nodes.push({ id: "proSignpost", type: "rootNode", position: { x: 0, y: 0 }, data: { label: "Proposition Side" } });
@@ -11,7 +11,7 @@ const fetchNodes = async () => {
     for (let speechId = 0; speechId < data.speeches.length; speechId++) {
       const speech = data.speeches[speechId];
       let isOpp = speechId % 2 === 1 ? 1 : 0;
-      if (speechId > data.speeches.length-2){
+      if (speechId > data.speeches.length-3){
         isOpp = 1-isOpp;
       }
 

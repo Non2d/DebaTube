@@ -24,15 +24,14 @@ import 'tailwindcss/tailwind.css';
 
 const panOnDrag = [1, 2]; //ビューポート操作
 
-export default function DebateFlow() {
+export default function DebateFlow({roundId}) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const nodeTypes = useMemo(() => ({ customNode: CustomNode, customNodeE: CustomNodeEditable, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
   const edgeTypes = useMemo(() => ({ customEdge: CustomEdge }), []);
-
   useEffect(() => {
-    fetchNodes().then(setNodes);
-    fetchEdges().then(setEdges);
+    fetchNodes(roundId).then(setNodes);
+    fetchEdges(roundId).then(setEdges);
   }, []);
 
   const consoleSize = () => {

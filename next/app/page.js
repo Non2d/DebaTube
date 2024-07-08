@@ -1,9 +1,10 @@
-import DebateFlow from '../components/ReactFlow/DebateFlow';
+// import DebateFlow from '../components/ReactFlow/DebateFlow';
 
 export default function Home() {
   return (
     <div>
-      <DebateFlow />
+      Defalut Page.
+      {/* <DebateFlow /> */}
     </div>
   );
 }

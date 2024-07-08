@@ -147,21 +147,18 @@ def group_segments_sync(db: Session, db_segments: List[round_model.Segment], spe
         db.close()  # セッションを明示的に閉じる
         logger.info("Database session closed")
 
-def identify_rebuttal_sync(db: Session, input:str, round_id: int):
+def identify_rebuttal_sync(db: Session, prompts:str, round_id: int):
     try:
         rebuttals = []
-        #ここでOpenAI APIを呼び出す
-        user_prompt = "Identify the rebuttals for the given argumentative discourse units. Return the list of tuples of rebuttals i.e., (id of rebuttal source, id of rebuttal target). YOU MUST NOT RETURN ANYTHING OTHER THAN THAT. Given Input:" + input
-
-        response = client_sync.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": "You are a judge in the competitive debate and have to objectively analyze structures of arguments"},
-                {"role": "user", "content": user_prompt}
-            ]
-        )
-
-        rebuttals = ast.literal_eval(response.choices[0].message.content[1:-1])
+        for user_prompt in prompts:
+            response = client_sync.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a judge in the competitive debate and have to objectively analyze structures of arguments"},
+                    {"role": "user", "content": user_prompt}
+                ]
+            )
+            rebuttals+=ast.literal_eval(response.choices[0].message.content)
 
         Rebuttals = []
         for rebuttal in rebuttals:

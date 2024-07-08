@@ -166,32 +166,34 @@ def update_round_asr_sync(
     for speech_id, segments in zip(speech_ids, segments_list):
         ADUs_list.append(update_speech_asr_sync(db, speech_id, segments))
     
-    rebuttal_input = {}
+    speech_inputs = [] #promptで使う反論
+    rebuttal_identify_prompts = []
     adu_id = 0
-    speech_num = len(speech_ids)
     for speech_id, speech in enumerate(ADUs_list):
-        side = "prop" if speech_id % 2 == 0 else "opp" #原則
-        if speech_id+1 == speech_num-1: #例外
-            side="opp"
-        elif speech_id+1 == speech_num:
-            side="prop"
-
         tmp_adu_list = []
         for adu in speech:
             tmp_adu_dict = {}
-            tmp_adu_dict[adu_id] = adu.transcript
+            tmp_adu_dict[adu_id] = adu.transcript # {1:"xxx", 2:"yyy"}の形式にするために辞書を使用
             tmp_adu_list.append(tmp_adu_dict)
 
             adu.sequence_id = adu_id #このaduのレコードに、sequence_idを追加。反論生成時の入力との一貫性を担保するため、このタイミングで計算・追加する
             db.add(adu)
-
             adu_id += 1 #超注意！！！adu_idの更新はこのループの一番最後に行う！！！！
-        rebuttal_input[f"{side}{int(speech_id/2)+1}"] = tmp_adu_list
+        speech_inputs.append(tmp_adu_list)
+
+    rebuttal_id_prompt_base = "Identify all rebuttals present from the following speech, and return them as a list of tuples, where each tuple represents a rebuttal and contains the id of rebuttal source and the id of rebuttal target."
+    if len(speech_ids) == 6:
+        rebuttal_identify_prompts.append(f"{rebuttal_id_prompt_base}. The 1st opposition speech's argument units are: {speech_inputs[1]}. This speech targets the 1st proposition, which contains these argument units: {speech_inputs[0]}. YOU MUST NOT RETURN ANYTHING OTHER THAN THE LIST OF TUPLES AND DO NOT INSERT A LINE BREAK.")
+        rebuttal_identify_prompts.append(f"{rebuttal_id_prompt_base}. The 2nd proposition speech's argument units are: {speech_inputs[2]}. For its rebuttal, this speech targets the 1st opposition, whose argument units are {speech_inputs[1]}. YOU MUST NOT RETURN ANYTHING OTHER THAN THE LIST OF TUPLES AND DO NOT INSERT A LINE BREAK.")        
+        rebuttal_identify_prompts.append(f"{rebuttal_id_prompt_base}. The 2nd opposition speech's argument units are: {speech_inputs[3]}. For its rebuttal, this speech targets the 2nd proposition, whose argument units are {speech_inputs[2]} and the 1st proposition, whose argument units are {speech_inputs[0]}. YOU MUST NOT RETURN ANYTHING OTHER THAN THE LIST OF TUPLES AND DO NOT INSERT A LINE BREAK.")
+        rebuttal_identify_prompts.append(f"{rebuttal_id_prompt_base}. The 3rd opposition speech's argument units are: {speech_inputs[4]}. For its rebuttal, this speech targets the 2nd proposition, whose argument units are {speech_inputs[2]} and the 1st proposition, whose argument units are {speech_inputs[0]}. YOU MUST NOT RETURN ANYTHING OTHER THAN THE LIST OF TUPLES AND DO NOT INSERT A LINE BREAK.")
+        rebuttal_identify_prompts.append(f"{rebuttal_id_prompt_base}. The 3nd proposition speech's argument units are: {speech_inputs[5]}. For its rebuttal, this speech targets the 3rd opposition, whose argument units are {speech_inputs[4]}, the 2nd opposition, whose argument units are {speech_inputs[3]}, and the 1st opposition, whose argument units are {speech_inputs[1]}. YOU MUST NOT RETURN ANYTHING OTHER THAN THE LIST OF TUPLES AND DO NOT INSERT A LINE BREAK.")
+        
     db.commit()
-    logger.info("This is our rebuttal_input: %s", str(rebuttal_input))
+    logger.info("This is our rebuttal_input : %s", str(rebuttal_identify_prompts))
 
     #ついに反論を生成する
-    rebuttals = identify_rebuttal_sync(db, input=str(rebuttal_input), round_id=round_id)
+    rebuttals = identify_rebuttal_sync(db, prompts = rebuttal_identify_prompts, round_id=round_id)
     # 関心グチャグチャだけど、どうしようかな。現状、identify関数内でdbを更新
 
     return [] #リファクタ必須やな

@@ -1,11 +1,12 @@
-const fetchEdges = async () => {
+const fetchEdges = async (roundId) => {
     try {
         const edges = []
-        const response = await fetch('http://localhost:8080/round/47');
+        const response = await fetch(`http://localhost:8080/round/${roundId}`);
+        // 52: NA, 
         const data = await response.json();
 
         for (let edge_id in data.rebuttals) {
-            console.log(edge_id, data.rebuttals[edge_id]);
+            // console.log(edge_id, data.rebuttals[edge_id]);
             edges.push({id: "reb-"+edge_id.toString(), type: "customEdge", source: "adu-"+data.rebuttals[edge_id].src.toString(), target: "adu-"+data.rebuttals[edge_id].tgt.toString(), animated: true})
         }
 
