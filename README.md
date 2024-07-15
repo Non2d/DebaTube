@@ -24,8 +24,10 @@
 
 ## 起動・利用方法
 
-- ディベートの文字起こしのjsonファイルをスピーチごとに取得します。具体的には、Whisper APIを用いて、North American Styleの競技ディベートの試合の文字起こしをスピーチごとに合計6つ取得します。もしくは、test/dummy/timestamp_newフォルダ内のNA_からはじまるフォルダ内にjsonファイルが6つあることを確認します。
-  - 近いうちにAsian Style, WSDC Styleにも対応する予定です。(スピーチが8つのパターンに対応します)
+- ディベートの文字起こしのjsonファイルを,(A)または(B)の手順で、スピーチごとに取得します。
+  - (A) Whisper APIを用いて、North American Styleの競技ディベートの試合の文字起こしをスピーチごとに合計6つ取得します。
+  - (B) test/dummy/timestamp_newフォルダ内のNA_からはじまるフォルダ内にjsonファイルが6つあることを確認します。
+    - 近日中にAsian Style, WSDC Styleにも対応する予定です。(スピーチが8つのパターンに対応します)
 - git cloneを実行します。
 - fastapi/api/.env.exampleのファイル名を.envに変更し、OPENAI_API_KEYを追加します。
 - docker compose upを実行します。
