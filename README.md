@@ -1,5 +1,3 @@
-
-
 # Debate Vizualization System
 
 ## 基礎論文
@@ -7,7 +5,7 @@ https://dl.nkmr-lab.org/papers/498
 
 ## デモ動画
 
-[![Speech2Attack_Youtube_Link](https://github.com/user-attachments/assets/aba67035-d31b-45bd-a0ce-38e25165d16f)](https://youtu.be/ybbw3yxqi90)
+[![DebateVizSystem_Youtube_Link](https://github.com/user-attachments/assets/fad29a50-e426-4efd-a6e2-526e361f5f8c)](https://youtu.be/ybbw3yxqi90)
 
 ## 概要
 
