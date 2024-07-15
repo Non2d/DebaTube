@@ -31,7 +31,9 @@
 - git cloneを実行します。
 - fastapi/api/.env.exampleのファイル名を.envに変更し、OPENAI_API_KEYを追加します。
 - docker compose upを実行します。
-- 文字起こし登録ページ( http://localhost:3000/register )にて、先ほど取得/確認した6つのjsonファイルを指定して送信します。
+- 文字起こし登録ページ( http://localhost:3000/register )に移動します
+  - 論題や試合を識別するためのタイトル、
+  - 先ほど取得/確認した6つのjsonファイルを指定して送信します。
 - http://localhost:3000/graph/i にアクセスすると、i番目に登録したグラフが表示されます！
 
 ## 技術
