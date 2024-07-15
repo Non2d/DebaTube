@@ -1,7 +1,8 @@
 # Debate Vizualization System
 
-## 基礎論文
-https://dl.nkmr-lab.org/papers/498
+## 理論的背景
+
+福井 雅弘, 中村 聡史. 即興型ディベートにおける大局的な反論構造の可視化に基づく議論の噛み合い度合いの基礎検討, 情報処理学会 研究報告コラボレーションとネットワークサービス（CN）, Vol.2024-CN-121, No.31, pp.1-8, 2024. https://dl.nkmr-lab.org/papers/498
 
 ## デモ動画
 
