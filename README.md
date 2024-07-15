@@ -11,35 +11,24 @@ https://dl.nkmr-lab.org/papers/498
 
 競技ディベートの録音を送信→自動で反論構造を可視化するWebアプリです。
 
-## 使用方法
-
-- ディベートの文字起こしのjsonファイルをスピーチごとに取得します。具体的には、Whisper APIを用いて、North American Styleの競技ディベートの試合の文字起こしを取得します。もしくは、test/dummy/timestamp_newフォルダ内のNA_からはじまるファイル内のjsonファイルを使用します。
-  - 近いうちにAsian Style, WSDC Styleにも対応する予定です。
-- 
-
 ## 動作環境
 
 - **対応ブラウザ**: Chrome, Firefoxでの動作を確認しています。
 - **注意事項**: お手元のブラウザで使用するためには、OpenAI API Keyを環境変数に設定していただく必要があります。
 
-## 起動方法
+## 起動・利用方法
 
-- git clone
-
-OpenAI API(gpt-4oモデル)を使用する場合(有料)
-- fastapi/api/.env.exampleのファイル名を.envに変更し、OPENAI_API_KEYを追加してください。
-- cd backend -> python main.py
-
-Groq API(llama3-70b-8192モデル)を使用する場合(無料)
-- https://console.groq.com/playground こちらからGroq API Keyを取得してください。
-- backend/.env.exampleのファイル名を.envに変更し、GROQ_API_KEYを追加してください。
-- cd backend -> python main-groq.py
-
-- (VSCodeを使用している場合) index.htmlをLive Serverで開いて下さい
+- ディベートの文字起こしのjsonファイルをスピーチごとに取得します。具体的には、Whisper APIを用いて、North American Styleの競技ディベートの試合の文字起こしをスピーチごとに合計6つ取得します。もしくは、test/dummy/timestamp_newフォルダ内のNA_からはじまるフォルダ内にjsonファイルが6つあることを確認します。
+  - 近いうちにAsian Style, WSDC Styleにも対応する予定です。(スピーチが8つのパターンに対応します)
+- git cloneを実行します。
+- fastapi/api/.env.exampleのファイル名を.envに変更し、OPENAI_API_KEYを追加します。
+- docker compose upを実行します。
+- 文字起こし登録ページ(http://localhost:3000/register)にて、先ほど取得/確認した6つのjsonファイルを指定して送信します。
+- http://localhost:3000/graph/iにて、i番目に登録したグラフが表示されます！
 
 ## 技術
 - コンテナ:Docker
-- フロントエンド:Next.js
+- フロントエンド:Next.js, Tailwind css
 - バックエンド:FastAPI, OpenAI API
 - データベース:MySQL, phphMyAdmin
 - 音声認識:Whisper API
