@@ -13,7 +13,9 @@ https://dl.nkmr-lab.org/papers/498
 
 ## 使用方法
 
-- 音声入力
+- ディベートの文字起こしのjsonファイルをスピーチごとに取得します。具体的には、Whisper APIを用いて、North American Styleの競技ディベートの試合の文字起こしを取得します。もしくは、test/dummy/timestamp_newフォルダ内のNA_からはじまるファイル内のjsonファイルを使用します。
+  - 近いうちにAsian Style, WSDC Styleにも対応する予定です。
+- 
 
 ## 動作環境
 
@@ -25,7 +27,7 @@ https://dl.nkmr-lab.org/papers/498
 - git clone
 
 OpenAI API(gpt-4oモデル)を使用する場合(有料)
-- backend/.env.exampleのファイル名を.envに変更し、OPENAI_API_KEYを追加してください。
+- fastapi/api/.env.exampleのファイル名を.envに変更し、OPENAI_API_KEYを追加してください。
 - cd backend -> python main.py
 
 Groq API(llama3-70b-8192モデル)を使用する場合(無料)
