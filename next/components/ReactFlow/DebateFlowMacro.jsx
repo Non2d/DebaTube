@@ -42,6 +42,11 @@ export default function DebateFlowMacro({roundId}) {
       if (node.type === "rootNode") {
         continue;
       }
+      if([1,2,3].includes(node.data.initAduFlag)){
+        height -= 0;
+      } else if(node.data.initAduFlag == 4){
+        height += 10;
+      }
       node.position.y = height;
       height += parseInt(node.height);
     }
@@ -74,7 +79,7 @@ export default function DebateFlowMacro({roundId}) {
         selectionMode={SelectionMode.Partial}
       >
         <Controls />
-        <MiniMap />
+        {/* <MiniMap /> */}
         <Background variant="dots" gap={12} size={1} />
       </ReactFlow>
     </div>
