@@ -10,24 +10,23 @@ import ReactFlow, {
   SelectionMode
 } from 'reactflow';
 
-import CustomNode from './CustomNode';
-import CustomNodeEditable from './CustomNodeEditable';
 import RootNode from './RootNode';
-import GovNode from './GovNode';
-import OppNode from './OppNode';
+import GovNode from './MacroGovNode';
+import OppNode from './MacroOppNode';
 import CustomEdge from './CustomEdge';
-import fetchNodes from './nodesDb';
+import fetchNodes from './nodesMacroDb';
 import fetchEdges from './edgesDb';
 
 import 'reactflow/dist/style.css';
 import 'tailwindcss/tailwind.css';
 
 const panOnDrag = [1, 2]; //ビューポート操作
+const originY = 100; //原点のy座標
 
-export default function DebateFlow({roundId}) {
+export default function DebateFlowMacro({roundId}) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const nodeTypes = useMemo(() => ({ customNode: CustomNode, customNodeE: CustomNodeEditable, rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
+  const nodeTypes = useMemo(() => ({ rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
   const edgeTypes = useMemo(() => ({ customEdge: CustomEdge }), []);
   useEffect(() => {
     fetchNodes(roundId).then(setNodes);
@@ -35,7 +34,7 @@ export default function DebateFlow({roundId}) {
   }, []);
 
   const consoleSize = () => {
-    let height = 50;
+    let height = originY;
     for (let node of nodes) {
       if (node.height === undefined) {
         return;
@@ -44,7 +43,7 @@ export default function DebateFlow({roundId}) {
         continue;
       }
       node.position.y = height;
-      height += parseInt(node.height) + 10;
+      height += parseInt(node.height);
     }
   };
 
@@ -55,25 +54,6 @@ export default function DebateFlow({roundId}) {
     },
     [setEdges],
   );
-
-  // const [uniqueId, setUniqueId] = useState(0);
-  // const onAddNode = () => {
-  //   //ランダムな文を生成
-  //   const words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'ice', 'jackfruit', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'pineapple', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'victoria', 'watermelon', 'xigua', 'yellow', 'zucchini'];
-  //   let sentenceLength = Math.floor(5 + Math.random() * 25); // Change this to the desired sentence length
-  //   let sentence = '';
-  //   for (let i = 0; i < sentenceLength; i++) {
-  //     const randomIndex = Math.floor(Math.random() * words.length);
-  //     sentence += words[randomIndex] + ' ';
-  //   }
-  //   sentence = sentence.trim() + '.';
-
-  //   // Create a new node
-  //   const newNode = { id: "new" + uniqueId, type: "oppNode", position: { x: 700, y: 0 }, data: { label: sentence }, height: 100 };
-  //   setUniqueId(uniqueId + 1);
-  //   // Add the new node to the elements array
-  //   setNodes(nodes => [...nodes, newNode]);
-  // };
 
   return (
     consoleSize(),
