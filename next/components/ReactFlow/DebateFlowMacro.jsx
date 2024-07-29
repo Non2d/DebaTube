@@ -42,8 +42,8 @@ export default function DebateFlowMacro({roundId}) {
       if (node.type === "rootNode") {
         continue;
       }
-      if([1,2,3].includes(node.data.initAduFlag)){
-        height -= 0;
+      if([1,2,3,5].includes(node.data.initAduFlag)){
+        height -= 20;
       } else if(node.data.initAduFlag == 4){
         height += 10;
       }
@@ -62,7 +62,7 @@ export default function DebateFlowMacro({roundId}) {
 
   return (
     consoleSize(),
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ width: '25vw', height: '45vh' }}>
       {/* <button onClick={onAddNode}>ノードを追加</button> */}
       <ReactFlow
         nodes={nodes}
