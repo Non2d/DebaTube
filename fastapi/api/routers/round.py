@@ -63,7 +63,7 @@ async def create_round(
 async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
     return await round_crud.get_round(db, round_id=round_id)
 
-@router.put("/round/{round_id}/asr", response_model=List[List[round_schema.ADU]])
+@router.put("/round/{round_id}/asr", response_model=List[List[round_schema.ArgumentUnit]])
 def register_round_asr(
     round_id: int, segments_list: List[List[round_schema.SegmentCreate]], db: Session = Depends(get_db_sync)
 ):

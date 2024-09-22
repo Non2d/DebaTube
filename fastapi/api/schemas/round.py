@@ -34,7 +34,7 @@ class Segment(SegmentBase):
 class SegmentCreate(SegmentBase):
     pass
 
-class ADU(BaseModel):
+class ArgumentUnit(BaseModel):
     sequence_id: Optional[int] = Field(None, example=1)
     segments: List[Segment] = Field(..., example=[{"start": 0, "end": 100, "text": "We are proud to propose."}, {"start": 100, "end": 300, "text": "Thank you."}])
     transcript: Optional[str] = Field(None, example="We are proud to propose.")
@@ -43,7 +43,7 @@ class ADU(BaseModel):
 
 class SpeechBase(BaseModel):
     start_time: float = Field(..., example=0)
-    ADUs: List[ADU] = Field(..., example= [{"sequence_id":1, "transcript":"We agree."}])
+    ADUs: List[ArgumentUnit] = Field(..., example= [{"sequence_id":1, "transcript":"We agree."}])
 
 class Speech(SpeechBase):
     pass
