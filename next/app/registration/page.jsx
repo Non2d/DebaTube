@@ -12,13 +12,17 @@ export default function Home() {
     const [fileNames, setFileNames] = useState([])
     const [transcripts, setTranscripts] = useState([]) // filesをtranscriptsに変更
     const [error, setError] = useState('')
-    const fileNums = [1, 4, 6, 8];
+    const allowedFileNums = [1, 4, 6, 8];
     const [jsonNum, setJsonNum] = useState(0);
 
     const handleFileChange = async (event) => {
         const selectedFiles = Array.from(event.target.files);
-        if (!fileNums.includes(selectedFiles.length)) {
+        if (!allowedFileNums.includes(selectedFiles.length)) {
             setError(`You can only upload ${fileNums} files.`);
+        }
+
+        if (selectedFiles.length == 1) {
+            
         } else {
             setError('');
             setJsonNum(selectedFiles.length);
@@ -66,17 +70,7 @@ export default function Home() {
                 },
                 "POIs": [],
                 "rebuttals": [],
-                // "speeches": [
-                //     {
-                //         "ADUs": [],
-                //         "start_time": 120.121
-                //     },
-                //     {
-                //         "ADUs": [],
-                //         "start_time": 120.121
-                //     }
-                // ] //どういう仕組みでこのふざけたreq_bodyで動いてるんだ・・・？ 毎回speechIdが奇数になる理由はこれだ。ここで毎回必ず2個のspeechが作られるから。
-                "speeches": Array.from({length: jsonNum}, () => ({ "ADUs": [], "start_time": 120.121 }))
+                "speeches": Array.from({ length: jsonNum }, () => ({ "ADUs": [], "start_time": 120.121 }))
             }
 
             const response = await fetch('http://localhost:8080/rounds', {
@@ -94,23 +88,6 @@ export default function Home() {
             const data = await response.json();
             const speechIds = data.speeches.map(speech => speech.id);
             const roundId = data.id;
-
-            // for (let i = 0; i < transcripts.length; i++) {
-            //     const response2 = await fetch(`http://localhost:8080/speech/${speechIds[i]}/asr`, {
-            //         method: 'PUT',
-            //         headers: {
-            //             'Content-Type': 'application/json',
-            //         },
-            //         body: JSON.stringify(transcripts[i]),
-            //     })
-
-            //     if (!response2.ok) {
-            //         throw new Error('Failed to upload speech file[' + i + "], whose speech id=" + speechIds[i]);
-            //     }
-
-            //     const data2 = await response2.json();
-            //     console.log(data2);
-            // }
 
             const response2 = await fetch(`http://localhost:8080/round/${roundId}/asr`, {
                 method: 'PUT',

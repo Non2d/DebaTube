@@ -28,6 +28,6 @@ def reset_database():
 if __name__ == "__main__":
     if wait_for_db_connection():
         pass
-        # reset_database()
+        reset_database()
     else:
         print("Exiting due to database connection failure.")
