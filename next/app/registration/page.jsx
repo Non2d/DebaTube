@@ -9,13 +9,10 @@ export default function Home() {
     // API Input
     const [motion, setMotion] = useState('');
     const [title, setTitle] = useState('');
-    const [url, setUrl] = useState('');
 
     const [fileName, setFileName] = useState('');
-    const [transcripts, setTranscripts] = useState([]) // filesをtranscriptsに変更
+    const [transcript, setTranscript] = useState([]) // filesをtranscriptsに変更
     const [error, setError] = useState('')
-
-    console.log(fileName)
 
     const handleFileChange = async (event) => {
         const selectedFile = event.target.files[0];
@@ -38,9 +35,7 @@ export default function Home() {
 
         try {
             const content = await readerPromise;
-            console.log(JSON.stringify(content));
-            console.log(content.speeches.length)
-            setTranscripts(content.speeches);
+            setTranscript(content.speeches);
         } catch (error) {
             handleCancel();
             toast.error('Error reading file: ' + error.message);
@@ -56,48 +51,47 @@ export default function Home() {
                 "motion": motion,
                 "title": title,
                 "pois": [],
-                "speeches": Array.from({ length: transcripts.length }, () => ([{"start": -1, "end": -1, "text": ""}])), //あとでUPDATEで上書きされる
+                "speeches": transcript, //あとでUPDATEで上書きされる
             }
 
-            const argumentUnitResponse = await fetch('http://localhost:8080/rounds', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestBody),
-            })
+            const data = await toast.promise(
+                (async () => {
+                    const response = await fetch('http://localhost:8080/rounds', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestBody),
+                    });
 
-            if (!argumentUnitsResponse.ok) {
-                throw new Error('Round files failed to upload');
-            }
+                    if (!response.ok) { //これがないと、Promise自体はResolve=成功扱いになる
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Sorry, no idea what happened.');
+                    }
 
+                    const data = await response.json();
+                    return data;
+                })(),
+                {
+                    loading: 'GPT is analyzing...',
+                    success: 'Success!',
+                    error: (err) => {
+                        // `err` contains the error object
+                        return `Error: ${err.message}`;
+                    }
+                }
+            );
 
+            console.log(data);
 
-            const data = await argumentUnitResponse.json();
-            const roundId = data.id;
-
-            const response2 = await fetch(`http://localhost:8080/round/${roundId}/asr`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(transcripts),
-            })
-
-            if (!response2.ok) {
-                throw new Error('Failed to upload speech files whose round id=' + roundId);
-            }
-
-            toast.success(`Successfully uploaded!`);
         } catch (error) {
             console.error('Error processing files:', error)
-            toast.error(`Error: ` + error.message);
         }
     }
 
     const handleCancel = () => {
         document.getElementById('dropzone-file').value = "";
-        setFileName([]);
+        setFileName("");
     };
 
     return (

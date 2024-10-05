@@ -16,7 +16,7 @@ from log_config import logger
 
 router = APIRouter()
 
-from cruds.gpt import segment2argment_units, argument_units2rebuttals
+from cruds.gpt import segment2argment_units, argument_units2rebuttals, speeches2rebuttals
 
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
@@ -152,26 +152,30 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     db.add_all(speeches)  # スピーチをデータベースに追加
 
     # POIとRebuttalの処理
-    pois = []
-    pois.append(round_db_model.Poi(argument_unit_id=1, round=round))
-    pois.append(round_db_model.Poi(argument_unit_id=2, round=round))
-    db.add_all(pois)
+    # pois = []
+    # pois.append(round_db_model.Poi(argument_unit_id=1, round=round))
+    # pois.append(round_db_model.Poi(argument_unit_id=2, round=round))
+    # db.add_all(pois)
 
-
-    rebuttals = []
     # ~~GPTによるRebuttal判定処理~~
     logger.info("GPTによるRebuttal判定処理")
     logger.info(speeches[0].argument_units)
 
-    src_tgt_pairs = []
-    for speech in speeches:
-        if len(speeches) == 6:
-            src_tgt_pairs = [(0, 1), ()]
+    rebuttals = await speeches2rebuttals(speeches)
 
-        for argument_unit in speech.argument_units:
-            logger.info(argument_unit.text)
+    logger.info("えげつない反論集:"+str(rebuttals))
+
+    db_rebuttals = []
+    for rebuttal in rebuttals:
+        db_rebuttals.append(
+            round_db_model.Rebuttal(
+                src=rebuttal.src,
+                tgt=rebuttal.tgt,
+                round=round
+            )
+        )
     
-    db.add_all(rebuttals)
+    db.add_all(db_rebuttals)
 
     # データベースの変更をコミット
     await db.commit()

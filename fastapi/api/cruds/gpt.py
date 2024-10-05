@@ -2,7 +2,8 @@ from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from log_config import logger
-from typing import List
+
+import asyncio
 
 load_dotenv()
 client = AsyncOpenAI()
@@ -57,19 +58,29 @@ async def speeches2rebuttals(speeches: list[list[Segment]]) -> list[Rebuttal]:
     elif len(speeches)==8:
         rebuttal_speech_pair_ids = [(1,0),(2,1),(3,0),(3,2),(4,1),(4,3),(5,0),(5,2),(5,4),(6,0),(6,2),(6,4),(7,1),(7,3),(7,5),(7,6)]
     
-    rebuttals = []
-    for pair in rebuttal_speech_pair_ids:
-        rebuttals += await argument_units2rebuttals(speeches[pair[0]], speeches[pair[1]])
+    tasks = [
+    argument_units2rebuttals(speeches[pair[0]], speeches[pair[1]])
+    for pair in rebuttal_speech_pair_ids
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    rebuttals=[]
+    for result in results:
+        rebuttals += result
     
-    return rebuttals
+    sorted_rebuttals = sorted(rebuttals, key=lambda x: (x.src, x.tgt)) # srcの順でソート->srcが同じならtgtの順でソート
+
+    return sorted_rebuttals
 
 
 async def argument_units2rebuttals(src_speech: list[ArgumentUnit], tgt_speech: list[ArgumentUnit]) -> list[Rebuttal]:
     prompt_src = ""
-    for argument_unit in src_speech:
-        prompt_src += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
     prompt_tgt = ""
-    for argument_unit in tgt_speech:
+
+    for argument_unit in src_speech.argument_units:
+        prompt_src += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
+    for argument_unit in tgt_speech.argument_units:
         prompt_tgt += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
     
     response = await client.beta.chat.completions.parse(
@@ -85,8 +96,3 @@ async def argument_units2rebuttals(src_speech: list[ArgumentUnit], tgt_speech: l
     rebuttals = response.choices[0].message.parsed.rebuttals
 
     return rebuttals
-
-
-
-
-
