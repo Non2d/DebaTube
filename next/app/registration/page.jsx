@@ -3,90 +3,77 @@ import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
 
+// Difinition: asr + diarization = transcript
+
 export default function Home() {
     // API Input
     const [motion, setMotion] = useState('');
     const [title, setTitle] = useState('');
     const [url, setUrl] = useState('');
 
-    const [fileNames, setFileNames] = useState([])
+    const [fileName, setFileName] = useState('');
     const [transcripts, setTranscripts] = useState([]) // filesをtranscriptsに変更
     const [error, setError] = useState('')
-    const allowedFileNums = [1, 4, 6, 8];
-    const [jsonNum, setJsonNum] = useState(0);
+
+    console.log(fileName)
 
     const handleFileChange = async (event) => {
-        const selectedFiles = Array.from(event.target.files);
-        if (!allowedFileNums.includes(selectedFiles.length)) {
-            setError(`You can only upload ${fileNums} files.`);
+        const selectedFile = event.target.files[0];
+
+        setError('');
+        setFileName(selectedFile.name);
+
+        const reader = new FileReader();
+        reader.readAsText(selectedFile);
+        const readerPromise = new Promise((resolve, reject) => {
+            reader.onload = () => {
+                try {
+                    resolve(JSON.parse(reader.result)); // JSONオブジェクトにパース
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+        });
+
+        try {
+            const content = await readerPromise;
+            console.log(JSON.stringify(content));
+            console.log(content.speeches.length)
+            setTranscripts(content.speeches);
+        } catch (error) {
+            handleCancel();
+            toast.error('Error reading file: ' + error.message);
         }
 
-        if (selectedFiles.length == 1) {
-            
-        } else {
-            setError('');
-            setJsonNum(selectedFiles.length);
-            setFileNames(selectedFiles.map(file => file.name));
-
-            try {
-                const readers = selectedFiles.map(file => {
-                    const reader = new FileReader();
-                    reader.readAsText(file);
-                    return new Promise((resolve, reject) => {
-                        reader.onload = () => {
-                            try {
-                                resolve(JSON.parse(reader.result)); // JSONオブジェクトにパース
-                            } catch (error) {
-                                reject(error);
-                            }
-                        };
-                        reader.onerror = () => reject(new Error('Failed to read file'));
-                    });
-                });
-
-                const contents = await Promise.all(readers);
-                const filteredContents = contents.map(content => content.segments.map(segment => ({
-                    text: segment.text,
-                    start: segment.start,
-                    end: segment.end
-                })));
-                setTranscripts(filteredContents);
-            } catch (error) {
-                handleCancel();
-                toast.error('Error reading files: ' + error.message);
-            }
-        }
     }
 
     const handleSubmit = async (event) => {
         event.preventDefault()
 
         try {
-            const req_body = {
+            const requestBody = {
                 "motion": motion,
-                "source": {
-                    "title": title,
-                    "url": null
-                },
-                "POIs": [],
-                "rebuttals": [],
-                "speeches": Array.from({ length: jsonNum }, () => ({ "ADUs": [], "start_time": 120.121 }))
+                "title": title,
+                "pois": [],
+                "speeches": Array.from({ length: transcripts.length }, () => ([{"start": -1, "end": -1, "text": ""}])), //あとでUPDATEで上書きされる
             }
 
-            const response = await fetch('http://localhost:8080/rounds', {
+            const argumentUnitResponse = await fetch('http://localhost:8080/rounds', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(req_body),
+                body: JSON.stringify(requestBody),
             })
 
-            if (!response.ok) {
+            if (!argumentUnitsResponse.ok) {
                 throw new Error('Round files failed to upload');
             }
 
-            const data = await response.json();
-            const speechIds = data.speeches.map(speech => speech.id);
+
+
+            const data = await argumentUnitResponse.json();
             const roundId = data.id;
 
             const response2 = await fetch(`http://localhost:8080/round/${roundId}/asr`, {
@@ -110,16 +97,16 @@ export default function Home() {
 
     const handleCancel = () => {
         document.getElementById('dropzone-file').value = "";
-        setFileNames([]);
+        setFileName([]);
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-100 flex justify-center">
             <Head>
                 <title>Registration Page</title>
             </Head>
 
-            <div className="bg-white p-8 rounded shadow-md w-full">
+            <div className="bg-white p-8 rounded shadow-md w-2/3 h-2/3 mt-10">
 
                 <h1 className="text-2xl font-bold mb-6">Registration Page</h1>
 
@@ -153,20 +140,6 @@ export default function Home() {
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-gray-700 mb-2" htmlFor="source">
-                            URL <span className="text-red-500">(*Optional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            id="url"
-                            placeholder="https://www.youtube.com/watch?v=4HUFM3JZaLQ"
-                            className="mt-1 p-2 border w-full rounded"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="mb-4">
                         <label className="block text-gray-700 mb-2" htmlFor="dropzone-file">
                             SpeechText
                         </label>
@@ -176,60 +149,45 @@ export default function Home() {
                         >
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                 {(() => {
-                                    switch (fileNames.length) {
-                                        case 0:
-                                            return (
-                                                <>
-                                                    <svg
-                                                        className="w-8 h-8 mb-4 text-gray-500"
-                                                        aria-hidden="true"
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 20 16"
-                                                    >
-                                                        <path
-                                                            stroke="currentColor"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                                                        />
-                                                    </svg>
-                                                    <p className="mb-2 text-sm text-gray-500">
-                                                        <span className="font-semibold">Click or drag & drop</span> files here
-                                                    </p>
-                                                </>
-                                            );
-                                        case 1:
-                                            return (
-                                                <>
-                                                    <div className="mb-2 text-sm text-gray-500">
-                                                        {fileNames[0]}
-                                                    </div>
-                                                    <button onClick={handleCancel} className="text-blue-500 underline">Cancel</button>
-                                                </>
-                                            );
-                                        default:
-                                            return (
-                                                <>
-                                                    <ul className="mb-2 text-sm text-gray-500 grid grid-cols-2 gap-4">
-                                                        {fileNames.map((name, index) => (
-                                                            <li key={index} className="break-words">{index + 1}: {name}</li>
-                                                        ))}
-                                                    </ul>
-                                                    <button onClick={handleCancel} className="text-blue-500 underline">Cancel</button>
-                                                </>
-                                            );
+                                    if (!fileName) {
+                                        return (
+                                            <>
+                                                <svg
+                                                    className="w-8 h-8 mb-4 text-gray-500"
+                                                    aria-hidden="true"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 20 16"
+                                                >
+                                                    <path
+                                                        stroke="currentColor"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth="2"
+                                                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                                                    />
+                                                </svg>
+                                                <p className="mb-2 text-sm text-gray-500">
+                                                    <span className="font-semibold">Click or drag & drop</span> files here
+                                                </p>
+                                            </>
+                                        );
+                                    } else {
+                                        return (
+                                            <>
+                                                <div className="mb-2 text-sm text-gray-500">
+                                                    {fileName}
+                                                </div>
+                                                <button onClick={handleCancel} className="text-blue-500 underline">Cancel</button>
+                                            </>
+                                        );
                                     }
                                 })()}
-
-
                             </div>
                             <input
                                 id="dropzone-file"
                                 type="file"
                                 className="hidden"
-                                multiple
                                 accept=".json"
                                 onChange={handleFileChange}
                             />

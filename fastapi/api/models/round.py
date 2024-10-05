@@ -23,6 +23,10 @@ class Speech(Base):
     round_id = Column(Integer, ForeignKey("rounds.id"))
     round = relationship("Round", back_populates="speeches")
 
+    # ログを見やすく
+    def __repr__(self):
+        return f"<Speech(id={self.id}, round_id={self.round_id}, argument_units={self.argument_units})>"
+
 class ArgumentUnit(Base):
     __tablename__ = "argument_units"
     id = Column(Integer, primary_key=True, index=True)
@@ -34,6 +38,9 @@ class ArgumentUnit(Base):
 
     speech_id = Column(Integer, ForeignKey("speeches.id"))
     speech = relationship("Speech", back_populates="argument_units")
+
+    def __repr__(self):
+        return f"<ArgumentUnit(id={self.id}, sequence_id={self.sequence_id}, start={self.start}, end={self.end}, text={self.text})>"
 
 class Rebuttal(Base):
     __tablename__ = "rebuttals"

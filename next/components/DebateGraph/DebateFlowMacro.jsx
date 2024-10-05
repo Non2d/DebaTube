@@ -23,7 +23,7 @@ import 'tailwindcss/tailwind.css';
 const panOnDrag = [1, 2]; //ビューポート操作
 const originY = 100; //原点のy座標
 
-export default function DebateFlowMacro({roundId}) {
+export default function DebateFlowMacro({ roundId }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const nodeTypes = useMemo(() => ({ rootNode: RootNode, govNode: GovNode, oppNode: OppNode }), []);
@@ -35,6 +35,9 @@ export default function DebateFlowMacro({roundId}) {
 
   const consoleSize = () => {
     let height = originY;
+    if(!nodes){
+      return;
+    }
     for (let node of nodes) {
       if (node.height === undefined) {
         return;
@@ -42,9 +45,9 @@ export default function DebateFlowMacro({roundId}) {
       if (node.type === "rootNode") {
         continue;
       }
-      if([1,2,3,5].includes(node.data.initAduFlag)){
+      if ([1, 2, 3, 5].includes(node.data.initAduFlag)) {
         height -= 20;
-      } else if(node.data.initAduFlag == 4){
+      } else if (node.data.initAduFlag == 4) {
         height += 10;
       }
       node.position.y = height;
