@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
@@ -43,6 +43,12 @@ class RoundCreate(BaseModel):
     speeches: List[List[SegmentCreate]]
     # pois: List[int]  # リクエストの時点ではpoiはまだ確定していない
     # rebuttals: List[Rebuttal] # リクエストの時点ではrebuttalはまだ存在しない
+
+class ArgumentUnitCreate(BaseModel):
+    sequence_id: int
+    start: float
+    end: float
+    text: str
 
 # response schema
 class PoiResponse(BaseModel):
@@ -91,6 +97,8 @@ class RoundResponse(BaseModel):
 
 @router.post("/rounds", response_model=RoundResponse)
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
+    if len(round_create.speeches) not in [6, 8]:
+        raise HTTPException(status_code=400, detail="The number of speeches must be 6 or 8.")
 
     round = round_db_model.Round(
         title=round_create.title,
@@ -106,6 +114,7 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     segment_tasks = [segment2argment_units(speech_create) for speech_create in round_create.speeches]
     segment_results = await asyncio.gather(*segment_tasks)  # 並行実行して結果を待つ
 
+    sequence_id = 0
     for idx, first_seg_ids in enumerate(segment_results):
         speech_create = round_create.speeches[idx]
         argument_units = []
@@ -127,12 +136,13 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
 
             argument_units.append(
                 round_db_model.ArgumentUnit(
-                    sequence_id=0,
+                    sequence_id=sequence_id,
                     start=speech_create[first_seg_id].start,
                     end=speech_create[last_seg_id].end,
                     text=plain_text,
                 )
             )
+            sequence_id += 1
         
         # スピーチとArgument Unitsをデータベースに保存するためのリストに追加
         speeches.append(
@@ -147,10 +157,20 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     pois.append(round_db_model.Poi(argument_unit_id=2, round=round))
     db.add_all(pois)
 
+
     rebuttals = []
     # ~~GPTによるRebuttal判定処理~~
-    rebuttals.append(round_db_model.Rebuttal(src=1, tgt=2, round=round))
-    rebuttals.append(round_db_model.Rebuttal(src=2, tgt=1, round=round))
+    logger.info("GPTによるRebuttal判定処理")
+    logger.info(speeches[0].argument_units)
+
+    src_tgt_pairs = []
+    for speech in speeches:
+        if len(speeches) == 6:
+            src_tgt_pairs = [(0, 1), ()]
+
+        for argument_unit in speech.argument_units:
+            logger.info(argument_unit.text)
+    
     db.add_all(rebuttals)
 
     # データベースの変更をコミット
@@ -180,5 +200,5 @@ async def test_segment2argment_units(texts: List[SegmentCreate]):
     return await segment2argment_units(texts)
 
 @router.post("/argument_units2rebuttals")
-async def test_argument_units2rebuttals():
-    return await argument_units2rebuttals()
+async def test_argument_units2rebuttals(src_speech: List[ArgumentUnitCreate], tgt_speech: List[ArgumentUnitCreate]):
+    return await argument_units2rebuttals(src_speech, tgt_speech)
