@@ -9,8 +9,8 @@ class Round(Base):
 
     title = Column(String(1024))
     motion = Column(String(1024))
-    pois = Column(JSON)
 
+    pois = relationship("Poi", back_populates="round")
     rebuttals = relationship("Rebuttal", back_populates="round")
     speeches = relationship("Speech", back_populates="round")
 
@@ -41,6 +41,14 @@ class ArgumentUnit(Base):
 
     def __repr__(self):
         return f"<ArgumentUnit(id={self.id}, sequence_id={self.sequence_id}, start={self.start}, end={self.end}, text={self.text})>"
+
+class Poi(Base):
+    __tablename__ = "pois"
+    id = Column(Integer, primary_key=True, index=True)
+    argument_unit_id = Column(Integer) # segmentのidではないことに注意
+
+    round_id = Column(Integer, ForeignKey("rounds.id"))
+    round = relationship("Round", back_populates="pois")
 
 class Rebuttal(Base):
     __tablename__ = "rebuttals"
