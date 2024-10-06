@@ -1,0 +1,714 @@
+{
+    "title": "batch_test",
+    "motion": "囚人に投票権を与えるべきか？",
+    "pois": [],
+    "rebuttals": [
+      {
+        "id": 1656,
+        "src": 19,
+        "tgt": 0
+      },
+      {
+        "id": 1657,
+        "src": 22,
+        "tgt": 11
+      },
+      {
+        "id": 1658,
+        "src": 23,
+        "tgt": 4
+      },
+      {
+        "id": 1659,
+        "src": 23,
+        "tgt": 6
+      },
+      {
+        "id": 1660,
+        "src": 24,
+        "tgt": 5
+      },
+      {
+        "id": 1661,
+        "src": 24,
+        "tgt": 7
+      },
+      {
+        "id": 1662,
+        "src": 25,
+        "tgt": 11
+      },
+      {
+        "id": 1663,
+        "src": 31,
+        "tgt": 19
+      },
+      {
+        "id": 1664,
+        "src": 31,
+        "tgt": 24
+      },
+      {
+        "id": 1665,
+        "src": 32,
+        "tgt": 19
+      },
+      {
+        "id": 1666,
+        "src": 33,
+        "tgt": 20
+      },
+      {
+        "id": 1667,
+        "src": 33,
+        "tgt": 24
+      },
+      {
+        "id": 1668,
+        "src": 34,
+        "tgt": 23
+      },
+      {
+        "id": 1669,
+        "src": 36,
+        "tgt": 0
+      },
+      {
+        "id": 1670,
+        "src": 36,
+        "tgt": 31
+      },
+      {
+        "id": 1671,
+        "src": 37,
+        "tgt": 8
+      },
+      {
+        "id": 1672,
+        "src": 37,
+        "tgt": 34
+      },
+      {
+        "id": 1673,
+        "src": 38,
+        "tgt": 11
+      },
+      {
+        "id": 1674,
+        "src": 39,
+        "tgt": 11
+      },
+      {
+        "id": 1675,
+        "src": 39,
+        "tgt": 33
+      },
+      {
+        "id": 1676,
+        "src": 46,
+        "tgt": 1
+      },
+      {
+        "id": 1677,
+        "src": 46,
+        "tgt": 6
+      },
+      {
+        "id": 1678,
+        "src": 46,
+        "tgt": 30
+      },
+      {
+        "id": 1679,
+        "src": 47,
+        "tgt": 0
+      },
+      {
+        "id": 1680,
+        "src": 47,
+        "tgt": 31
+      },
+      {
+        "id": 1681,
+        "src": 48,
+        "tgt": 8
+      },
+      {
+        "id": 1682,
+        "src": 48,
+        "tgt": 32
+      },
+      {
+        "id": 1683,
+        "src": 50,
+        "tgt": 15
+      },
+      {
+        "id": 1684,
+        "src": 50,
+        "tgt": 34
+      },
+      {
+        "id": 1685,
+        "src": 51,
+        "tgt": 11
+      },
+      {
+        "id": 1686,
+        "src": 56,
+        "tgt": 20
+      },
+      {
+        "id": 1687,
+        "src": 57,
+        "tgt": 46
+      },
+      {
+        "id": 1688,
+        "src": 58,
+        "tgt": 24
+      },
+      {
+        "id": 1689,
+        "src": 58,
+        "tgt": 36
+      },
+      {
+        "id": 1690,
+        "src": 59,
+        "tgt": 27
+      },
+      {
+        "id": 1691,
+        "src": 60,
+        "tgt": 23
+      },
+      {
+        "id": 1692,
+        "src": 60,
+        "tgt": 49
+      },
+      {
+        "id": 1693,
+        "src": 61,
+        "tgt": 22
+      },
+      {
+        "id": 1694,
+        "src": 61,
+        "tgt": 37
+      },
+      {
+        "id": 1695,
+        "src": 61,
+        "tgt": 48
+      },
+      {
+        "id": 1696,
+        "src": 62,
+        "tgt": 25
+      },
+      {
+        "id": 1697,
+        "src": 62,
+        "tgt": 38
+      },
+      {
+        "id": 1698,
+        "src": 63,
+        "tgt": 39
+      },
+      {
+        "id": 1699,
+        "src": 64,
+        "tgt": 40
+      }
+    ],
+    "speeches": [
+      {
+        "id": 161,
+        "argument_units": [
+          {
+            "id": 2272,
+            "sequence_id": 0,
+            "start": 954.28,
+            "end": 965.24,
+            "text": "Thank you very much, speaker. As long as the prisoners are also a member of the society, it's totally unjustifiable act by government to deprive the rights of the"
+          },
+          {
+            "id": 2273,
+            "sequence_id": 1,
+            "start": 965.24,
+            "end": 988.48,
+            "text": "boat from prisoner. That's why we're very happy to allow prisoners to boat. Two things to talk. First of all, I'm going to talk to you the importance of guaranteeing the right to boat under the title of protection of fundamental human right even for prisoners. Second of all, I'm going to talk to you benefits for criminals and also the whole entire society as a whole."
+          },
+          {
+            "id": 2274,
+            "sequence_id": 2,
+            "start": 988.74,
+            "end": 1034.54,
+            "text": "So, clarification of simple model. So of course we are going to allow prisoners to vote if they are qualified to have the right to vote in the real society. For example in Japan they are allowed to vote over 18 years old and such kind of things and we are very happy regardless of the what kind of punishment are they and how long are they in the prisons or i don't totally care about that regulation as long as they are the member of society as long as they are in the prisons that we are very happy to give right to vote for those people so point no thank you okay moving on to the first point about the importance of protection of the fundamental human"
+          },
+          {
+            "id": 2275,
+            "sequence_id": 3,
+            "start": 1034.54,
+            "end": 1061.06,
+            "text": "right for prisoners i have two reasons here first of all in very general topic even prisoners they already have fundamental human right to begin with right for example they already have fundamental human right to begin with right for example they have of course the right to life for example they are available to have adequate food they can have enough amount of sleep and of course there is no worries of torture right this should be allowed and there"
+          },
+          {
+            "id": 2276,
+            "sequence_id": 4,
+            "start": 1061.06,
+            "end": 1085.76,
+            "text": "is no prisons to intervene here and And more than that, we actually allow prisoners to have to some extent of the access to society. What does it mean? In terms of the cultural happiness, for example, they have access to know about society well by reading a book or by watching TV or by reading a newspaper or something like this."
+          },
+          {
+            "id": 2277,
+            "sequence_id": 5,
+            "start": 1085.76,
+            "end": 1107.9,
+            "text": "And they of course can work in accordance with the real working environment to go back to society easier and to feel the kind of member of the society. That's why we actually allow prisoners to pursue to some extent of the quality life as well as right to life under the title of the fundamental human right to very much begin with."
+          },
+          {
+            "id": 2278,
+            "sequence_id": 6,
+            "start": 1108.36,
+            "end": 1121.3,
+            "text": "That's why second of all, the right to vote should be regarded as fundamental human right. That's why we should recognize this should be given to prisoners as well. Not yet."
+          },
+          {
+            "id": 2279,
+            "sequence_id": 7,
+            "start": 1121.72,
+            "end": 1138.9,
+            "text": "So what do I mean? For example, even status quo, regardless who you are, such as gender, nationality, generation, income, the right to participate to politics, the right to reflect your opinion to politics is actually allowed to every single people, ladies and"
+          },
+          {
+            "id": 2280,
+            "sequence_id": 8,
+            "start": 1138.9,
+            "end": 1174.72,
+            "text": "gentlemen, because we, of course, recognize the importance of the liberal democratic societies to try to catch up every single opinion and to try to decide the priority of the process and the law, ladies and gentlemen. That's why this should be done regardless of who you are, no matter how many, no matter how prisoners actually committed the crime in the past, right? That's why it is important to represent your opinion, and they can finally feel as members of society, you should be allowed any point of mission before any."
+          },
+          {
+            "id": 2281,
+            "sequence_id": 9,
+            "start": 1175.22,
+            "end": 1175.66,
+            "text": "Point."
+          },
+          {
+            "id": 2282,
+            "sequence_id": 10,
+            "start": 1176.24,
+            "end": 1178.48,
+            "text": "I take it. Taken. Taken."
+          },
+          {
+            "id": 2283,
+            "sequence_id": 11,
+            "start": 1179.24,
+            "end": 1215.68,
+            "text": "Why should criminals like Nicholas Cruz, who shot up dozens of innocent children in Florida, be allowed to vote on gun control? Thank you. First of all, don't just stick to the extreme opinion to begin with. Second of all, even for those people, we should allow the right to voice out your opinion as a member of society, which is the same example the right to publish books to the public I'm going to explain analogy a little bit later okay moving on to the second point about that's why"
+          },
+          {
+            "id": 2284,
+            "sequence_id": 12,
+            "start": 1215.68,
+            "end": 1225.06,
+            "text": "we recognize this the treatment current treatment to prisoner is kind of the disfranchisement of the fundamental human right for the prisoners, right?"
+          },
+          {
+            "id": 2285,
+            "sequence_id": 13,
+            "start": 1225.52,
+            "end": 1278.24,
+            "text": "So like I say in analogy the example here so for example the right to voice out your opinion is already allowed and of course the right to Right to somehow make change other people's opinion is also allowed in the status quo for example, like remember, for example, some of the very bad guys, like a serial killer, published some of the statements from prison, and this is actually a kind of supportive opinion for the criminal. Like, please remember that Yamayuri and Uematsu Hikoku actually published a statement that kind of the people, there are some people, handicapped people should be terminated, right? But it is actually allowed to state it and allowed to publicize to society, right?"
+          },
+          {
+            "id": 2286,
+            "sequence_id": 14,
+            "start": 1278.96,
+            "end": 1300.12,
+            "text": "But this is the point. It is allowed to voice out, but it's totally a free choice of every single individual whether or not they're going to take it seriously and of course that kind of extreme opinion must be burned out in natural discourses and it should be uh should this kind of idea should not be taken"
+          },
+          {
+            "id": 2287,
+            "sequence_id": 15,
+            "start": 1300.12,
+            "end": 1334.5,
+            "text": "right so moving on to the practical benefit for society and criminal so why it is good for criminal i have a good point of in terms of rehabilitation because they finally get the incentive to know about the actual society right because political party can provide a benefit for them that's why they have very happy incentive to know about what kind of current news appears and they can start reading a book about the political party or you know the current affairs and so on by"
+          },
+          {
+            "id": 2288,
+            "sequence_id": 16,
+            "start": 1334.88,
+            "end": 1354.62,
+            "text": "watching a TV as well. That's why they can finally understand the common sense of the society rule regulation and as and in the future, they will be easier to adapt to society with enough adequate ability of the common sense."
+          },
+          {
+            "id": 2289,
+            "sequence_id": 17,
+            "start": 1354.62,
+            "end": 1398,
+            "text": "Second of all, in terms of society, it is also good, because political party has massive incentive to reflect the prisoner opinion right that's why they can find try to identify what kind of benefit they like to get and they like to solve the prison issues in prison for example the very you know the not good quality of the prison environment is happening at the moment political party are very happy to fix by presenting a manifest and so on. For example, the financial issue is also the problem at cause and the trigger of the criminal. The political parties are very happy to try to tackle against that."
+          }
+        ]
+      },
+      {
+        "id": 162,
+        "argument_units": [
+          {
+            "id": 2290,
+            "sequence_id": 18,
+            "start": 1439.22,
+            "end": 1465.36,
+            "text": "The crux of government's case was that voting is a fundamental right that should be granted to everyone and to every single person in the world. PM also brought to you that there are going to be benefits to criminals, but also society as well, because there's going to be a way of trying to incentivize these criminals to not commit a crime anymore, and that we think that political parties are able to find the middle ground of"
+          },
+          {
+            "id": 2291,
+            "sequence_id": 19,
+            "start": 1465.36,
+            "end": 1481.3,
+            "text": "benefits. I think that the biggest issue with the prime minister was that they neglected the fact that voting is not a fundamental right, but rather a privilege. Why is this true? Because we think that in the vast majority of instances, the voting comes with certain responsibilities,"
+          },
+          {
+            "id": 2292,
+            "sequence_id": 20,
+            "start": 1481.78,
+            "end": 1520.96,
+            "text": "and that responsibility is to uphold the law and make sure that you are able to look after what the government wants you to do. Look, if PM and government side of the bench is trying to promote this idea of fundamental rights, they need to prove to you why we can still kick out and exclude minors and young children from voting. They also need to prove to you that if it's such a fundamental right that it's upholding our sense of dignity, they need to prove to you why we don't allow these young children to vote or in the case of people like me who come from Korea but don't have a certain nationality. We think that if voting is a fundamental right,"
+          },
+          {
+            "id": 2293,
+            "sequence_id": 21,
+            "start": 1521.12,
+            "end": 1534.88,
+            "text": "they need to be able to explain to you why these people cannot just vote. Therefore, I'm going to examine one issue in rebuttal first. Given that they haven't absolutely failed in proving their burden upon why voting is a fundamental right, I'm going to"
+          },
+          {
+            "id": 2294,
+            "sequence_id": 22,
+            "start": 1534.88,
+            "end": 1600.46,
+            "text": "talk to you about the pragmatic consequences that they talked about. They said that criminals are able to publish books, so given that logic, you should allow prisoners to vote. Realize that there's a fundamental difference between publishing a book and voting, right? First, we kind of like doubt the premise that you can publish a book during your criminal ages, but let's assume you can. Look, the difference of publishing a book is that in the case of publishing a book, you're reflecting the fact of why you had to commit a criminal, and it's showing a sense of guilt in committing a crime, right? This is different from voting, when prisoners try to legitimize their views and agree to more radical changes in the case of catering to politicians, right? I think there's a fundamental difference between public books, and we don't think that should be a metric for allowing prisoners to vote. Now, given that, if they want to say that, then we say the fact that we are already removing certain rights in the case of prisoners because they broke state laws is self-indicative of the fact that this isn't a fundamental right and isn't beneficial to criminals. I'm going to explain two arguments in my speech."
+          },
+          {
+            "id": 2295,
+            "sequence_id": 23,
+            "start": 1600.66,
+            "end": 1646.9,
+            "text": "First, why this is principally incorrect. Secondly, why it leads to worse social outcomes. Let's look at the principles first. Two layers in this argument. First, is as I explained earlier, and this will directly clash with the argument about what is voting. We think voting is a privilege, and this privilege comes with certain responsibilities and the responsibility to obey the law. The fact that you are a prisoner is the act of refusing to obey the law. That means that the state is justified in removing certain rights in order for them to make this kind of certain rehabilitations, right? I think that the fact that you became a prisoner and disregarded the law means that you shouldn't be able to be allowed to benefit from the democratic system that you yourself decided to reject."
+          },
+          {
+            "id": 2296,
+            "sequence_id": 24,
+            "start": 1647.1,
+            "end": 1678.3,
+            "text": "We think that's a fundamental principle upon which voting should be based on. And in the case of minors, we think that the reason why we don't allow them is that they can't uphold the responsibilities of being part of democratic system, but also that they can make a rational judgment because they're still young and they haven't completed the proper system of education that the state mandate did. That's why voting isn't the fundamental right like PM tried to bring to you. It is a privilege and we think that the moment the prisoners broke this privilege on their own, they shouldn't be allowed to. But secondly,"
+          },
+          {
+            "id": 2297,
+            "sequence_id": 25,
+            "start": 1678.54,
+            "end": 1729.68,
+            "text": "let's look at moral outcomes. We think it is conflicting for prisoners to be allowed to vote on things that literally sent them to jail for. That's why I gave you the example of Nicholas Cruz, right? Because we don't think that school shooters or people who shot people with guns should be allowed to talk about gun control. That rapists shouldn't be able to vote on abortion. But let's take government's best case. That is that these kind of examples are extremely rare and that in the vast majority of cases, it's like economic crimes like stealing stuff. We think that still, the fact that it is principally you are able to vote on the things that sent you to jail isn't something that should be principally correct. For instance, in the case of people stealing stuff, we don't think that there should be policies that allow like less punishment for stealing other person's property, right? We don't"
+          },
+          {
+            "id": 2298,
+            "sequence_id": 26,
+            "start": 1729.68,
+            "end": 1770.96,
+            "text": "think that's something morally correct. Now, we think the point of law is to tell people that there's a line you cannot cross. And the fact that you are going to allow prisoners to vote means that you're going to be legitimizing their views because we think because just in terms of of like breaking the law but also allowing the vote means that they they're legitimizing their own views about like school shootings and stealing stuff because that's one they want people to cater to their own needs in the case of moral high grounds and judging by the victims like self-reflection upon the fact that they're going to have like murderers of their daughters voting on gun control or like how to use knives we think that we cite as the more high"
+          },
+          {
+            "id": 2299,
+            "sequence_id": 27,
+            "start": 1770.96,
+            "end": 1825.28,
+            "text": "but let's look at worse social outcomes next second argument will prisoners be able to vote for good the comparative is that on their side they're still going to be these prisoners are still going to be undergoing rehabilitation that is is, the prisoners are more likely to have conflicting ideas about, for instance, their thoughts about drugs or violence and the things that sent them to prison in the first place. That's why, presumably, it's still going to be dangerous for the prisoners for them to be able to go out of jail, we think that they're less likely to vote for dangerous things because it means that the state justifies that they have been able to go through successful rehabilitation. Secondly, though, we read out prisoners who face life sentences and death penalty because on our stance, we're just going to allow anyone who's not, who was able to recover and go out from rehabilitation to vote. That is, in the case of prisoners who"
+          },
+          {
+            "id": 2300,
+            "sequence_id": 28,
+            "start": 1825.28,
+            "end": 1848.8,
+            "text": "face life sentences and death penalty, I think these people are the most people that are likely to be disattached to life. And these people are going to vote for radical policies such as no abortion or legalizing pedophilia because they don't have the responsibility to look after society because they can't be able to go out in society in the first place. But thirdly, let's look at the perspective of those who want to get votes. Two layers."
+          },
+          {
+            "id": 2301,
+            "sequence_id": 29,
+            "start": 1848.8,
+            "end": 1881.22,
+            "text": "We think that prisoners become easy prey and this is going to be a block of three voters. That means A, they're going to be bribed with shorter sentences for having to vote. They're going to take private prisons where there's no authority of the government. Or B, is that they're just going to cater to prisoners needs which is the fact of like shorter sentences and less harsh punishments i think this will rather incentivize these prisoners to feel it is okay to commit they're still going to have this fundamental right therefore i think it is unjust for government to take this motion thank you"
+          }
+        ]
+      },
+      {
+        "id": 163,
+        "argument_units": [
+          {
+            "id": 2302,
+            "sequence_id": 30,
+            "start": 1886.3,
+            "end": 1965.76,
+            "text": "Thank you. we believe that prisoners are same human and same right are given for the people we have to respect prisoners right and my first speaker like clearly talked about that why That's why rights are included in both. So we're proud to propose. So for today's debate, let me prove you guys two things. One, why prisoners' opinion is precious, perfect, reflected in today's society. And two, like the comparison between the government and opposition, right? So before I move on to my argument,"
+          },
+          {
+            "id": 2303,
+            "sequence_id": 31,
+            "start": 1966.12,
+            "end": 2071.54,
+            "text": "let me have a clear rebuttal what the previous speaker was talking about. So the previous speaker was continuously claiming about that those exclusivity of kids and the exclusivity of the minor people are now given in the status quo. And that shows that vote is not every people's right. And there's a situation which is excluding, right? But the differences between the voters of minor people, as kids and those prisoners is that kids are just under knowledge, right? The reason is because they're not taught to have a rule of the society, right? They don't know what is the structure of the society, right? Compared to criminals, criminals have a certain knowledge and fulfill knowledge to have vote, right? For example, compulsory education is now finished to criminals in today's state of school, right? Furthermore, they said that rationality is a certain criteria we have to take and we can exclude in those kind of situation but for example like if we have a certain um like certain like issue of undereducated people like we have a certain question, right? Should we take those uneducated people just because they can't do rational judgments, right?"
+          },
+          {
+            "id": 2304,
+            "sequence_id": 32,
+            "start": 2071.54,
+            "end": 2154.74,
+            "text": "The answer is no. We can't take those rights to vote of those kind of things. And rational judgment is not just a reason to take rights to vote. Take them. Take them. Okay, so, okay. To clarify, you're saying that prisoners are rational and knowledgeable, despite the fact that they might have committed and breaking the law and even potentially taking someone else's life. So you're, like, saying that those, are just having a certain cruel thinking, and it should be also excluded. But this is not a debate that we're talking about those situations. We're talking about whether or not right we're talking about like whether or not like those rights are excluded or not and this debate will be that our side are now like including the right and my first speaker is completely like um proving why vote is included right furthermore like, what the previous speaker was talking about is that it will, like, reduce punishment when, like, those prisoners' opinions are reflected, right?"
+          },
+          {
+            "id": 2305,
+            "sequence_id": 33,
+            "start": 2155.42,
+            "end": 2178.42,
+            "text": "But this is not true. Like, punishment is not the category that will be, like, changing. But the category we're trying to support is those criminals' reasoning why they committed crime and changing the social structure and the status quo. Point. So, moving on to my argument."
+          },
+          {
+            "id": 2306,
+            "sequence_id": 34,
+            "start": 2178.42,
+            "end": 2374.34,
+            "text": "One, why prisoners of Ghanian is precious for reflecting in today's society. So let me make a clear analysis of what is prisoners. Prisoners are knowing the best why they did crime and what is the psychological thinking of why they committed crime, right? So let me take committed crime, right? So let me take, like, such, like, several cases, right? For example, like, the cases of robbing, right? When prisoners does robbing, like, they, like, rob things, like, of other people but like the reason will be like mostly like the social like um like the financial problem or something right so the financial problem is now like given like those prisoners like incentive to do like robbing so as we see like those kind of cases, prisoners are having a problem that social structure is now not fulfilling to those prisoners. So to that extent, we can reflect prisoners' opinion that they have lack of social welfare and government can like notice what is the problem that is occurring and can like contribute to this society right the like other cases are like also like clear that for example like murder right when murder is happening those prisoners can only know why they murder, right? What is the, like, what is the reason they did, and what is the issue, right? Most of the time, like, stress are, like, given, right? So we can't, so as we take this motion, we can contribute to change this society and reflecting opinions right the impact of this argument is that government can't know even if like prisoners like investigation are given and like psychological like investigation are given right the only one that can know about the consequences and circumstances of prisoners, it's the prisoner's own, right? So it's a beneficial thing to take this debate. So lastly, let me briefly, like, compare between the government and opposition, right? So the opposition is like keep talking about like the principle of the argument and why this is unjust for taking but they didn't like even talk about like what is the certain impact of like not taking and They didn't like really extend about that. Our side of the house are clearly talking, we can contribute those opinions to this society and make a world with prisoners and those citizens can live safe. These are the reasons why we are about to propose."
+          },
+          {
+            "id": 2307,
+            "sequence_id": 35,
+            "start": 2374.5,
+            "end": 2374.74,
+            "text": "Thank you."
+          }
+        ]
+      },
+      {
+        "id": 164,
+        "argument_units": [
+          {
+            "id": 2308,
+            "sequence_id": 36,
+            "start": 2403.54,
+            "end": 2455.08,
+            "text": "完璧です Can you hear me? Yes, I can. when we actually say that these things are going to harm more to these prisoners itself and also the society. That's actually why we're going to say that we should not allow prisoners to vote. All right, before moving to our argument, I'd like to rebut to some of their points. Well, firstly, they say that criminals are not, like, knowledgeable. But firstly, if they were, we think that they won't break these kind of laws of these guys' democracy. Because if they are the knowledgeable people, we think that they're going to obey these kind of laws."
+          },
+          {
+            "id": 2309,
+            "sequence_id": 37,
+            "start": 2455.08,
+            "end": 2489.42,
+            "text": "That's actually why we think that it is not the problem. It is not the thing that they should talk about. Secondly, they say that by voting, people, the citizens can know what kind of certain policy is going to be reflected. But firstly, we say that voting doesn't mean you can know why criminals committed crime. It's just voting for a certain policy. We think that it's not going to be a fundamental solution for it."
+          },
+          {
+            "id": 2310,
+            "sequence_id": 38,
+            "start": 2489.42,
+            "end": 2533.64,
+            "text": "And if you want to know why they committed the crime, we think that we can ask them during these rehabilitation sessions. And secondly, we say that they can voice out, like publishing a book or other things, as they told, right? We think that because of this, if the people, the citizens who are not the prisoners, if they are going to say that, oh, it is right, then they are going to vote for these prisoners. We think that it's going to be a fundamental solution. And we think that because they have these kind of ways to do it, we think that this is not going to be a justifiable reason."
+          },
+          {
+            "id": 2311,
+            "sequence_id": 39,
+            "start": 2533.94,
+            "end": 2596.52,
+            "text": "They're going to be privileged to vote in these certain elections. That is actually why we're going to say it is unjust. But moreover, we say that because these prisoners once harmed our studies, we think that these kinds of things is going to be a retribution for these people. Why is it so? Because if you harm the studies, you're going to be resurrected, some kind of things, right? As we told you, for example, you're going to be in the prison for a certain time. You cannot go out easily from these prisons until you're going to have those rehabilitations. Why is it so? Because we say the rehabilitation should be the time that you're going to see your crime and you're going to say that I did something wrong. And this means that these people are going to move well in order not to be prisoners and not going to have those secondhand crimes, right? We think that these things, it's going to be a deterrent for these people to commit a new crime or like death. That's actually why we're going to say this criminal system and justice system is moving well in the"
+          },
+          {
+            "id": 2312,
+            "sequence_id": 40,
+            "start": 2596.52,
+            "end": 2633.38,
+            "text": "current time. All right, moving to our argument. All right, our argument is very simple. We're going to talk about these politicians' lenient policies that stigmatize these prisoners. What is so? Firstly, we like to talk about what is politicians? Politicians are the people who are going to think about every people who can vote in these elections. It's these people, because these people want to be elected in these elections, because if they're not going to be elected, they're going to lose their jobs and salaries. And so actually, these people are going to think about every people who are going to vote."
+          },
+          {
+            "id": 2313,
+            "sequence_id": 41,
+            "start": 2633.6,
+            "end": 2700.58,
+            "text": "Secondly, we say that the system of democracy is given one vote to each voter. That is actually why we're going to say that if these kind of like prisoners, not prisoners, these politicians can get more votes, this means that these politicians have more possibility that they're going to be elected. That's actually why these politicians are going to, we think, that politicians are going to think about the individuals. Therefore, if there's some kind of new right, for example, in this case, if these prisoners are going to be given a new right to vote, this means that the politicians are going to try to make a policy for these prisoners too. And as we think that most of these political parties are going to try to increase these rights. And we think that these things are going to the things that are going to happen is that, one, is that these they are going to say about these prisoners have the right so we are going to reduce these criminal justice systems. For example, if, like, for example, you're going to abolish death penalty or prevent"
+          },
+          {
+            "id": 2314,
+            "sequence_id": 42,
+            "start": 2700.58,
+            "end": 2753.86,
+            "text": "giving harsh punishment to rapists or other people, or you're going to reduce these works in the prison, or other things. And we think that this means that these deterrents are going to be reduced in these cases, too. What is the harm? We think that social harm is happening in this case, right? Because they're going to have less deterrence, less retribution, which means that these secondhand crime or other things is going to increase, and this means that something like crime cases or secondhand crime, juvenile crime, or some kind of specific of these kind of crimes is going to increase. So what is the harm? We say that the stigmatization is going to happen to these prisoners, and it's going to harm these prisoners. What is the harm? We say that the stigmatization is going to happen to these prisoners, and it's going to harm these prisoners. What is so? We say that no policies move 100% well. There are some failures."
+          },
+          {
+            "id": 2315,
+            "sequence_id": 43,
+            "start": 2754.58,
+            "end": 2782.14,
+            "text": "And now, for example, if you are young, you're going to say, because you're young, you do some kind of radical thing or like that. And asking the stigmatization will happen in these cases. What kind of harm is going to happen? We say that the negative campaign is going to harm more to these prisoners. Why is that? Because if you're going to be in the opposition party and you're going to criticize your government, we say that the scapegoat that you can use is the prisoners, right? Because the crime is going to increase, you say that, oh, because"
+          },
+          {
+            "id": 2316,
+            "sequence_id": 44,
+            "start": 2782.14,
+            "end": 2848.06,
+            "text": "the government did some kind of these things, we say that there are going to be more crimes in societies or other things, and the media are going to say these things too. So, actually, this means that the students are going to be affected and radicalized these things. This is the same case of the Hispanic problem of America or the refugee problem of EU or other things. We say that the alienized people are going to be stigmatized in these cases. Moreover, because they have some problem of EU or like other things. We say that alienized people are going to be in fact are going to be stigmatized in these cases. Moreover because they have something wrong in the past people have the more possibility to be stigmatized. What is the harm? Firstly we say that prevention we say that there are going to be less retributions and rehabilitation because like more like companies or like other people think that they don't want to be except these people we say that there are going to be less rehabilitation secondly we say that the division on the societies is going to happen there are going to be more pressure to the societies by defamation or harassment thirdly we say the people are going to vote to this opposition radical party and this means that their people politicians are going to take away more rights of the prisoners because they are going to be radical acts that's actually why we're going to say these harms will happen. Thank you."
+          }
+        ]
+      },
+      {
+        "id": 165,
+        "argument_units": [
+          {
+            "id": 2317,
+            "sequence_id": 45,
+            "start": 2855.38,
+            "end": 2910.94,
+            "text": "the negative team. Wait for a minute. The world we saw government draw is a world like this. A world where the murderer of your son can be allowed to shout for gun control. Where the rapist of your daughter can vote for abortion. Or even someone who stole money from you, which was supposed to be used to treat your mom's cancer, is going to get away scot-free because according to a member of government, it was a failure of the state. I think as opposition,"
+          },
+          {
+            "id": 2318,
+            "sequence_id": 46,
+            "start": 2911.64,
+            "end": 2939.88,
+            "text": "it's pretty abhorrent to say the people who have broken the law or potentially even taken lives or taken someone else's property. And I think it is morally abhorrent to say these kind of people are knowledgeable and rational so we can provide them the right to vote, right? I think it is morally important to say these kind of people are knowledgeable and rational so we can provide them the right to vote. I think the moment they decided to not take the side and take the side of victims, we think that we win this debate. I'm going to examine two issues in this speech and I'm going to examine the failures of government."
+          },
+          {
+            "id": 2319,
+            "sequence_id": 47,
+            "start": 2940.36,
+            "end": 2991.42,
+            "text": "First, let's look at the principle because I think it's pretty clear that they already dropped the point about voting, but I'm going to talk about it. I think the government failed in engaging any points about how prisoners shouldn't be allowed to vote, especially for the things that sent them to jail, right? We think it's pretty weird for them to put prisoners into jails and say, but can still like try to convince us to not do so. We think that's a pretty weak stance for government to take. And the only response and engagement we heard throughout this whole debate was that, ah, that in the vast majority of instances, that people are so poor so they can go to jail so you can vote. Look, I think that this is extremely disrespectful for all the rational and hardworking people who don't cross the line of the inhumane act of taking someone else's stuff."
+          },
+          {
+            "id": 2320,
+            "sequence_id": 48,
+            "start": 2991.8,
+            "end": 3031.82,
+            "text": "And even if we take their best case scenario that these prisoners, like these people who were coerced into committing crimes should vote, then we think they could vote after jail because that's the moment their citizenship is returned and that the state makes sure that they have been properly rehabilitated and they have been able to successfully reintegrate the society. On a principal level, it is extremely bad and extremely abhorrent and extremely disrespectful for government to say that prisoners are really capable actors. I don't know why they decided to side with on the side of murderers, but I'm going to go with the stance the government brought to you. Given this,"
+          },
+          {
+            "id": 2321,
+            "sequence_id": 49,
+            "start": 3031.98,
+            "end": 3055.48,
+            "text": "I think the voting is clearly a privilege that all the people who have contributed to the well-being of society in the terms of perhaps taxation, who don't make the inhumane judgment of breaking the law or taking someone else's life, those are the people that voting should only be granted to. On a principle level, this shit is already unjustified. So we say we take this debate. But I'm going to examine this"
+          },
+          {
+            "id": 2322,
+            "sequence_id": 50,
+            "start": 3055.48,
+            "end": 3110.66,
+            "text": "debate further and look at the pragmatics, right? Again, government side was absolutely unable to engage in our points about how there's going to be bribery in private prisons because there's no regulation by the government. We told you the politicians are going to be detrimental in the fact that there's still going to, there's going to be policies that cater to these like pretty radical ideas of potentially no abortion for nurses. We think this is inhumane for government to try to defend. But let's take the best, best case scenario. That was the whole rhetoric about how like you need to find a middle ground, right? And we have to prioritize prisoners. Again, I'm not sure why they're siding with thieves and burglars and murderers and rapists, but let's say that you want to find a middle ground."
+          },
+          {
+            "id": 2323,
+            "sequence_id": 51,
+            "start": 3110.94,
+            "end": 3138.58,
+            "text": "We think that the way to find a middle ground is not for prisoners to vote on certain policies. It is to literally have a one-on-one talk with them during rehab sessions. So even under the best case scenario, it's still possible on our side. There was no engagement coming whatsoever from my second speaker talking about how there's going to be stigmatization, there's bad policies. Even if we take their best case scenario where we prioritize prisoners' needs, we think that that side is achievable on our side. Those side members are murderers."
+          }
+        ]
+      },
+      {
+        "id": 166,
+        "argument_units": [
+          {
+            "id": 2324,
+            "sequence_id": 52,
+            "start": 3157,
+            "end": 3182.48,
+            "text": "Speaker, have you ever heard such a double standard stance coming from opposition? Although so many freedoms are actually allowed in even the opposition paradigm, under the title of respecting the fundamental human right, such as right to voice out your opinion by publishing books, such as right to marry in the prisons, such as right to know about society by watching news, by reading a book, right? But why only"
+          },
+          {
+            "id": 2325,
+            "sequence_id": 53,
+            "start": 3182.48,
+            "end": 3203.16,
+            "text": "right to represent your political opinion should be terminated, should be infringed? I've never heard this exclusive reason from opposition side. That's why under the title of respecting the one important right, we should exactly same way as other right, we should allow prisoners to vote. Two conclusions here. First of all,"
+          },
+          {
+            "id": 2326,
+            "sequence_id": 54,
+            "start": 3203.32,
+            "end": 3212,
+            "text": "whether or not prisoners are allowed in terms of a justification issue. First of all, whether or not prisoners are allowed in terms of the justification issue. Second of all, which can create better society. Moving on to the first"
+          },
+          {
+            "id": 2327,
+            "sequence_id": 55,
+            "start": 3212.56,
+            "end": 3225.64,
+            "text": "samples about the justification issue. So I have heard probably some of the reasons why they have it is not justifiable to give the right to vote for prisoners. So in terms of rationality, right?"
+          },
+          {
+            "id": 2328,
+            "sequence_id": 56,
+            "start": 3225.64,
+            "end": 3231.52,
+            "text": "So they say prisoners are not rational enough because they once break the law."
+          },
+          {
+            "id": 2329,
+            "sequence_id": 57,
+            "start": 3231.94,
+            "end": 3236.84,
+            "text": "We should not give the right to vote or something like this. So here's some rebuttals."
+          },
+          {
+            "id": 2330,
+            "sequence_id": 58,
+            "start": 3237.06,
+            "end": 3259.36,
+            "text": "Number one, prisoners actually, my great partner already tell you that they already graduated compulsory Peer. That's why they already know the fundamental rules of society. We should grant them as they are rational, right? We should recognize them as rational, right? So this is the unconditional right to voting system to"
+          },
+          {
+            "id": 2331,
+            "sequence_id": 59,
+            "start": 3259.36,
+            "end": 3285.48,
+            "text": "very much begin with. That's why and they say that what about children so difference between children is that who don't really have the right to vote is that so of course children has not passed the compulsory education period yet but those prisoners actually passed the compulsory education period that's why they should be unconditionally know the fundamental rules that's what we should recognize them as rational"
+          },
+          {
+            "id": 2332,
+            "sequence_id": 60,
+            "start": 3285.48,
+            "end": 3313.1,
+            "text": "being and even if somehow those people are not rational enough because they are not educated well that's governmental failure to educate people to implant the appropriate amount of the common sense and regulation rule this kind of academic structure to begin with right that's governmental failure to bear the burden it's unjustifiable to push the entire burden on prisoners to deprive the right to vote"
+          },
+          {
+            "id": 2333,
+            "sequence_id": 61,
+            "start": 3313.1,
+            "end": 3345.54,
+            "text": "to begin with and second of all second rebuttal is that so in terms of rationality so it is the fact they once break the law in the past but it doesn't mean that they are not reflected their past action right they have potentially to fully reflect their past action and they have motivation they have ability to bring up reflected will to society right they at least should consider this kind of other scenario as well."
+          },
+          {
+            "id": 2334,
+            "sequence_id": 62,
+            "start": 3345.54,
+            "end": 3356.84,
+            "text": "And last of all, this is the most important argument. Even if somehow they are not rational and rational, this argument doesn't matter. Why is that so?"
+          },
+          {
+            "id": 2335,
+            "sequence_id": 63,
+            "start": 3356.84,
+            "end": 3364.12,
+            "text": "Because it is not justifiable to ask rationality for acquisition of voting rights to begin"
+          },
+          {
+            "id": 2336,
+            "sequence_id": 64,
+            "start": 3364.12,
+            "end": 3411.84,
+            "text": "with. to ask rationality for acquisition of voting right to begin with, right? Think about it, for example, in terms of economic policy, who is actually better people who can assess about the economics, future economics, is because it's probably the people who already graduated the university and who are very educated well, right? But we unconditionally grant the right to vote for every single citizen,大学に行って、教育をしている人たちにも、でも、私たちは、 自分たちの人々にとって、 学校の背景に関して、 自分たちの人々にとって、 自分たちの人々にとって、 自分たちの人々にとって、 自分たちの人々にとって、 自分たちの人々にとって、オフポースまた、 to begin with.That's why fundamentally they should have right to vote. So second vote… もう同じかんか。 Okay, so I don't have time, so I'm very happy to propose. Thank you."
+          }
+        ]
+      }
+    ]
+  }

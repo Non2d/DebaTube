@@ -16,7 +16,7 @@ from log_config import logger
 
 router = APIRouter()
 
-from cruds.gpt import segment2argment_units, argument_units2rebuttals, speeches2rebuttals
+from cruds.gpt import segment2argument_units, segment2argument_units_unstructured, speeches2rebuttals, digest2motion
 
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
@@ -29,6 +29,20 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     rounds = result.scalars().unique().all()
     return rounds
+
+@router.get("/rounds/{round_id}")
+async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    ).filter_by(id=round_id)
+    result = await db.execute(query)
+    round = result.scalars().first()
+    if round is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    return round
 
 
 # request schema
@@ -99,6 +113,11 @@ class RoundResponse(BaseModel):
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
     if len(round_create.speeches) not in [6, 8]:
         raise HTTPException(status_code=400, detail="The number of speeches must be 6 or 8.")
+    
+    logger.info(f"round_create.title: {round_create.title}, is empty?: {round_create.title == ''}")
+    
+    if round_create.title == "":
+        raise HTTPException(status_code=400, detail="Title must not be empty.")
 
     round = round_db_model.Round(
         title=round_create.title,
@@ -110,8 +129,14 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
 
     start_time = time.time()  # 開始時間を記録
 
+    # POIの処理
+    # pois = []
+    # pois.append(round_db_model.Poi(argument_unit_id=1, round=round))
+    # pois.append(round_db_model.Poi(argument_unit_id=2, round=round))
+    # db.add_all(pois)
+
     # ここでsegment2argment_unitsの処理を並行実行
-    segment_tasks = [segment2argment_units(speech_create) for speech_create in round_create.speeches]
+    segment_tasks = [segment2argument_units(speech_create) for speech_create in round_create.speeches]
     segment_results = await asyncio.gather(*segment_tasks)  # 並行実行して結果を待つ
 
     sequence_id = 0
@@ -151,20 +176,9 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     
     db.add_all(speeches)  # スピーチをデータベースに追加
 
-    # POIとRebuttalの処理
-    # pois = []
-    # pois.append(round_db_model.Poi(argument_unit_id=1, round=round))
-    # pois.append(round_db_model.Poi(argument_unit_id=2, round=round))
-    # db.add_all(pois)
-
-    # ~~GPTによるRebuttal判定処理~~
-    logger.info("GPTによるRebuttal判定処理")
-    logger.info(speeches[0].argument_units)
-
-    rebuttals = await speeches2rebuttals(speeches)
-
-    logger.info("えげつない反論集:"+str(rebuttals))
-
+    # GPTによる反論判定
+    rebuttals = await speeches2rebuttals(speeches) 
+    logger.info("反論:"+str(rebuttals))
     db_rebuttals = []
     for rebuttal in rebuttals:
         db_rebuttals.append(
@@ -174,10 +188,9 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
                 round=round
             )
         )
-    
     db.add_all(db_rebuttals)
 
-    # データベースの変更をコミット
+    # ここまでの変更全てをコミット
     await db.commit()
     await db.refresh(round)
 
@@ -199,10 +212,9 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
 
     return round
 
-@router.post("/segment2argment_units")
-async def test_segment2argment_units(texts: List[SegmentCreate]):
-    return await segment2argment_units(texts)
+class DigestRequest(BaseModel):
+    digest: str
 
-@router.post("/argument_units2rebuttals")
-async def test_argument_units2rebuttals(src_speech: List[ArgumentUnitCreate], tgt_speech: List[ArgumentUnitCreate]):
-    return await argument_units2rebuttals(src_speech, tgt_speech)
+@router.post("/motion")
+async def create_motion(round_digest: DigestRequest):
+    return await digest2motion(round_digest)

@@ -7,7 +7,8 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   addEdge,
-  SelectionMode
+  SelectionMode,
+  useReactFlow,
 } from 'reactflow';
 
 import RootNode from './RootNode';

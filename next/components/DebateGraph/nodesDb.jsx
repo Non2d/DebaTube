@@ -2,7 +2,7 @@ const fetchNodes = async (roundId) => {
   try {
     const xpos = 800;
     const nodes = []
-    const response = await fetch(`http://localhost:8080/round/${roundId}`);
+    const response = await fetch(`http://localhost:8080/rounds/${roundId}`);
     const data = await response.json();
 
     nodes.push({ id: "proSignpost", type: "rootNode", position: { x: 0, y: 0 }, data: { label: "Proposition Side" } });

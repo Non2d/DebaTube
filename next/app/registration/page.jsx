@@ -2,6 +2,7 @@
 import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
+import { request } from 'http';
 
 // Difinition: asr + diarization = transcript
 
@@ -19,6 +20,7 @@ export default function Home() {
 
         setError('');
         setFileName(selectedFile.name);
+        setTitle(selectedFile.name.split('.')[0]);
 
         const reader = new FileReader();
         reader.readAsText(selectedFile);
@@ -36,6 +38,37 @@ export default function Home() {
         try {
             const content = await readerPromise;
             setTranscript(content.speeches);
+
+            const first20SegmentsOfPM = content.speeches[0]
+                .slice(0, 10)
+                .map(segment => segment.text)
+                .join('');
+
+            const first20SegmentsOfLO = content.speeches[1]
+                .slice(0, 10)
+                .map(segment => segment.text)
+                .join('');
+
+            const requestText = "1st proposition:"+first20SegmentsOfPM+", 1st opposition:"+first20SegmentsOfLO;
+            
+            console.log(requestText);
+
+            const response = await fetch('http://localhost:8080/motion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ digest: requestText }),
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+
+            console.log(data);
+            setMotion(data);
         } catch (error) {
             handleCancel();
             toast.error('Error reading file: ' + error.message);
@@ -54,6 +87,8 @@ export default function Home() {
                 "speeches": transcript, //あとでUPDATEで上書きされる
             }
 
+            console.log("motion: ", motion, "title: ", title, "check: ", motion == "");
+
             const data = await toast.promise(
                 (async () => {
                     const response = await fetch('http://localhost:8080/rounds', {
@@ -66,7 +101,7 @@ export default function Home() {
 
                     if (!response.ok) { //これがないと、Promise自体はResolve=成功扱いになる
                         const errorData = await response.json();
-                        throw new Error(errorData.message || 'Sorry, no idea what happened.');
+                        throw new Error(errorData.detail || 'Sorry, no idea what happened.');
                     }
 
                     const data = await response.json();
@@ -112,7 +147,7 @@ export default function Home() {
                         <input
                             type="text"
                             id="motion"
-                            placeholder="This House Supports Hate Speech"
+                            placeholder="This House..."
                             className="mt-1 p-2 border w-full rounded"
                             value={motion}
                             onChange={(e) => setMotion(e.target.value)}
