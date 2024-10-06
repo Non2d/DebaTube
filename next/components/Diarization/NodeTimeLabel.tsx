@@ -1,9 +1,11 @@
 import React, { useRef } from 'react';
 import { useAppContext } from '../../context/context';
+import toast from 'react-hot-toast';
 
 interface NodeTimeLabelProps {
   data: {
     seconds: number;
+    ytPlayer: YT.Player;
   };
 }
 
@@ -16,14 +18,21 @@ const NodeTimeLabel: React.FC<NodeTimeLabelProps> = ({ data }) => {
   const formattedTime = `${hours}:${String(minutes).padStart(2, '0')}:${seconds.toFixed(2).padStart(5, '0')}`;
 
   const popupRef = useRef<Window | null>(null);
+
+
   const jumpVideo = () => {
-    const youtubeUrl = `${youtubeLink}`+`&t=${Math.floor(data.seconds)}s`;
-    if (popupRef.current && !popupRef.current.closed) {
-      popupRef.current.location.href = youtubeUrl;
-      popupRef.current.focus();
+    if(youtubeLink){
+      data.ytPlayer.seekTo(data.seconds, true);
     } else {
-      popupRef.current = window.open(youtubeUrl, 'youtubePopup', 'width=800,height=600,scrollbars=no,resizable=no,left=1200,top=200');
+      toast.error('Youtube link or files are not set.');
     }
+    // const youtubeUrl = `${youtubeLink}`+`&t=${Math.floor(data.seconds)}s`;
+    // if (popupRef.current && !popupRef.current.closed) {
+    //   popupRef.current.location.href = youtubeUrl;
+    //   popupRef.current.focus();
+    // } else {
+    //   popupRef.current = window.open(youtubeUrl, 'youtubePopup', 'width=800,height=600,scrollbars=no,resizable=no,left=1200,top=200');
+    // }
   };
 
   return (

@@ -1,7 +1,7 @@
 const fetchEdges = async (roundId) => {
     try {
         const edges = []
-        const response = await fetch(`http://localhost:8080/round/${roundId}`);
+        const response = await fetch(`http://localhost:8080/rounds/${roundId}`);
         // 52: NA, 
         const data = await response.json();
 

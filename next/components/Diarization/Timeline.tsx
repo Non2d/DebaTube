@@ -20,7 +20,9 @@ import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../utils/
 
 import SidebarTimeline from './SidebarTimeline';
 
-interface AsrNodeDataProps{
+import Youtube from 'react-youtube';
+
+interface AsrNodeDataProps {
     text: string;
     start: number;
     end: number;
@@ -34,7 +36,7 @@ interface DiarizationNodeDataProps {
     height: number;
 }
 
-interface TimeLabelNodeDataProps{
+interface TimeLabelNodeDataProps {
     seconds: number;
 }
 
@@ -71,38 +73,49 @@ interface MenuDiarizationProps {
     [key: string]: any; // その他のプロパティを許可
 }
 
+function extractYoutubeVideoId(url: string): string | null {
+    const match = url.match(/v=([^&]+)/);
+    return match ? match[1] : null;
+}
+
 //文字起こしデータの取得・設定
 const Timeline = () => {
-    const { pois, setPois, nodeTransparency, setNodeTransparency, isNA, setIsNA, zoomLevel, setZoomLevel, asrFileName, setAsrFileName, diarizationFileName, setDiarizationFileName, exportFileName, setExportFileName } = useAppContext();
+    const [nodes, setNodes] = useState<Node[]>([]);
+
+    const { pois, setPois, nodeTransparency, setNodeTransparency, isNA, setIsNA, zoomLevel, setZoomLevel, asrFileName, setAsrFileName, diarizationFileName, setDiarizationFileName, exportFileName, setExportFileName, youtubeLink } = useAppContext();
     const [asrs, setAsrs] = React.useState<Asr[]>([]);
     const [diarizations, setDiarizations] = React.useState<Diarization[]>([]);
 
+    // Youtube Window
+    const ytId = extractYoutubeVideoId(youtubeLink);
+    const ytProps = {
+        height: (400 * 9) / 16,
+        width: 400,
+        playerVars: {
+            autoplay: 0, // 自動再生を無効
+        },
+    };
+    const [ytPlayer, setYtPlayer] = useState<YT.Player>();
+
     // time labels
-    const timeLabels: Node[] = [];
-    const interval = 5;
-    const duration = 180 * zoomLevel
+    const [timeLabels, setTimeLabels] = useState<Node[]>([]);
 
-    for (let i = 0; i <= duration; i += interval) {
-        timeLabels.push({
-            id: `tl-${i + 1}`,
-            type: 'NodeTimeLabel',
-            data: { seconds: i * 60 / zoomLevel },
-            position: { x: 0, y: -13 + i * 60 },
-        });
-    }
+    useEffect(() => {
+        const interval = 5;
+        const duration = 180 * zoomLevel;
+        const newTimeLabels: Node[] = [];
 
-    // Initial nodes
-    const [nodes, setNodes] = useState<Node[]>([
-        ...timeLabels,
-        // { id: 'dia-0001', type: 'NodeDiarization', data: { speakerId: 5, width: 3000, height: 60 }, position: { x: 90, y: 120 } },
-        // { id: 'dia-0002', type: 'NodeDiarization', data: { speakerId: 6, width: 3000, height: 60 }, position: { x: 90, y: 180 } },
-        // { id: 'dia-0003', type: 'NodeDiarization', data: { speakerId: 7, width: 3000, height: 60 }, position: { x: 90, y: 240 } },
-        // { id: 'dia-0004', type: 'NodeDiarization', data: { speakerId: 8, width: 3000, height: 60 }, position: { x: 90, y: 300 } },
-        // { id: 'asr-0001', type: 'NodeAsr', data: { text: 'This is a debate about whom politics has forgotten.', start: 0, end: 10, positionId: -1, isPoi: false }, position: { x: 90, y: 0 } },
-        // { id: 'asr-0002', type: 'NodeAsr', data: { text: 'Indivisuals eliminated when factries closed down.', start: 10, end: 20, positionId: -1, isPoi: false }, position: { x: 90, y: 100 } },
-        // { id: 'asr-0003', type: 'NodeAsr', data: { text: 'Individuals may not be experts in governance, but the experts in their own lives.', start: 20, end: 40, positionId: -1, isPoi: false }, position: { x: 90, y: 200 } },
-        // { id: 'asr-0004', type: 'NodeAsr', data: { text: 'Team England wants to talk about fear, but I tell you fear comes when you lose hope, because mainstream political party no longer represents you. And honestly, it is very demeaning for team England to come appear and say millions of people are duped, but they do not know what is right for them. We reject that on team opposition.', start: 40, end: 50, positionId: -1, isPoi: false }, position: { x: 90, y: 400 } },
-    ]);
+        for (let i = 0; i <= duration; i += interval) {
+            newTimeLabels.push({
+                id: `tl-${i + 1}`,
+                type: 'NodeTimeLabel',
+                data: { seconds: i * 60 / zoomLevel, ytPlayer: ytPlayer },
+                position: { x: 0, y: -13 + i * 60 },
+            });
+        }
+
+        setTimeLabels(newTimeLabels);
+    }, [ytPlayer, zoomLevel]);
 
     // Asr
     const handleAsrFileSelect = (file: File) => {
@@ -185,9 +198,9 @@ const Timeline = () => {
                 position: { x: 90, y: zoomLevel * diarization.start },
             };
         });
-        
+
         setNodes([...timeLabels, ...diarizationNodes, ...asrNodes]);
-    }, [asrs, diarizations, zoomLevel]);
+    }, [asrs, diarizations, zoomLevel, timeLabels]);
 
     //Menus
     const [menu, setMenu] = useState<MenuDiarizationProps | null>(null);
@@ -425,6 +438,11 @@ const Timeline = () => {
                 onAsrFileSelect={handleAsrFileSelect}
                 onDiarizationFileSelect={handleDiarizationFileSelect}
             />
+            {youtubeLink && (
+                <div className="fixed bottom-0 right-0">
+                    <Youtube videoId={ytId} opts={ytProps} onReady={(e: any) => setYtPlayer(e.target)} />
+                </div>
+            )}
         </div>
     );
 };

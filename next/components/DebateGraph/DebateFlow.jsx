@@ -56,25 +56,6 @@ export default function DebateFlow({roundId}) {
     [setEdges],
   );
 
-  // const [uniqueId, setUniqueId] = useState(0);
-  // const onAddNode = () => {
-  //   //ランダムな文を生成
-  //   const words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'ice', 'jackfruit', 'kiwi', 'lemon', 'mango', 'nectarine', 'orange', 'pineapple', 'quince', 'raspberry', 'strawberry', 'tangerine', 'ugli', 'victoria', 'watermelon', 'xigua', 'yellow', 'zucchini'];
-  //   let sentenceLength = Math.floor(5 + Math.random() * 25); // Change this to the desired sentence length
-  //   let sentence = '';
-  //   for (let i = 0; i < sentenceLength; i++) {
-  //     const randomIndex = Math.floor(Math.random() * words.length);
-  //     sentence += words[randomIndex] + ' ';
-  //   }
-  //   sentence = sentence.trim() + '.';
-
-  //   // Create a new node
-  //   const newNode = { id: "new" + uniqueId, type: "oppNode", position: { x: 700, y: 0 }, data: { label: sentence }, height: 100 };
-  //   setUniqueId(uniqueId + 1);
-  //   // Add the new node to the elements array
-  //   setNodes(nodes => [...nodes, newNode]);
-  // };
-
   return (
     consoleSize(),
     <div style={{ width: '100vw', height: '100vh' }}>

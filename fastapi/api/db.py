@@ -14,10 +14,6 @@ async_session = sessionmaker(
 
 Base = declarative_base()
 
-# async def get_db():
-#     async with async_session() as session:
-#         yield session
-
 async def get_db():
     session = async_session()
     try:
@@ -25,7 +21,7 @@ async def get_db():
     finally:
         await session.close()
 
-#同期的にデータベースを取得する関数
+#同期的にデータベースを取得する関数。初期化のマイグレーションで使う
 def get_db_sync():
     Session = sessionmaker(bind=engine)
     return Session()
