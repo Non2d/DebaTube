@@ -64,7 +64,7 @@ if __name__ == "__main__":
         #     session.rollback()
         # finally:
         #     session.close()
-        # reset_database()
+        reset_database()
         pass
     else:
         print("Exiting due to database connection failure.")
