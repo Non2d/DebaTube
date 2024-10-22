@@ -26,7 +26,7 @@ def wait_for_db_connection(max_retries=5, wait_interval=5):
     return False
 
 def reset_database():
-    Base.metadata.drop_all(bind=engine)
+    # Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
 # def is_db_empty(session):

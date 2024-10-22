@@ -13,11 +13,21 @@ class Segment(BaseModel):
     end: float
     text: str
 
-class FirstSegmentIds(BaseModel):
-    segment_ids: list[int] =  Field(..., description="The list of first segment's id in each argumentative unit.")
+# class FirstSegmentIds(BaseModel):
+#     segment_ids: list[int] =  Field(..., description="The list of first segment's id in each argumentative unit.")
+#     argument_topics: list[str] = Field(..., description="The theme of the argumentative unit.")
+#     reasonings: list[str] = Field(..., description="The reasoning as to why GPT thinks the segments belong to an argumentative unit.")
+
+class ArgumentUnitMetaData(BaseModel):
+    first_segment_id: int = Field(..., description="The first segment's id in the argumentative unit.")
+    argument_topic: str = Field(..., description="The theme of the argumentative unit.")
+    reasoning: str = Field(..., description="The reasoning as to why GPT thinks the segments belong to an argumentative unit.")
+
+class ArgumentUnitMetaDataList(BaseModel):
+    argument_units: list[ArgumentUnitMetaData] = Field(..., description="The list of argument units with metadata.")
 
 # segmentのリストから、各argument_unitの最後のsegmentのidを取得
-async def segment2argument_units(speech: list[Segment]) -> list[FirstSegmentIds]:
+async def segment2argument_units(speech: list[Segment]) -> list[int]:
     prompt_segments = ""
     for id, segment in enumerate(speech):
         prompt_segments += f"{id}:{segment.text}\n"
@@ -30,12 +40,28 @@ async def segment2argument_units(speech: list[Segment]) -> list[FirstSegmentIds]
             {"role": "user", "content": "Argumentative units are elementary argumentation factors, such as claims, cases, and rebuttals."},
             {"role": "user", "content": f"Given segments: {prompt_segments}"},
         ],
-        response_format=FirstSegmentIds,
+        # response_format=FirstSegmentIds,
+        response_format=ArgumentUnitMetaDataList,
     )
 
-    first_seg_ids = response.choices[0].message.parsed.segment_ids
+    
+    # first_seg_ids = response.choices[0].message.parsed.segment_ids
+    # au_topic = response.choices[0].message.parsed.argument_topic
+    # au_decision_reasoning = response.choices[0].message.parsed.reasoning
 
+    # logger.info(f"firstSegIds: {first_seg_ids}")
+    # logger.info(f"argument_topic: {au_topic}")
+    # logger.info(f"reasoning: {au_decision_reasoning}")
+
+    first_seg_ids = [argument_unit.first_segment_id for argument_unit in response.choices[0].message.parsed.argument_units]
+    argument_topics = [argument_unit.argument_topic for argument_unit in response.choices[0].message.parsed.argument_units]
+    reasonings = [argument_unit.reasoning for argument_unit in response.choices[0].message.parsed.argument_units]
+    
+    logger.info("argument unit meta data---------------------------------")
     logger.info(f"firstSegIds: {first_seg_ids}")
+    logger.info(f"argument_topics: {argument_topics}")
+    logger.info(f"reasonings: {reasonings}")
+    logger.info("---------------------------------------------------------")
 
     return first_seg_ids
 
@@ -48,9 +74,9 @@ async def segment2argument_units_unstructured(speech: list[Segment]) -> list[lis
     response = await client.chat.completions.create(
         model="gpt-4o-2024-08-06",
         messages=[
-            {"role": "user", "content": "Regroup the given segments into argumentative units of 1 to 5 segments each. The scheme of output is a list of lists of segments."},
-            {"role": "user", "content": "NO ARGUMENT UNIT CAN HAVE MORE THAN 5 SEGMENTS."},
-            {"role": "user", "content": "Argumentative units are elementary argumentation factors, such as claims, cases, and rebuttals."},
+            {"role": "user", "content": "Regroup the given segments into argumentative units. The scheme of output is a list of lists of segments."},
+            {"role": "user", "content": "An argument unit is consisted of 1 to 5 segments."},
+            {"role": "user", "content": "Argumentative units are elementary argumentation factors, such as claims, cases, and rebuttals, which is the minimal range of argumentation that can be attacked by a very specified counterargument."},
             {"role": "user", "content": f"Given segments: {prompt_segments}"},
         ],
     )

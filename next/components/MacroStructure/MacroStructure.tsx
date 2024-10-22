@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
 import { govNode, oppNode, DefaultEdge } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
+import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
 
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 
@@ -40,33 +41,42 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                         if (speechIdToPositionName[i] === "LOR" && j==0) {
                             nodeY+=30;
                         }
-                        newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!isGovernment, y: nodeY }, data: { label: "" } });
+                        newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!isGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
                         nodeY += 8;
                     }
                 }
                 setNodes(newNodes);
 
+                //エッジの前処理
+                // console.log(dataRebuttals2Tuples(data.rebuttals));
+                console.log(getRallyIds(dataRebuttals2Tuples(data.rebuttals)));
+
                 //エッジの初期化
                 const newEdges = [];
                 for (let i = 0; i < data.rebuttals.length; i++) {
                     const rebuttal = data.rebuttals[i];
+                    const rallyIds = getRallyIds(dataRebuttals2Tuples(data.rebuttals));
+                    if(rallyIds.includes(i)){
+                        newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", animated: true, style: { stroke: 'pink' }});
+                        continue;
+                    }
                     newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", animated: true});
                 }
 
                 setEdges(newEdges);
             })
             .catch(error => console.error('Error fetching data:', error));
-    }, []);
+    }, [roundId]);
 
     return (
-        <div style={{ width: '22vw', height: '70vh' }}>
+        <div style={{ width: '100%', height: '70vh' }}>
             
             {/* <button onClick={onAddNode}>ノードを追加</button> */}
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
-                // onNodesChange={onNodesChange} //グラフ編集機能(現在は未実装)
-                // onEdgesChange={onEdgesChange}
+                onNodesChange={onNodesChange} //グラフ編集機能(現在は未実装)
+                onEdgesChange={onEdgesChange}
                 // onConnect={onConnect}
                 nodesDraggable={false}
                 nodeTypes={nodeTypes}
