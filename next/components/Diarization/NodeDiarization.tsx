@@ -15,7 +15,7 @@ const NodeDiarization: React.FC<NodeTimeLabelProps> = ({ data }) => {
     return (
         <div
           className="border border-black flex items-center justify-center"
-          style={{ width: `10000px`, height: `${data.height}px`, borderWidth: `0px`, backgroundColor: diarizationColors[data.speakerId%20]}}
+          style={{ width: `${data.width}px`, height: `${data.height}px`, borderWidth: `0px`, backgroundColor: diarizationColors[data.speakerId%20]}}
         >
             {/* {data.speakerId} */}
         </div>
