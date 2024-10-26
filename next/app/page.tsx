@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, ChangeEvent } from 'react';
 import MacroStructure from '../components/MacroStructure/MacroStructure';
+import { apiRoot } from '../components/utils/foundation';
 
 interface Round {
   id: number;
@@ -15,7 +16,7 @@ export default function Home() {
   const [selectedRounds, setSelectedRounds] = useState<(Round | null)[]>([null, null, null, null]); //グラフを表示するラウンドリスト(4つ)
 
   useEffect(() => { //selectの反映には、nodeとedgeの編集処理の実装が必要
-    fetch('http://localhost:8080/rounds', {
+    fetch(apiRoot+'/rounds', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +40,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
         {[0, 1, 2, 3].map(index => (
           <div key={index} className="card bg-white shadow-md rounded-lg p-4 m-2" style={{ width: '600px' }}>
             <select onChange={(event) => handleSelectChange(index, event)} className="mb-4 p-2 border rounded" style={{ width: '450px' }}>

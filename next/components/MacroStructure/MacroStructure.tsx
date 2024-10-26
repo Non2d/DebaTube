@@ -6,6 +6,8 @@ import { govNode, oppNode, DefaultEdge } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
 import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
 
+import { apiRoot } from '../../components/utils/foundation';
+
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 
 const nodeTypes = { "govNode": govNode, "oppNode": oppNode };
@@ -17,7 +19,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
     useEffect(() => {
-        fetch(`http://localhost:8080/rounds/${roundId}`, {
+        fetch(apiRoot+`/rounds/${roundId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

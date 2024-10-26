@@ -1,11 +1,12 @@
 import { isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
+import { apiRoot } from '../components/utils/foundation';
 
 const fetchNodes = async (roundId) => {
   try {
     const originX = 100;
     const xposOpp = 300;
     const nodes = []
-    const response = await fetch(`http://localhost:8080/rounds/${roundId}`);
+    const response = await fetch(apiRoot+`/rounds/${roundId}`);
     const data = await response.json();
 
     for(const speechId in data.speeches){

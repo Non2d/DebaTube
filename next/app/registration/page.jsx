@@ -2,7 +2,7 @@
 import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
-import { request } from 'http';
+import { apiRoot } from '../components/utils/foundation';
 
 // Difinition: asr + diarization = transcript
 
@@ -53,7 +53,7 @@ export default function Home() {
             
             console.log(requestText);
 
-            const response = await fetch('http://localhost:8080/motion', {
+            const response = await fetch(apiRoot+'/motion', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -91,7 +91,7 @@ export default function Home() {
 
             const data = await toast.promise(
                 (async () => {
-                    const response = await fetch('http://localhost:8080/rounds', {
+                    const response = await fetch(apiRoot+'/rounds', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

@@ -19,6 +19,8 @@ interface DetailedStructureProps {
     roundId: number;
 }
 
+import { apiRoot } from '../../components/utils/foundation';
+
 const DetailedStructure: React.FC<DetailedStructureProps> = ({ roundId }) => {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -72,7 +74,7 @@ const DetailedStructure: React.FC<DetailedStructureProps> = ({ roundId }) => {
 
     const fetchData = async () => {
         try {
-            const response = await fetch(`http://localhost:8080/rounds/${roundId}`, {
+            const response = await fetch(apiRoot+`/rounds/${roundId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

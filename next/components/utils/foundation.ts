@@ -1,0 +1,1 @@
+export const apiRoot = process.env.NODE_ENV === 'production' ? 'https://vps4.nkmr.io/debates/v1' : 'http://localhost:8080';
