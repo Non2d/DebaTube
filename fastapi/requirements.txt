@@ -6,3 +6,4 @@ aiomysql
 python-dotenv
 openai
 httpx
+cryptography
