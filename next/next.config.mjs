@@ -1,4 +1,8 @@
+//コレがないと生htmlみたいになる
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+    basePath: process.env.NODE_ENV === 'production' ? '/debates' : '',
+};
 
 export default nextConfig;
