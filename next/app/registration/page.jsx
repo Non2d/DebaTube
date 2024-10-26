@@ -2,11 +2,12 @@
 import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
-import { apiRoot } from '../components/utils/foundation';
+import { apiRoot } from '../../components/utils/foundation';
 
 // Difinition: asr + diarization = transcript
 
 export default function Home() {
+    console.log(apiRoot);
     // API Input
     const [motion, setMotion] = useState('');
     const [title, setTitle] = useState('');
