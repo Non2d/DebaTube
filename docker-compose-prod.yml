@@ -1,0 +1,52 @@
+services:
+  next:
+    container_name: dsv-next
+    build:
+      context: ./next
+      dockerfile: Dockerfile.prod
+    ports:
+      - "7780:3000"
+    networks:
+      - dsv_network
+
+  fastapi:
+    container_name: dsv-fastapi
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile.prod
+    ports:
+      - "7781:8080"
+    networks:
+      - dsv_network
+    environment:
+      PYTHONPATH: /app #これ、apiか？と思ったけど、DockerfileのWORKDIRで/appに移動しているので、appになる
+      ENV: production
+
+  db:
+    container_name: dsv-db
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile.prod
+    ports:
+      - "7782:3306"
+    env_file:
+      - ./mysql/.env
+    volumes:
+      - dsv_mysql_data:/var/lib/mysql
+    networks:
+      - dsv_network
+
+  phpmyadmin:
+    container_name: dsv-phpmyadmin
+    image: phpmyadmin:latest
+    ports:
+      - "7783:80"
+    networks:
+      - dsv_network
+
+volumes:
+  dsv_mysql_data:
+
+networks:
+  dsv_network:
+    external: true

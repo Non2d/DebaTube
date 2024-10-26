@@ -56,7 +56,10 @@ export default function Home() {
                 <p className="text-gray-700">Motion: {selectedRounds[index]?.motion}</p>
               </div>
             )}
-            {selectedRounds[index] && <MacroStructure roundId={selectedRounds[index].id} />}
+            {selectedRounds[index] != null && selectedRounds[index]?.id != null && (
+              <MacroStructure roundId={selectedRounds[index]!.id} />
+            )}
+
           </div>
         ))}
       </div>

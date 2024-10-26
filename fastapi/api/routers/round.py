@@ -18,9 +18,103 @@ router = APIRouter()
 
 from cruds.gpt import segment2argument_units, segment2argument_units_unstructured, speeches2rebuttals, digest2motion
 
+# request schema
+class SegmentCreate(BaseModel):  # たぶんだけどSegmentを返すことはない
+    start: float
+    end: float
+    text: str
+
+class RoundCreate(BaseModel):
+    title: str
+    motion: str
+    speeches: List[List[SegmentCreate]]
+    # pois: List[int]  # リクエストの時点ではpoiはまだ確定していない
+    # rebuttals: List[Rebuttal] # リクエストの時点ではrebuttalはまだ存在しない
+
+class RebuttalCreate(BaseModel):
+    src: int
+    tgt: int
+
+class ArgumentUnitCreate(BaseModel):
+    sequence_id: int
+    start: float
+    end: float
+    text: str
+class ArgumentUnitsCreate(BaseModel):
+    argument_units: List[ArgumentUnitCreate]
+class RoundBatchCreate(BaseModel):
+    title: str
+    motion: str
+    speeches: List[ArgumentUnitsCreate]
+    pois: List[int]
+    rebuttals: List[RebuttalCreate]
+
+class ArgumentUnitCreate(BaseModel):
+    sequence_id: int
+    start: float
+    end: float
+    text: str
+
+# response schema
+class PoiResponse(BaseModel):
+    # id: int
+    argument_unit_id: int
+
+    class Config:
+        orm_mode = True
+
+class RebuttalResponse(BaseModel):
+    # id: int
+    src: int
+    tgt: int
+
+    class Config:
+        orm_mode = True
+
+class ArgumentUnitResponse(BaseModel):
+    # id: int
+    sequence_id: int
+    start: float
+    end: float
+    text: str
+
+    class Config:
+        orm_mode = True
+
+class SpeechResponse(BaseModel):
+    # id: int
+    argument_units: List[ArgumentUnitResponse]
+
+    class Config:
+        orm_mode = True
+
+class RoundResponse(BaseModel):
+    # id: int
+    title: str
+    motion: str
+    pois: List[PoiResponse]
+    rebuttals: List[RebuttalResponse]
+    speeches: List[SpeechResponse]
+
+    class Config:
+        orm_mode = True
+
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    )
+    result = await db.execute(query)
+    rounds = result.scalars().unique().all()
+    return rounds
+
+@router.get("/batch-rounds", response_model=List[RoundResponse])
+async def get_rounds(db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
         selectinload(round_db_model.Round.rebuttals),
         selectinload(round_db_model.Round.speeches).selectinload(
             round_db_model.Speech.argument_units
@@ -43,71 +137,6 @@ async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
     if round is None:
         raise HTTPException(status_code=404, detail="Round not found")
     return round
-
-
-# request schema
-class SegmentCreate(BaseModel):  # たぶんだけどSegmentを返すことはない
-    start: float
-    end: float
-    text: str
-
-class RoundCreate(BaseModel):
-    title: str
-    motion: str
-    speeches: List[List[SegmentCreate]]
-    # pois: List[int]  # リクエストの時点ではpoiはまだ確定していない
-    # rebuttals: List[Rebuttal] # リクエストの時点ではrebuttalはまだ存在しない
-
-class ArgumentUnitCreate(BaseModel):
-    sequence_id: int
-    start: float
-    end: float
-    text: str
-
-# response schema
-class PoiResponse(BaseModel):
-    id: int
-    argument_unit_id: int
-
-    class Config:
-        orm_mode = True
-
-class RebuttalResponse(BaseModel):
-    id: int
-    src: int
-    tgt: int
-
-    class Config:
-        orm_mode = True
-
-class ArgumentUnitResponse(BaseModel):
-    id: int
-    sequence_id: int
-    start: float
-    end: float
-    text: str
-
-    class Config:
-        orm_mode = True
-
-class SpeechResponse(BaseModel):
-    id: int
-    argument_units: List[ArgumentUnitResponse]
-
-    class Config:
-        orm_mode = True
-
-class RoundResponse(BaseModel):
-    id: int
-    title: str
-    motion: str
-    pois: List[PoiResponse]
-    rebuttals: List[RebuttalResponse]
-    speeches: List[SpeechResponse]
-
-    class Config:
-        orm_mode = True
-
 
 @router.post("/rounds", response_model=RoundResponse)
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
@@ -218,3 +247,72 @@ class DigestRequest(BaseModel):
 @router.post("/motion")
 async def create_motion(round_digest: DigestRequest):
     return await digest2motion(round_digest)
+
+@router.post("/batch-round")
+async def create_batch_round(round_create: RoundBatchCreate, db: AsyncSession = Depends(get_db)):
+    if len(round_create.speeches) not in [6, 8]:
+        raise HTTPException(status_code=400, detail="The number of speeches must be 6 or 8.")
+    
+    logger.info(f"round_create.title: {round_create.title}, is empty?: {round_create.title == ''}")
+    
+    if round_create.title == "":
+        raise HTTPException(status_code=400, detail="Title must not be empty.")
+
+    round = round_db_model.Round(
+        title=round_create.title,
+        motion=round_create.motion,
+    )
+    db.add(round)
+    
+    logger.info(f"type of speeches[0].argunits is : {type(round_create.speeches[0])}")
+
+    db_speeches = []
+    for argument_units in round_create.speeches:
+        db_argument_units = []
+        for arg_unit in argument_units.argument_units:
+            db_argument_units.append(
+                round_db_model.ArgumentUnit(
+                    sequence_id=arg_unit.sequence_id,
+                    start=arg_unit.start,
+                    end=arg_unit.end,
+                    text=arg_unit.text,
+                )
+            )
+
+        db_speeches.append(
+            round_db_model.Speech(
+                argument_units=db_argument_units,
+                round=round
+            )
+        )
+    db.add_all(db_speeches)
+
+    db_rebuttals = []
+    for rebuttal in round_create.rebuttals:
+        db_rebuttals.append(
+            round_db_model.Rebuttal(
+                src=rebuttal.src,
+                tgt=rebuttal.tgt,
+                round=round
+            )
+        )
+    db.add_all(db_rebuttals)
+
+    # ここまでの変更全てをコミット
+    await db.commit()
+    await db.refresh(round)
+
+    # roundデータを取得し、関連するリレーションをロード
+    await db.execute(
+        select(round_db_model.Round)
+        .options(
+            selectinload(round_db_model.Round.rebuttals),
+            selectinload(round_db_model.Round.pois),
+            selectinload(round_db_model.Round.speeches).selectinload(
+                round_db_model.Speech.argument_units
+            ),
+        )
+        .filter_by(id=round.id)
+    )
+
+    return round

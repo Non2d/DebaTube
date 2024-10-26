@@ -1,0 +1,40 @@
+# 開発用ステージ
+FROM node:lts-alpine3.19 AS development
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# package.jsonとpackage-lock.jsonをコピー
+COPY package.json package-lock.json ./
+
+# 開発依存関係をインストール
+RUN npm install
+
+# アプリケーションのソースコードをコピー
+COPY . .
+
+# アプリケーションをビルド
+RUN npm run build
+
+# 本番用ステージ
+FROM node:lts-alpine3.19 AS production
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# package.jsonとpackage-lock.jsonをコピー
+COPY package.json package-lock.json ./
+
+# 本番環境用に必要な依存関係をインストール
+RUN npm install --only=production
+
+# ビルド済みのファイルをコピー
+COPY --from=development /app/.next ./.next
+# publicフォルダをコピー
+COPY --from=development /app/public ./public
+
+# 環境変数を設定
+ENV NODE_ENV=production
+
+# アプリケーションの起動コマンド
+CMD ["npm", "start"]

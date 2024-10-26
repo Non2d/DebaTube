@@ -111,7 +111,7 @@ function MenuAsr({ id, top, left, right, bottom, nodeData, type, setMenu, asrDia
                     console.log(array[newSelectedPosition - 1].start); //これだとbooleanではなく、ふつうに数値が返ってくる
                     toast.success(
                         <span>
-                            Automatically, <strong>{"asr-" + (nodeIdToNumber(id) - 1)}</strong> is also set as <strong>{speechIdToPositionName[newSelectedPosition - 1]}</strong>'s <strong>end</strong> seg.
+                            Automatically, <strong>{"asr-" + (nodeIdToNumber(id) - 1)}</strong> is also set as <strong>{speechIdToPositionName[newSelectedPosition - 1]}</strong>&apos;s <strong>end</strong> seg.
                         </span>,
                         { duration: 5000 }
                     );
@@ -123,7 +123,7 @@ function MenuAsr({ id, top, left, right, bottom, nodeData, type, setMenu, asrDia
 
             toast.success(
                 <span>
-                    <strong>{id}</strong> is set as <strong>{speechIdToPositionName[newSelectedPosition]}</strong>'s <strong>{isStart ? "start" : "end"}</strong> seg.
+                    <strong>{id}</strong> is set as <strong>{speechIdToPositionName[newSelectedPosition]}</strong>&apos;s <strong>{isStart ? "start" : "end"}</strong> seg.
                 </span>,
                 { duration: 5000 }
             );
@@ -162,7 +162,7 @@ function MenuAsr({ id, top, left, right, bottom, nodeData, type, setMenu, asrDia
                     (e.currentTarget as HTMLDivElement).style.color = '#1a73e8';
                 }}
             >
-                <span style={{ color: 'black' }}>It's </span>
+                <span style={{ color: 'black' }}>It&apos;s </span>
                 <span style={{ color: '#1a73e8', fontWeight: 'bold' }}>{isStart ? 'start' : 'end'}</span>
                 <span style={{ color: 'black' }}> seg of</span>
             </div>

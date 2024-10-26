@@ -30,6 +30,7 @@ services:
       - docker_network
     environment:
       PYTHONPATH: /app
+      ENV: development
 
   db: #ユーザ名：root, パスワード：なし
     container_name: db

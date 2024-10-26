@@ -6,7 +6,21 @@ from models.round import Base
 import models.round as round_db_model
 import json
 
-DB_URL = "mysql+pymysql://root@db:3306/debate?charset=utf8"
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_HOST = "db" #yamlで設定したDBサービス名
+MYSQL_DATABASE = "debate"
+
+PROD_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
+
+DEV_DB_URL = "mysql+pymysql://root@db:3306/debate?charset=utf8"
+
+DB_URL = PROD_DB_URL if os.getenv("ENV") == "production" else DEV_DB_URL
+
 engine = create_engine(DB_URL, echo=True)
 Session = sessionmaker(bind=engine)
 
@@ -14,7 +28,6 @@ def wait_for_db_connection(max_retries=5, wait_interval=5):
     retries = 0
     while retries < max_retries:
         try:
-            # Try to connect to the database
             engine.connect()
             print("Database connection successful")
             return True
@@ -25,46 +38,13 @@ def wait_for_db_connection(max_retries=5, wait_interval=5):
     print("Could not connect to the database. Exiting.")
     return False
 
-def reset_database():
+def restart_database():
     # Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
-# def is_db_empty(session):
-#     return session.query(round_db_model.Round).count() == 0
-
-# def batch_create_round(db):
-#     with open('batch_round.json', 'r', encoding='utf-8') as f:
-#         round_json = json.load(f)
-    
-#     print(round_json["speeches"])
-
-#     speeches = [round_db_model.Speech(**speech) for speech in round_json["speeches"]]
-#     rebuttals = [round_db_model.Rebuttal(**rebuttal) for rebuttal in round_json["rebuttals"]]
-
-#     round = round_db_model.Round(
-#         title=round_json["title"],
-#         motion=round_json["motion"],
-#         rebuttals=rebuttals,
-#         pois=[],
-#         speeches=speeches
-#     )
-#     db.add(round)
-#     db.commit()
-
 if __name__ == "__main__":
     if wait_for_db_connection():
-        # session = Session()
-        # try:
-        #     if is_db_empty(session):
-        #         batch_create_round(session)
-        #     else:
-        #         print("Database is not empty. Skipping batch creation.")
-        # except Exception as e:
-        #     print(f"An error occurred: {e}")
-        #     session.rollback()
-        # finally:
-        #     session.close()
-        reset_database()
+        restart_database()
         pass
     else:
         print("Exiting due to database connection failure.")

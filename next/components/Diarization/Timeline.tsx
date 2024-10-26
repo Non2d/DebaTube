@@ -73,9 +73,9 @@ interface MenuDiarizationProps {
     [key: string]: any; // その他のプロパティを許可
 }
 
-function extractYoutubeVideoId(url: string): string | null {
+function extractYoutubeVideoId(url: string): string | undefined {
     const match = url.match(/v=([^&]+)/);
-    return match ? match[1] : null;
+    return match ? match[1] : undefined;
 }
 
 //文字起こしデータの取得・設定
