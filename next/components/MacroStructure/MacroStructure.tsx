@@ -51,7 +51,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
 
                 //エッジの前処理
                 // console.log(dataRebuttals2Tuples(data.rebuttals));
-                console.log(getRallyIds(dataRebuttals2Tuples(data.rebuttals)));
+                // console.log(getRallyIds(dataRebuttals2Tuples(data.rebuttals)));
 
                 //エッジの初期化
                 const newEdges = [];

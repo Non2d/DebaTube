@@ -22,6 +22,8 @@ import SidebarTimeline from './SidebarTimeline';
 
 import Youtube from 'react-youtube';
 
+import { calculateMode } from '../utils/foundation';
+
 interface AsrNodeDataProps {
     text: string;
     start: number;
@@ -175,7 +177,7 @@ const Timeline = () => {
     //Initialize all nodes
     useEffect(() => {
         const asrNodes = asrs.map((asr, index) => {
-            console.log(zoomLevel);
+            // console.log(zoomLevel);
             const existingNode = nodes.find(node => node.id === `asr-${index}`);
             return {
                 id: `asr-${index}`,
@@ -191,10 +193,11 @@ const Timeline = () => {
             }
         });
         const diarizationNodes = diarizations.map((diarization, index) => {
+            // console.log(diarization.speaker)
             return {
                 id: `dia-${index}`,
                 type: 'NodeDiarization',
-                data: { speakerId: diarization.speaker, width: 3000, height: zoomLevel * (diarization.end - diarization.start) },
+                data: { speakerId: diarization.speaker, width: 3000, height: zoomLevel * (diarization.end - diarization.start), time: (diarization.start + diarization.end)/2 },
                 position: { x: 90, y: zoomLevel * diarization.start },
             };
         });
@@ -287,17 +290,49 @@ const Timeline = () => {
 
     // Diarization Datas
     const [asrDiars, setAsrDiars] = useState<any[]>([
-        { positionId: 0, start: undefined, end: undefined }, //PM
-        { positionId: 1, start: undefined, end: undefined }, //LO
-        { positionId: 2, start: undefined, end: undefined }, //DPM
-        { positionId: 3, start: undefined, end: undefined }, //DLO
-        { positionId: 4, start: undefined, end: undefined }, //GWまたはLOR
-        { positionId: 5, start: undefined, end: undefined }, //OWまたはPMR
-        { positionId: 6, start: undefined, end: undefined }, //LOR
-        { positionId: 7, start: undefined, end: undefined }, //PMR
+        { positionId: 0, start: undefined, end: undefined, speakerId:undefined }, //PM
+        { positionId: 1, start: undefined, end: undefined, speakerId:undefined }, //LO
+        { positionId: 2, start: undefined, end: undefined, speakerId:undefined }, //DPM
+        { positionId: 3, start: undefined, end: undefined, speakerId:undefined }, //DLO
+        { positionId: 4, start: undefined, end: undefined, speakerId:undefined }, //GWまたはLOR
+        { positionId: 5, start: undefined, end: undefined, speakerId:undefined }, //OWまたはPMR
+        { positionId: 6, start: undefined, end: undefined, speakerId:undefined }, //LOR
+        { positionId: 7, start: undefined, end: undefined, speakerId:undefined }, //PMR
     ]);
 
     useEffect(() => { //ここでノードの更新！！！最新状態の反映！！！！
+        console.log("diarizations");
+        // console.log(diarizations)
+
+        //start/endが入っているasrに対して，speakerIdを入れる
+        for (let i = 0; i < asrDiars.length; i++) {
+            if (asrDiars[i].start !== undefined && asrDiars[i].end !== undefined) {
+                const startIndex = asrDiars[i].start;
+                const endIndex = asrDiars[i].end;
+    
+                // diarizations[startIndex]とdiarizations[endIndex]がundefinedでないことを確認
+                if (diarizations[startIndex] !== undefined && diarizations[endIndex] !== undefined) {
+                    const nodesInRange = nodes.filter((node) => {
+                        if (node.type === 'NodeDiarization') {
+                            // console.log(diarizations[startIndex].start, node.data.time, diarizations[endIndex].end);
+                            if (diarizations[startIndex].start <= node.data.time && node.data.time <= diarizations[endIndex].end) {         
+                                return node;
+                            }
+                        }
+                    });
+    
+                    const speakerIdCandedates = nodesInRange.map((node) => node.data.speakerId);
+
+                    console.log(speakerIdCandedates);
+                    const MostFrequentSpeakerId = calculateMode(speakerIdCandedates);
+                    asrDiars[i].speakerId = MostFrequentSpeakerId;
+                }
+            }
+        }
+
+        console.log("asrDiars");
+        console.log(asrDiars);
+
         // あとで負荷を減らしたい
         const newNodes = nodes.map((node) => {
             const id = nodeIdToNumber(node.id);
@@ -368,8 +403,10 @@ const Timeline = () => {
                 });
             }
         }
+
         const dst = {
             pois: pois,
+            // speakerIds: speakerIds, //将来的にspeechesに含めたいが，バックエンドのリファクタとかも面倒なので現時点では妥協
             speeches: speeches
         }
 
