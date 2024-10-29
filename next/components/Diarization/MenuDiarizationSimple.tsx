@@ -22,9 +22,9 @@ function MenuDiarization({ id, top, left, nodeData, setMenu, setDiarizationId }:
         setSelectedOption(newSelectedPosition);
         setDiarizationId(newSelectedPosition, diarizationId);
         toast.success(
-                <span>
-                    Set <strong>{speechIdToPositionName[newSelectedPosition]}</strong>&apos;s diarization id to No.<strong>{diarizationId}</strong>
-                </span>,
+            <span>
+                Set <strong>{speechIdToPositionName[newSelectedPosition]}</strong>&apos;s diarization id to No.<strong>{diarizationId}</strong>
+            </span>,
             {
                 duration: 5000,
             }
