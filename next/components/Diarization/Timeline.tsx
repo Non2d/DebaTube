@@ -11,6 +11,8 @@ import NodeDiarization from './NodeDiarization';
 import MenuAsr from './MenuAsr';
 import MenuAsrRight from './MenuAsrRight';
 
+import MenuDiarization from './MenuDiarizationSimple';
+
 import nodeIdToNumber from '../utils/nodeIdToNumber';
 
 import { useAppContext } from '../../context/context';
@@ -22,7 +24,7 @@ import SidebarTimeline from './SidebarTimeline';
 
 import Youtube from 'react-youtube';
 
-import { calculateMode } from '../utils/foundation';
+// import { calculateMode } from '../utils/foundation';
 
 interface AsrNodeDataProps {
     text: string;
@@ -197,7 +199,7 @@ const Timeline = () => {
             return {
                 id: `dia-${index}`,
                 type: 'NodeDiarization',
-                data: { speakerId: diarization.speaker, width: 3000, height: zoomLevel * (diarization.end - diarization.start), time: (diarization.start + diarization.end)/2 },
+                data: { speakerId: diarization.speaker, width: 3000, height: zoomLevel * (diarization.end - diarization.start)}, //, time: (diarization.start + diarization.end)/2 },
                 position: { x: 90, y: zoomLevel * diarization.start },
             };
         });
@@ -238,8 +240,6 @@ const Timeline = () => {
                     id: node.id,
                     top: event.clientY,
                     left: event.clientX,
-                    right: pane.width - event.clientX,
-                    bottom: pane.height - event.clientY,
                     nodeData: node.data,
                     type: 'MenuDiarization'
                 });
@@ -249,89 +249,59 @@ const Timeline = () => {
         [setMenu],
     );
 
-    const onNodeContextMenu = useCallback(
-        (event: React.MouseEvent, node: any) => {
-            // Prevent native context menu from showing
-            event.preventDefault();
+    //右クリックメニュー
+    // const onNodeContextMenu = useCallback(
+    //     (event: React.MouseEvent, node: any) => {
+    //         // Prevent native context menu from showing
+    //         event.preventDefault();
 
-            if (ref.current === null) {
-                toast.error('Ref is null');
-                return;
-            }
-            const pane = ref.current.getBoundingClientRect();
+    //         if (ref.current === null) {
+    //             toast.error('Ref is null');
+    //             return;
+    //         }
+    //         const pane = ref.current.getBoundingClientRect();
 
-            if (node.type === 'NodeAsr') {
-                // Node 1用のメニューを表示
-                setRightMenu({
-                    id: node.id,
-                    top: event.clientY,
-                    left: event.clientX,
-                    right: pane.width - event.clientX,
-                    bottom: pane.height - event.clientY,
-                    nodeData: node.data,
-                    type: 'MenuAsr'
-                });
-            } else if (node.type === 'NodeDiarization') {
-                // Node 2用のメニューを表示
-                setRightMenu({
-                    id: node.id,
-                    top: event.clientY,
-                    left: event.clientX,
-                    right: pane.width - event.clientX,
-                    bottom: pane.height - event.clientY,
-                    nodeData: node.data,
-                    type: 'MenuDiarization'
-                });
-            }
-
-        },
-        [setRightMenu],
-    );
+    //         if (node.type === 'NodeAsr') {
+    //             // Node 1用のメニューを表示
+    //             setRightMenu({
+    //                 id: node.id,
+    //                 top: event.clientY,
+    //                 left: event.clientX,
+    //                 right: pane.width - event.clientX,
+    //                 bottom: pane.height - event.clientY,
+    //                 nodeData: node.data,
+    //                 type: 'MenuAsr'
+    //             });
+    //         } else if (node.type === 'NodeDiarization') {
+    //             // Node 2用のメニューを表示
+    //             setRightMenu({
+    //                 id: node.id,
+    //                 top: event.clientY,
+    //                 left: event.clientX,
+    //                 right: pane.width - event.clientX,
+    //                 bottom: pane.height - event.clientY,
+    //                 nodeData: node.data,
+    //                 type: 'MenuDiarization'
+    //             });
+    //         }
+    //     },
+    //     [setRightMenu],
+    // );
 
     // Diarization Datas
     const [asrDiars, setAsrDiars] = useState<any[]>([
-        { positionId: 0, start: undefined, end: undefined, speakerId:undefined }, //PM
-        { positionId: 1, start: undefined, end: undefined, speakerId:undefined }, //LO
-        { positionId: 2, start: undefined, end: undefined, speakerId:undefined }, //DPM
-        { positionId: 3, start: undefined, end: undefined, speakerId:undefined }, //DLO
-        { positionId: 4, start: undefined, end: undefined, speakerId:undefined }, //GWまたはLOR
-        { positionId: 5, start: undefined, end: undefined, speakerId:undefined }, //OWまたはPMR
-        { positionId: 6, start: undefined, end: undefined, speakerId:undefined }, //LOR
-        { positionId: 7, start: undefined, end: undefined, speakerId:undefined }, //PMR
+        { positionId: 0, start: undefined, end: undefined, diarizationId:undefined }, //PM
+        { positionId: 1, start: undefined, end: undefined, diarizationId:undefined }, //LO
+        { positionId: 2, start: undefined, end: undefined, diarizationId:undefined }, //MG
+        { positionId: 3, start: undefined, end: undefined, diarizationId:undefined }, //MO
+        { positionId: 4, start: undefined, end: undefined, diarizationId:undefined }, //LOR
+        { positionId: 5, start: undefined, end: undefined, diarizationId:undefined }, //PMR
+        { positionId: 6, start: undefined, end: undefined, diarizationId:undefined }, //LO
+        { positionId: 7, start: undefined, end: undefined, diarizationId:undefined }, //MG
     ]);
 
     useEffect(() => { //ここでノードの更新！！！最新状態の反映！！！！
-        console.log("diarizations");
-        // console.log(diarizations)
-
-        //start/endが入っているasrに対して，speakerIdを入れる
-        for (let i = 0; i < asrDiars.length; i++) {
-            if (asrDiars[i].start !== undefined && asrDiars[i].end !== undefined) {
-                const startIndex = asrDiars[i].start;
-                const endIndex = asrDiars[i].end;
-    
-                // diarizations[startIndex]とdiarizations[endIndex]がundefinedでないことを確認
-                if (diarizations[startIndex] !== undefined && diarizations[endIndex] !== undefined) {
-                    const nodesInRange = nodes.filter((node) => {
-                        if (node.type === 'NodeDiarization') {
-                            // console.log(diarizations[startIndex].start, node.data.time, diarizations[endIndex].end);
-                            if (diarizations[startIndex].start <= node.data.time && node.data.time <= diarizations[endIndex].end) {         
-                                return node;
-                            }
-                        }
-                    });
-    
-                    const speakerIdCandedates = nodesInRange.map((node) => node.data.speakerId);
-
-                    console.log(speakerIdCandedates);
-                    const MostFrequentSpeakerId = calculateMode(speakerIdCandedates);
-                    asrDiars[i].speakerId = MostFrequentSpeakerId;
-                }
-            }
-        }
-
-        console.log("asrDiars");
-        console.log(asrDiars);
+        // console.log(diarizations);
 
         // あとで負荷を減らしたい
         const newNodes = nodes.map((node) => {
@@ -436,7 +406,8 @@ const Timeline = () => {
                 }}
                 panOnScroll
                 onNodeClick={(event, node) => {
-                    if (node.type != 'NodeAsr') {
+                    console.log(node.type);
+                    if (node.type != 'NodeAsr' && node.type!='NodeDiarization') {
                         setMenu(null);
                         return;
                     }
@@ -444,15 +415,15 @@ const Timeline = () => {
                     onNodeClick(event, node);// ノードがクリックされたときはメニューを閉じない
                     event.stopPropagation(); // 親要素へのクリックイベント伝播を止める
                 }}
-                onNodeContextMenu={(event, node) => {
-                    if (node.type != 'NodeAsr') {
-                        setRightMenu(null);
-                        return;
-                    }
-                    setMenu(null);
-                    onNodeContextMenu(event, node); // ノードのコンテキストメニューが開かれたときはメニューを閉じない
-                    event.stopPropagation(); // 親要素へのクリックイベント伝播を止める
-                }}
+                // onNodeContextMenu={(event, node) => { //右クリックメニュー
+                //     if (node.type != 'NodeAsr') {
+                //         setRightMenu(null);
+                //         return;
+                //     }
+                //     setMenu(null);
+                //     onNodeContextMenu(event, node); // ノードのコンテキストメニューが開かれたときはメニューを閉じない
+                //     event.stopPropagation(); // 親要素へのクリックイベント伝播を止める
+                // }}
                 defaultViewport={defaultViewport} // デフォルトのカメラの座標を指定
             >
                 <Background
@@ -463,7 +434,8 @@ const Timeline = () => {
             </ReactFlow>
             {/* ReactFlow外にMenuを移動 */}
             {menu && menu.type === 'MenuAsr' && <MenuAsr setMenu={setMenu} asrDiars={asrDiars} setAsrDiars={setAsrDiars} previousIsStart={previousIsStart} setPreviousIsStart={setPreviousIsStart} {...menu} />}
-            {rightMenu && rightMenu.type === 'MenuAsr' && <MenuAsrRight setRightMenu={setRightMenu} asrDiars={asrDiars} setAsrDiars={setAsrDiars} previousIsStart={previousIsStart} setPreviousIsStart={setPreviousIsStart} {...rightMenu} />}
+            {menu && menu.type === 'MenuDiarization' && <MenuDiarization setMenu={setMenu} {...menu} />}
+            {/* {rightMenu && rightMenu.type === 'MenuAsr' && <MenuAsrRight setRightMenu={setRightMenu} asrDiars={asrDiars} setAsrDiars={setAsrDiars} previousIsStart={previousIsStart} setPreviousIsStart={setPreviousIsStart} {...rightMenu} />} */}
             <SidebarTimeline
                 isNA={isNA}
                 setIsNA={setIsNA}

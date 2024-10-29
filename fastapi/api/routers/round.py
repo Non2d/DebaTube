@@ -138,6 +138,18 @@ async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Round not found")
     return round
 
+@router.delete("/rounds/{round_id}")
+async def delete_round(round_id: int, db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).filter_by(id=round_id)
+    result = await db.execute(query)
+    round = result.scalars().first()
+    if round is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    await db.delete(round)
+    await db.commit()
+    logger.info(f"Round {round_id}: {round.title} deleted")
+    return {"message": f"Round {round_id}: {round.title} deleted"}
+
 @router.post("/rounds", response_model=RoundResponse)
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
     if len(round_create.speeches) not in [6, 8]:
