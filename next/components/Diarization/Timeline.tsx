@@ -360,11 +360,11 @@ const Timeline = () => {
         const diarizationIdsAll = asrDiars.map((asrDiar:any) => asrDiar.diarizationId);
         const diarizationIds = isNA ? diarizationIdsAll : diarizationIdsAll.slice(0, 6);
 
-        if (diarizationIds.includes(undefined)) {
-            console.log(diarizationIds);
-            toast.error('Diarization id is not set.');
-            return;
-        }
+        // if (diarizationIds.includes(undefined)) {
+        //     console.log(diarizationIds);
+        //     toast.error('Diarization id is not set.');
+        //     return;
+        // }
 
         for (let i = 0; i < speechLength; i++) {
             if (asrDiars[i].start === undefined && asrDiars[i].end === undefined) {
@@ -395,7 +395,7 @@ const Timeline = () => {
         
         const dst = {
             pois: pois,
-            speakerIds: diarizationIds, //将来的にspeechesに含めたいが，バックエンドのリファクタとかも面倒なので現時点では妥協
+            // speakerIds: diarizationIds, //将来的にspeechesに含めたいが，バックエンドのリファクタとかも面倒なので現時点では妥協
             speeches: speeches
         }
 
