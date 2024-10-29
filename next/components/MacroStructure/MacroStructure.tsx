@@ -27,7 +27,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
         })
             .then(response => response.json())
             .then(data => {
-                const poiArgUnitIds = data.pois.map(poi => poi.argument_unit_id);
+                const poiArgUnitIds = data.pois.map((poi: { argument_unit_id: number }) => poi.argument_unit_id);
 
                 //ノードの初期化
                 const newNodes = [];
