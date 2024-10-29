@@ -41,7 +41,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <div style={{ display: 'flex', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap' }}>
         {Array.from({ length: displayNum }, (_, index) => (
           <div key={index} className="card bg-white shadow-md rounded-lg p-4 m-2" style={{ width: '600px' }}>
             <select onChange={(event) => handleSelectChange(index, event)} className="mb-4 p-2 border rounded" style={{ width: '450px' }}>
