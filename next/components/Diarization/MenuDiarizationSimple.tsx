@@ -8,7 +8,7 @@ interface ContextMenuProps {
     [key: string]: any; // その他のプロパティを許可
 }
 
-function MenuDiarization({ id, top, left, nodeData, setMenu, setDiarizationId }: ContextMenuProps) {
+function MenuDiarization({ id, top, left, right, bottom, nodeData, setMenu, setDiarizationId }: ContextMenuProps) {
     const { isNA } = useAppContext();
 
     const [selectedOption, setSelectedOption] = useState<number>(-100);

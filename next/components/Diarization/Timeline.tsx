@@ -70,6 +70,8 @@ interface MenuDiarizationProps {
     id: string;
     top: number;
     left: number;
+    right: number;
+    bottom: number;
     nodeData: any;
     type: string;
     [key: string]: any; // その他のプロパティを許可
@@ -238,6 +240,8 @@ const Timeline = () => {
                     id: node.id,
                     top: event.clientY,
                     left: event.clientX,
+                    right: pane.width - event.clientX,
+                    bottom: pane.height - event.clientY,
                     nodeData: node.data,
                     type: 'MenuDiarization'
                 });
