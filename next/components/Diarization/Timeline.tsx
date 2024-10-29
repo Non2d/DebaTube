@@ -70,8 +70,6 @@ interface MenuDiarizationProps {
     id: string;
     top: number;
     left: number;
-    right: number;
-    bottom: number;
     nodeData: any;
     type: string;
     [key: string]: any; // その他のプロパティを許可
@@ -300,8 +298,20 @@ const Timeline = () => {
         { positionId: 7, start: undefined, end: undefined, diarizationId:undefined }, //MG
     ]);
 
+    const setDiarizationId = (positionId: number, diarizationId: number) => {
+        setAsrDiars(asrDiars.map((asrDiars: any) => {
+            if (asrDiars.positionId === positionId) {
+                return {
+                    ...asrDiars,
+                    diarizationId: diarizationId,
+                };
+            }
+            return asrDiars;
+        }));
+    }
+
     useEffect(() => { //ここでノードの更新！！！最新状態の反映！！！！
-        // console.log(diarizations);
+        console.log(asrDiars);
 
         // あとで負荷を減らしたい
         const newNodes = nodes.map((node) => {
@@ -374,9 +384,12 @@ const Timeline = () => {
             }
         }
 
+        const diarizationIds = asrDiars.map((asrDiar:any) => asrDiar.diarizationId);
+        
+
         const dst = {
             pois: pois,
-            // speakerIds: speakerIds, //将来的にspeechesに含めたいが，バックエンドのリファクタとかも面倒なので現時点では妥協
+            speakerIds: diarizationIds, //将来的にspeechesに含めたいが，バックエンドのリファクタとかも面倒なので現時点では妥協
             speeches: speeches
         }
 
@@ -406,7 +419,7 @@ const Timeline = () => {
                 }}
                 panOnScroll
                 onNodeClick={(event, node) => {
-                    console.log(node.type);
+                    // console.log(node.type);
                     if (node.type != 'NodeAsr' && node.type!='NodeDiarization') {
                         setMenu(null);
                         return;
@@ -434,7 +447,7 @@ const Timeline = () => {
             </ReactFlow>
             {/* ReactFlow外にMenuを移動 */}
             {menu && menu.type === 'MenuAsr' && <MenuAsr setMenu={setMenu} asrDiars={asrDiars} setAsrDiars={setAsrDiars} previousIsStart={previousIsStart} setPreviousIsStart={setPreviousIsStart} {...menu} />}
-            {menu && menu.type === 'MenuDiarization' && <MenuDiarization setMenu={setMenu} {...menu} />}
+            {menu && menu.type === 'MenuDiarization' && <MenuDiarization setMenu={setMenu} setDiarizationId={setDiarizationId} {...menu} />}
             {/* {rightMenu && rightMenu.type === 'MenuAsr' && <MenuAsrRight setRightMenu={setRightMenu} asrDiars={asrDiars} setAsrDiars={setAsrDiars} previousIsStart={previousIsStart} setPreviousIsStart={setPreviousIsStart} {...rightMenu} />} */}
             <SidebarTimeline
                 isNA={isNA}
