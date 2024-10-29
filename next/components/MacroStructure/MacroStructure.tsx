@@ -27,6 +27,8 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
         })
             .then(response => response.json())
             .then(data => {
+                const poiArgUnitIds = data.pois.map(poi => poi.argument_unit_id);
+
                 //ノードの初期化
                 const newNodes = [];
 
@@ -36,14 +38,19 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                     const originX = 100;
                     const xposOpp = 300;
                     const isGovernment = isGovernmentFromSpeechId(i, speechLength);
-                    const nodeType = isGovernment ? "govNode" : "oppNode";
+
+                    
                     for (let j = 0; j < data.speeches[i].argument_units.length; j++) {
+
+                        const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id)? isGovernment : !isGovernment;
+
+                        const nodeType = finalIsGovernment ? "govNode" : "oppNode";
                         const argumentUnit = data.speeches[i].argument_units[j];
                         const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
                         if (speechIdToPositionName[i] === "LOR" && j==0) {
                             nodeY+=30;
                         }
-                        newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!isGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
+                        newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
                         nodeY += 8;
                     }
                 }

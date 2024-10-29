@@ -108,7 +108,7 @@ function MenuAsr({ id, top, left, right, bottom, nodeData, type, setMenu, asrDia
 
                 // 直前のスピーチのendの自動補完。あるendが定義されてないのに次のstartが定義されるとき、そのひとつまえのidを設定する
                 if (newSelectedPosition > 0 && !array[newSelectedPosition - 1].end && array[newSelectedPosition - 1].start !== undefined) {
-                    console.log(array[newSelectedPosition - 1].start); //これだとbooleanではなく、ふつうに数値が返ってくる
+                    // console.log(array[newSelectedPosition - 1].start); //これだとbooleanではなく、ふつうに数値が返ってくる
                     toast.success(
                         <span>
                             Automatically, <strong>{"asr-" + (nodeIdToNumber(id) - 1)}</strong> is also set as <strong>{speechIdToPositionName[newSelectedPosition - 1]}</strong>&apos;s <strong>end</strong> seg.

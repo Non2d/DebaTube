@@ -102,6 +102,7 @@ class RoundResponse(BaseModel):
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
         selectinload(round_db_model.Round.rebuttals),
         selectinload(round_db_model.Round.speeches).selectinload(
             round_db_model.Speech.argument_units
@@ -127,6 +128,7 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
 @router.get("/rounds/{round_id}")
 async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
         selectinload(round_db_model.Round.rebuttals),
         selectinload(round_db_model.Round.speeches).selectinload(
             round_db_model.Speech.argument_units
@@ -310,6 +312,16 @@ async def create_batch_round(round_create: RoundBatchCreate, db: AsyncSession = 
         )
     db.add_all(db_rebuttals)
 
+    db_pois = []
+    for poi in round_create.pois:
+        db_pois.append(
+            round_db_model.Poi(
+                argument_unit_id=poi,
+                round=round
+            )
+        )
+    db.add_all(db_pois)
+
     # ここまでの変更全てをコミット
     await db.commit()
     await db.refresh(round)
@@ -328,3 +340,10 @@ async def create_batch_round(round_create: RoundBatchCreate, db: AsyncSession = 
     )
 
     return round
+
+@router.post("/batch-rounds", response_model=str)
+async def create_batch_rounds(rounds: List[RoundBatchCreate], db: AsyncSession = Depends(get_db)):
+    created_rounds = []
+    for round_create in rounds:
+        round = await create_batch_round(round_create, db)
+    return "Batch rounds created successfully."

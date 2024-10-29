@@ -315,7 +315,7 @@ const Timeline = () => {
     }
 
     useEffect(() => { //ここでノードの更新！！！最新状態の反映！！！！
-        console.log(asrDiars);
+        // console.log(asrDiars);
 
         // あとで負荷を減らしたい
         const newNodes = nodes.map((node) => {
