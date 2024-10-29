@@ -20,14 +20,14 @@ function MenuDiarization({id, top, left, nodeData, setMenu}:ContextMenuProps) {
     ];
 
     const handleOptionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        setSelectedOption(event.target.value);
+        setSelectedOption(parseInt(event.target.value,10));
     };
 
     useEffect(() => {
         setSpeechIdToPositionName(isNA ? speechIdToPositionNameNA : speechIdToPositionNameAsian);
     }, [isNA]);
 
-    console.log(nodeData);
+    // console.log(nodeData);
 
     return (
         <div
