@@ -60,6 +60,15 @@ interface DefaultEdgeProps {
   targetY: number;
 }
 
+interface ColoredEdgeProps {
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  color: string;
+}
+
 export function DefaultEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultEdgeProps) {
   const [edgePath] = getStraightPath({
     sourceX,
@@ -71,6 +80,21 @@ export function DefaultEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultE
   return (
     <>
       <BaseEdge id={id} path={edgePath} style={{ stroke: 'red', strokeWidth: 2 }} />
+    </>
+  );
+}
+
+export function ColoredEdge({ id, sourceX, sourceY, targetX, targetY, color }: ColoredEdgeProps) {
+  const [edgePath] = getStraightPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} style={{ stroke: color, strokeWidth: 2 }} />
     </>
   );
 }

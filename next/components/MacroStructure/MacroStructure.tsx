@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
-import { govNode, oppNode, DefaultEdge } from './CustomMacroGraphComponents';
+import { govNode, oppNode, DefaultEdge, ColoredEdge } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
 import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
 
@@ -11,7 +11,7 @@ import { apiRoot } from '../../components/utils/foundation';
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 
 const nodeTypes = { "govNode": govNode, "oppNode": oppNode };
-const edgeTypes = { "default": DefaultEdge };
+const edgeTypes = { "default": DefaultEdge, "colored": ColoredEdge };
 
 export default function MacroStructure({ roundId }: { roundId: number }) {
     const originY = 0;
@@ -64,14 +64,15 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                 const newEdges = [];
                 for (let i = 0; i < data.rebuttals.length; i++) {
                     const rebuttal = data.rebuttals[i];
-                    const rallyIds = getRallyIds(dataRebuttals2Tuples(data.rebuttals));
-                    if(rallyIds.includes(i)){
-                        newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", animated: true, style: { stroke: 'pink' }});
-                        continue;
-                    }
-                    newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", animated: true});
+                    // const rallyIds = getRallyIds(dataRebuttals2Tuples(data.rebuttals));
+                    // if(rallyIds.includes(i)){
+                    //     newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", style: { stroke: 'pink' }});
+                    //     continue;
+                    // }
+                    // red, blue, greenのなかからランダムに色を選ぶ
+                    const color = ['red', 'blue', 'green'][Math.floor(Math.random() * 3)];
+                    newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "colored", data: { color: color } });
                 }
-
                 setEdges(newEdges);
             })
             .catch(error => console.error('Error fetching data:', error));

@@ -5,29 +5,45 @@ import { BaseEdge, getBezierPath, getStraightPath, getSmoothStepPath, getSimpleB
 // Macroの方ではRootNodeは不要
 
 export const govNode = ({ data }: { data: any }) => {
-    return (
-        <div className="w-32 h-2 bg-blue-500 border-1 border-blue-400">
-            <Handle type="target" id="tgt" position={Position.Right} className="w-1 h-1 bg-red-500" />
-            <Handle type="source" id="src" position={Position.Right} className="w-1 h-1 bg-red-500" />
-        </div>
-    );
+  return (
+    <div style={{ width: '8rem', height: '0.5rem', backgroundColor: 'black', borderWidth: '1px', borderColor: 'gray' }}>
+      <span style={{ position: 'absolute', top: '50%', right: '7px', transform: 'translateY(-50%)', zIndex: 1 }}>
+        <Handle type="target" id="tgt" position={Position.Right} style={{ opacity: 0 }} />
+        <Handle type="source" id="src" position={Position.Right} style={{ opacity: 0 }} />
+      </span>
+    </div>
+
+  );
 };
 
 export const oppNode = ({ data }: { data: any }) => {
-    return (
-        <div className="w-32 h-2 bg-blue-500 border-1 border-blue-400">
-            <Handle type="target" id="tgt" position={Position.Left} className="w-1 h-1 bg-blue-500" />
-            <Handle type="source" id="src" position={Position.Left} className="w-1 h-1 bg-blue-500" />
-        </div>
-    );
+  return (
+    <div style={{ width: '8rem', height: '0.5rem', backgroundColor: 'black', borderWidth: '1px', borderColor: 'gray' }}>
+      <span style={{ position: 'absolute', top: '50%', left: '7px', transform: 'translateY(-50%)', zIndex: 1 }}>
+        <Handle type="target" id="tgt" position={Position.Left} style={{ opacity: 0 }} />
+        <Handle type="source" id="src" position={Position.Left} style={{ opacity: 0 }} />
+      </span>
+    </div>
+  );
 };
 
 interface DefaultEdgeProps {
-    id: string;
-    sourceX: number;
-    sourceY: number;
-    targetX: number;
-    targetY: number;
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+}
+
+interface ColoredEdgeProps {
+  id: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  data?: {
+    color: string;
+  }
 }
 
 export function DefaultEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultEdgeProps) {
@@ -41,6 +57,21 @@ export function DefaultEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultE
   return (
     <>
       <BaseEdge id={id} path={edgePath} style={{ stroke: 'red', strokeWidth: 2 }} />
+    </>
+  );
+}
+
+export function ColoredEdge({ id, sourceX, sourceY, targetX, targetY, data }: ColoredEdgeProps) {
+  const [edgePath] = getStraightPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} style={{ stroke: data?.color, strokeWidth: 2 }} />
     </>
   );
 }

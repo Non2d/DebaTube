@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, Text, DateTime
 from sqlalchemy.orm import relationship
 
 from db import Base
@@ -10,15 +10,15 @@ class Round(Base):
     title = Column(String(1024))
     motion = Column(String(1024))
 
-    pois = relationship("Poi", back_populates="round", cascade="all, delete-orphan")
-    rebuttals = relationship("Rebuttal", back_populates="round", cascade="all, delete-orphan")
-    speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
+    pois = relationship("Poi", back_populates="round")
+    rebuttals = relationship("Rebuttal", back_populates="round")
+    speeches = relationship("Speech", back_populates="round")
 
 class Speech(Base):
     __tablename__ = "speeches"
     id = Column(Integer, primary_key=True, index=True)
 
-    argument_units = relationship("ArgumentUnit", back_populates="speech", cascade="all, delete-orphan")
+    argument_units = relationship("ArgumentUnit", back_populates="speech")
 
     round_id = Column(Integer, ForeignKey("rounds.id"))
     round = relationship("Round", back_populates="speeches")

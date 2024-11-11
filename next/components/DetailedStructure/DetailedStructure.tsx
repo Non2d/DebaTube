@@ -65,7 +65,6 @@ const DetailedStructure: React.FC<DetailedStructureProps> = ({ roundId }) => {
                 id: `reb-${rebuttal.id}`,
                 source: `arg-${rebuttal.src}`,
                 target: `arg-${rebuttal.tgt}`,
-                animated: true,
             });
         });
         // console.log(newRebuttals);
