@@ -42,7 +42,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                     
                     for (let j = 0; j < data.speeches[i].argument_units.length; j++) {
 
-                        const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id)? isGovernment : !isGovernment;
+                        const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id)? !isGovernment : isGovernment;
 
                         const nodeType = finalIsGovernment ? "govNode" : "oppNode";
                         const argumentUnit = data.speeches[i].argument_units[j];
@@ -66,10 +66,10 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                     const rebuttal = data.rebuttals[i];
                     const rallyIds = getRallyIds(dataRebuttals2Tuples(data.rebuttals));
                     if(rallyIds.includes(i)){
-                        newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", animated: true, style: { stroke: 'pink' }});
+                        newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", style: { stroke: 'pink' }});
                         continue;
                     }
-                    newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", animated: true});
+                    newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default"});
                 }
 
                 setEdges(newEdges);
