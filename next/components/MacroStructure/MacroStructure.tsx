@@ -70,7 +70,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                     //     continue;
                     // }
                     // red, blue, greenのなかからランダムに色を選ぶ
-                    const color = ['red', 'blue', 'green'][Math.floor(Math.random() * 3)];
+                    const color = ['black', 'red', 'lightblue'][Math.floor(Math.random() * 3)];
                     newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "colored", data: { color: color } });
                 }
                 setEdges(newEdges);

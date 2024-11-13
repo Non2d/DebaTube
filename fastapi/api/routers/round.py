@@ -113,7 +113,7 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
     return rounds
 
 @router.get("/batch-rounds", response_model=List[RoundResponse])
-async def get_rounds(db: AsyncSession = Depends(get_db)):
+async def get_batch_rounds(db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
         selectinload(round_db_model.Round.pois),
         selectinload(round_db_model.Round.rebuttals),
@@ -124,6 +124,21 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     rounds = result.scalars().unique().all()
     return rounds
+
+@router.get("/batch-rounds/{round_id}", response_model=RoundResponse)
+async def get_batch_round(round_id: int, db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    ).filter_by(id=round_id)
+    result = await db.execute(query)
+    round = result.scalars().first()
+    if round is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    return round
 
 @router.get("/rounds/{round_id}")
 async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
