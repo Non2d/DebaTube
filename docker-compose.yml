@@ -47,7 +47,7 @@ services:
       MYSQL_DATABASE: "debate"
       TZ: "Asia/Tokyo"
     volumes:
-      - mysql_data_sega:/var/lib/mysql
+      - mysql_data_video:/var/lib/mysql
     networks:
       - docker_network
 
@@ -61,7 +61,7 @@ services:
 
 volumes:
   node_modules:
-  mysql_data_sega:
+  mysql_data_video:
 
 networks:
   docker_network:
