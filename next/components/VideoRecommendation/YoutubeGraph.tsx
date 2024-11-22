@@ -33,13 +33,25 @@ export default function YoutubeGraph() {
     return data
   }
 
-  useEffect(() => {
-    const fetchVideoInfo = async () => {
-      const data = await videoInfo('LGTZGNpZ7X8')
-      console.log(data)
-    }
-    fetchVideoInfo()
-  }, [])
+  const channelInfo = async (channelId: string) => {
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet%2Cstatistics&id=${channelId}&key=${YOUTUBE_API_KEY}`)
+    const data = await response.json()
+    return data
+  }
+
+  // useEffect(() => {
+  //   const fetchVideoInfo = async () => {
+  //     const data = await videoInfo('LGTZGNpZ7X8')
+  //     console.log(data)
+  //   }
+  //   fetchVideoInfo()
+
+  //   const fetchChannelInfo = async () => {
+  //     const data = await channelInfo('UC-GlZlp4aytmS6ob3ERm5Rg')
+  //     console.log(data)
+  //   }
+  //   fetchChannelInfo()
+  // }, [])
 
   const debateItems: DebateItem[] = [
     { videoId: 'LGTZGNpZ7X8', title: '[spno]構造員を理解sakdfjkjksejj', channel: 'Debate Channel 1', views: '10K views', publishedAt: '1 week ago', graphUrl: '/placeholder.svg?height=200&width=300' },
@@ -94,7 +106,7 @@ export default function YoutubeGraph() {
                     <p className="text-sm text-muted-foreground">{item.views} • {item.publishedAt}</p>
                   </div>
                 </div>
-                <div className="aspect-[16/9] relative bg-blue-100 rounded-lg overflow-hidden" style={{ height: window.innerHeight - 210 }}>
+                <div className="aspect-[16/9] relative bg-blue-100 rounded-lg overflow-hidden" style={{ height: '80vh' }}>
                   {/* <Image
                     src={item.graphUrl}
                     alt="Debate Graph"

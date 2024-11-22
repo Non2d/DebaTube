@@ -7,8 +7,13 @@ class Round(Base):
     __tablename__ = "rounds"
     id = Column(Integer, primary_key=True, index=True)
 
+    video_id = Column(String(1024))
     title = Column(String(1024))
+    description = Column(String(1024))
     motion = Column(String(1024))
+    date_uploaded = Column(String(1024))
+    channel_id = Column(String(1024))
+    tag = Column(String(1024))
 
     pois = relationship("Poi", back_populates="round", cascade="all, delete-orphan")
     rebuttals = relationship("Rebuttal", back_populates="round", cascade="all, delete-orphan")

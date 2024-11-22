@@ -243,11 +243,11 @@ async def digest2motion(digest: str) -> str:
         ],
     )
 
-    motion = response.choices[0].message.content
+    motion_predicted = response.choices[0].message.content
 
-    result = "<GPT prop> " + motion
+    # result = "<GPT prop> " + motion
 
-    return result
+    return motion_predicted
 
 def ratio():
     return f"{repeated_num}/{try_num}"

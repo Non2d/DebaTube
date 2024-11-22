@@ -3,15 +3,22 @@ import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
 import { apiRoot } from '../../components/utils/foundation';
+import Image from 'next/image';
 
 // Difinition: asr + diarization = transcript
 
 export default function Home() {
-    console.log(apiRoot);
+    const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+    const videoMetadataFromTitle = async (title) => {
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${title}&key=${YOUTUBE_API_KEY}`);
+        const metadata = await response.json();
+        return metadata;
+    }
+    const [videoTitle, setVideoTitle] = useState('');
+
     // API Input
     const [motion, setMotion] = useState('');
-    const [title, setTitle] = useState('');
-
+    const [videoId, setVideoId] = useState('');
     const [fileName, setFileName] = useState('');
     const [transcript, setTranscript] = useState([]) // filesをtranscriptsに変更
     const [error, setError] = useState('')
@@ -21,7 +28,10 @@ export default function Home() {
 
         setError('');
         setFileName(selectedFile.name);
-        setTitle(selectedFile.name.split('.')[0]);
+        const csvTitle = selectedFile.name.split('.')[0];
+        const videoMetadata = await videoMetadataFromTitle(csvTitle);
+        setVideoId(videoMetadata.items[0].id.videoId);
+        setVideoTitle(videoMetadata.items[0].snippet.title);
 
         const reader = new FileReader();
         reader.readAsText(selectedFile);
@@ -50,11 +60,11 @@ export default function Home() {
                 .map(segment => segment.text)
                 .join('');
 
-            const requestText = "1st proposition:"+first20SegmentsOfPM+", 1st opposition:"+first20SegmentsOfLO;
-            
+            const requestText = "1st proposition:" + first20SegmentsOfPM + ", 1st opposition:" + first20SegmentsOfLO;
+
             console.log(requestText);
 
-            const response = await fetch(apiRoot+'/motion', {
+            const response = await fetch(apiRoot + '/motion', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -83,16 +93,14 @@ export default function Home() {
         try {
             const requestBody = {
                 "motion": motion,
-                "title": title,
+                "video_id": videoId,
                 "pois": [],
                 "speeches": transcript, //あとでUPDATEで上書きされる
             }
 
-            console.log("motion: ", motion, "title: ", title, "check: ", motion == "");
-
             const data = await toast.promise(
                 (async () => {
-                    const response = await fetch(apiRoot+'/rounds', {
+                    const response = await fetch(apiRoot + '/rounds', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -157,21 +165,45 @@ export default function Home() {
 
                     <div className="mb-4">
                         <label className="block text-gray-700 mb-2" htmlFor="source">
-                            Title
+                            Video ID
                         </label>
                         <input
                             type="text"
-                            id="title"
-                            placeholder="WSDC_2017_GF"
+                            id="youtube-url"
+                            placeholder="Input Youtube URL Here. System will automatically extract video ID."
                             className="mt-1 p-2 border w-full rounded"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
+                            value={videoId}
+                            onChange={(e) => {
+                                const url = e.target.value;
+                                const videoIdMatch = url.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/);
+                                if (videoIdMatch && videoIdMatch[1]) {
+                                    setVideoId(videoIdMatch[1]);
+                                } else {
+                                    setVideoId(''); // Clear the video ID if the URL is invalid
+                                    toast.error('Invalid YouTube URL. Maybe you input url of list or sth?');
+                                }
+                            }}
                         />
+                        <label className="block text-gray-500 mt-2">
+                            {videoTitle}
+                        </label>
+                        {videoId && (
+                            <>
+                                <span className="text-gray-500">Thumbnail: </span>
+                                <Image
+                                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                                    alt={videoTitle}
+                                    width={480} // Specify the width
+                                    height={360} // Specify the height
+                                    className="object-cover"
+                                />
+                            </>
+                        )}
                     </div>
 
                     <div className="mb-4">
                         <label className="block text-gray-700 mb-2" htmlFor="dropzone-file">
-                            SpeechText
+                            Speech Text
                         </label>
                         <label
                             htmlFor="dropzone-file"
