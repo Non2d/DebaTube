@@ -20,8 +20,9 @@ export default function Home() {
     const [motion, setMotion] = useState('');
     const [videoId, setVideoId] = useState('');
     const [fileName, setFileName] = useState('');
-    const [transcript, setTranscript] = useState([]) // filesをtranscriptsに変更
-    const [error, setError] = useState('')
+    const [transcript, setTranscript] = useState([]); // filesをtranscriptsに変更
+    const [poiSegmentIds, setPoiSegmentIds] = useState([]);
+    const [error, setError] = useState('');
 
     const handleFileChange = async (event) => {
         const selectedFile = event.target.files[0];
@@ -49,6 +50,7 @@ export default function Home() {
         try {
             const content = await readerPromise;
             setTranscript(content.speeches);
+            setPoiSegmentIds(content.pois);
 
             const first20SegmentsOfPM = content.speeches[0]
                 .slice(0, 10)
@@ -94,7 +96,7 @@ export default function Home() {
             const requestBody = {
                 "motion": motion,
                 "video_id": videoId,
-                "pois": [],
+                "poi_segment_ids": poiSegmentIds,
                 "speeches": transcript, //あとでUPDATEで上書きされる
             }
 

@@ -36,7 +36,7 @@ async def segment2argument_units(speech: list[Segment]) -> list[int]:
         prompt_segments += f"{id}:{segment.text}\n"
 
     response = await client.beta.chat.completions.parse(
-        model="gpt-4o",
+        model="gpt-4o-2024-11-20",
         messages=[
             {"role": "user", "content": "Regroup the given segments into argumentative units of 1 to 5 segments each and return the list of the first segment's id in each unit. The scheme of output is just a list of indices. YOU MUST NOT RETURN ANYTHING OTHER THAN THE LIST."},
             {"role": "user", "content": "NO ARGUMENT UNIT CAN HAVE MORE THAN 5 SEGMENTS."},
@@ -46,7 +46,6 @@ async def segment2argument_units(speech: list[Segment]) -> list[int]:
         # response_format=FirstSegmentIds,
         response_format=ArgumentUnitMetaDataList,
     )
-
     
     # first_seg_ids = response.choices[0].message.parsed.segment_ids
     # au_topic = response.choices[0].message.parsed.argument_topic
@@ -75,7 +74,7 @@ async def segment2argument_units_unstructured(speech: list[Segment]) -> list[lis
         prompt_segments += f"{id}:{segment.text}\n"
 
     response = await client.chat.completions.create(
-        model="gpt-4o-2024-08-06",
+        model="gpt-4o-2024-11-20",
         messages=[
             {"role": "user", "content": "Regroup the given segments into argumentative units. The scheme of output is a list of lists of segments."},
             {"role": "user", "content": "An argument unit is consisted of 1 to 5 segments."},
@@ -146,7 +145,7 @@ async def argument_units2rebuttals(src_speech: list[ArgumentUnit], tgt_speech: l
         prompt_tgt += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
     
     response = await client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
+        model="gpt-4o-2024-11-20",
         messages=[
             {"role": "user", "content": "Identify all rebuttals present from the following speech, and return them as a list of tuples in the form of [source_id, target_id]."},
             {"role": "user", "content": "Each argument unit can rebut to at most one opponent's argument unit."},
@@ -182,7 +181,7 @@ async def argument_units2rebuttals_repeated(src_speech: list[ArgumentUnit], tgt_
         prompt_tgt += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
     
     completions = await client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
+        model="gpt-4o-2024-11-20",
         messages=[
             {"role": "user", "content": "Identify all rebuttals present from the following speech, and return them as a list of tuples in the form of [source_id, target_id]."},
             {"role": "user", "content": "Each argument unit can rebut to at most one opponent's argument unit."},
@@ -213,7 +212,7 @@ async def argument_units2rebuttals_repeated_combined(src_speech: list[ArgumentUn
         prompt_tgt += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
     
     completions = await client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
+        model="gpt-4o-2024-11-20",
         messages=[
             {"role": "user", "content": "Identify all rebuttals present from the following speech, and return them as a list of tuples in the form of [source_id, target_id]."},
             {"role": "user", "content": "Each argument unit can rebut to at most one opponent's argument unit."},
@@ -235,7 +234,7 @@ async def argument_units2rebuttals_repeated_combined(src_speech: list[ArgumentUn
 
 async def digest2motion(digest: str) -> str:
     response = await client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-2024-11-20",
         messages=[
             {"role": "user", "content": "Given a transcript of a competitive debate round, tell me the motion of this round in the form of This house ..."},
             {"role": "user", "content": "DO NOT RETURN ANYTHING OTHER THAN THE MOTION."},
@@ -251,3 +250,18 @@ async def digest2motion(digest: str) -> str:
 
 def ratio():
     return f"{repeated_num}/{try_num}"
+
+#正直GPT関係ない
+def group_consecutive(numbers):
+    if not numbers:
+        return []
+    
+    groups = [[numbers[0]]]
+
+    for i in range(1, len(numbers)):
+        if numbers[i] == numbers[i - 1] + 1:  # 前の数値と連続しているか確認
+            groups[-1].append(numbers[i])
+        else:
+            groups.append([numbers[i]])
+    
+    return groups

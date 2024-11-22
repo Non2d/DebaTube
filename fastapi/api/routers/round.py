@@ -12,7 +12,7 @@ from pydantic import BaseModel
 import models.round as round_db_model
 from log_config import logger
 router = APIRouter()
-from cruds.gpt import segment2argument_units, speeches2rebuttals, digest2motion, ratio
+from cruds.gpt import segment2argument_units, speeches2rebuttals, digest2motion, group_consecutive
 import os, httpx
 
 # request schema
@@ -31,7 +31,7 @@ class RoundCreate(BaseModel):
     # tag: str
 
     speeches: List[List[SegmentCreate]]
-    # pois: List[int]  # リクエストの時点ではpoiはまだ確定していない
+    poi_segment_ids: List[int]  # リクエストの時点ではpoiはまだ確定していない
     # rebuttals: List[Rebuttal] # リクエストの時点ではrebuttalはまだ存在しない
 
 class RebuttalCreate(BaseModel):
@@ -192,7 +192,8 @@ async def get_video_metadata(video_id: str):
         all_data = response.json()
         metadata = all_data["items"][0]["snippet"]
         return metadata
-    
+
+
 
 @router.post("/rounds", response_model=RoundResponse)
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
@@ -225,55 +226,102 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     db.add(round)
     
     speeches = []
+    fixed_pois = []
 
     start_time = time.time()  # 開始時間を記録
 
-    # POIの処理
-    # pois = []
-    # pois.append(round_db_model.Poi(argument_unit_id=1, round=round))
-    # pois.append(round_db_model.Poi(argument_unit_id=2, round=round))
-    # db.add_all(pois)
-
     # ここでsegment2argment_unitsの処理を並行実行
-    # segment_tasks = [segment2argument_units(speech_create) for speech_create in round_create.speeches]
-    # segment_results = await asyncio.gather(*segment_tasks)  # 並行実行して結果を待つ
+    segment_tasks = [segment2argument_units(speech_create) for speech_create in round_create.speeches]
+    segment_results = await asyncio.gather(*segment_tasks)  # 並行実行して結果を待つ
 
-    # sequence_id = 0
-    # for idx, first_seg_ids in enumerate(segment_results):
-    #     speech_create = round_create.speeches[idx]
-    #     argument_units = []
+    # segment_results = [[0, 7, 10, 22, 68], [0, 8, 13, 23, 69, 92], [0, 5, 18, 29, 46, 91], [0, 5, 7, 12, 25, 35, 51, 70, 94], [0, 6, 11, 16, 21, 30, 59, 73, 89, 102, 112, 118], [0, 3, 6, 11, 17, 24, 33, 37, 50, 85], [0, 8, 12, 23, 35, 46, 55], [0, 4, 8, 15, 19, 28, 34, 42, 49, 57, 62]]
+
+    logger.info(f"segment_results: {segment_results}")
+    logger.info(f"poi_segment_ids: {round_create.poi_segment_ids}")
+
+    tmp_segment_id = 0
+    poi_local_ids = [[] for _ in range(len(round_create.speeches))]
+    for speech_id, speech in enumerate(round_create.speeches):
+        for local_segment_id, segment in enumerate(speech):
+            if tmp_segment_id in round_create.poi_segment_ids:
+                logger.info(f"`POI->{tmp_segment_id}th segment: {segment.text}")
+                poi_local_ids[speech_id].append(local_segment_id)
+            tmp_segment_id += 1
+    
+    logger.info(f"poi_local_ids: {poi_local_ids}")
+
+    sequence_id = 0
+    for idx, first_seg_ids in enumerate(segment_results):
+        logger.info(f"{idx}th speech-----------------")
+        speech_create = round_create.speeches[idx]
+        argument_units = []
+
+        fixed_arg_heads = first_seg_ids
+
+        poi_arg_units = group_consecutive(poi_local_ids[idx])
         
-    #     for i in range(len(first_seg_ids)):
-    #         first_seg_id = first_seg_ids[i]
+        poi_based_head_pairs = []
+        for poi_arg_unit in poi_arg_units:
+            first_poi_based_head = poi_arg_unit[0]
+            last_poi_based_head = poi_arg_unit[-1]+1
+            poi_based_head_pairs.append((first_poi_based_head, last_poi_based_head))
+            for arg_head in first_seg_ids:
+                if first_poi_based_head < arg_head < last_poi_based_head:
+                    fixed_arg_heads.remove(arg_head)
+                    fixed_pois.remove(arg_head)
+        
+        for poi_based_heads in poi_based_head_pairs:
+            if poi_based_heads[0] not in fixed_arg_heads:
+                fixed_arg_heads.append(poi_based_heads[0])
+            if poi_based_heads[1] not in fixed_arg_heads:
+                fixed_arg_heads.append(poi_based_heads[1])
+        
+        fixed_arg_heads.sort()
 
-    #         if i == len(first_seg_ids) - 1:
-    #             last_seg_id = len(speech_create) - 1
-    #         elif first_seg_ids[i] == first_seg_ids[i+1]:
-    #             last_seg_id = first_seg_ids[i]
-    #         else:
-    #             last_seg_id = first_seg_ids[i+1] - 1
+        logger.info(f"before         : {segment_results[idx]}")
+        logger.info(f"fixed_arg_heads: {fixed_arg_heads}")
+        logger.info(f"poi_based_head_pairs: {poi_based_head_pairs}")
+        
+        for i in range(len(fixed_arg_heads)):
+            first_seg_id = fixed_arg_heads[i]
 
-    #         logger.info(f"len_speech_create: {len(speech_create)} first_seg_id: {first_seg_id}, last_seg_id: {last_seg_id}")
+            if i == len(fixed_arg_heads) - 1:
+                last_seg_id = len(speech_create) - 1
+            elif fixed_arg_heads[i] == fixed_arg_heads[i+1]:
+                last_seg_id = fixed_arg_heads[i]
+            else:
+                last_seg_id = fixed_arg_heads[i+1] - 1
+
+            logger.info(f"len_speech_create: {len(speech_create)} first_seg_id: {first_seg_id}, last_seg_id: {last_seg_id}")
             
-    #         segment_texts = [speech_create[j].text.strip() for j in range(first_seg_id, last_seg_id + 1)]
-    #         plain_text = ' '.join(segment_texts)
+            segment_texts = [speech_create[j].text.strip() for j in range(first_seg_id, last_seg_id + 1)]
+            plain_text = ' '.join(segment_texts)
 
-    #         argument_units.append(
-    #             round_db_model.ArgumentUnit(
-    #                 sequence_id=sequence_id,
-    #                 start=speech_create[first_seg_id].start,
-    #                 end=speech_create[last_seg_id].end,
-    #                 text=plain_text,
-    #             )
-    #         )
-    #         sequence_id += 1
+            argument_units.append(
+                round_db_model.ArgumentUnit(
+                    sequence_id=sequence_id,
+                    start=speech_create[first_seg_id].start,
+                    end=speech_create[last_seg_id].end,
+                    text=plain_text,
+                )
+            )
+
+            # fixed_poisへの追加
+            if first_seg_id in [pair[0] for pair in poi_based_head_pairs]: # POIの先頭のsegmentの場合
+                fixed_pois.append(round_db_model.Poi(argument_unit_id=sequence_id, round=round))
+                logger.info(f"This is POI: {sequence_id}, text: {plain_text}")
+
+            sequence_id += 1
         
-    #     # スピーチとArgument Unitsをデータベースに保存するためのリストに追加
-    #     speeches.append(
-    #         round_db_model.Speech(argument_units=argument_units, round=round)
-    #     )
+        # スピーチとArgument Unitsをデータベースに保存するためのリストに追加
+        speeches.append(
+            round_db_model.Speech(argument_units=argument_units, round=round)
+        )
     
     db.add_all(speeches)  # スピーチをデータベースに追加
+
+    #POIの処理
+    db.add_all(fixed_pois)
 
     # GPTによる反論判定
     # rebuttals = await speeches2rebuttals(speeches) 
