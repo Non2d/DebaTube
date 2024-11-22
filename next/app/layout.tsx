@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="jp">
       <body>
-        <Header />
+        {/* <Header /> */}
         <Toaster position="top-right" />
         <AppProvider>
           {children}
