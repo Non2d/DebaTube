@@ -21,7 +21,13 @@ interface DetailedStructureProps {
 
 import { apiRoot } from '../../components/utils/foundation';
 
+interface Rebuttal {
+    src: number;
+    tgt: number;
+}
+
 const DetailedStructure: React.FC<DetailedStructureProps> = ({ roundId }) => {
+    const repeatedNum = 4;
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -32,7 +38,7 @@ const DetailedStructure: React.FC<DetailedStructureProps> = ({ roundId }) => {
     const [rebuttals, setRebuttals] = useState<Edge[]>([]);
     const [timeLabelNodes, setTimeLabelNodes] = useState<Node[]>([]);
     const [argNodes, setArgNodes] = useState<Node[]>([]);
-    const zoomLevel = 1;
+    const zoomLevel = 5;
 
     const setArgumentUnits = (speeches:any) => {
         const newDebateNodes: Node[] = [];
@@ -60,15 +66,52 @@ const DetailedStructure: React.FC<DetailedStructureProps> = ({ roundId }) => {
 
     const setRebuttalEdges = (rebuttals:any) => {
         const newRebuttals: Edge[] = [];
-        rebuttals.forEach((rebuttal:any) => {
+        let isTfBase = true;
+        // rebuttals.forEach((rebuttal:any) => {
+        //     newRebuttals.push({
+        //         id: `reb-${rebuttal.id}`,
+        //         source: `arg-${rebuttal.src}`,
+        //         target: `arg-${rebuttal.tgt}`,
+        //     });
+        // });
+        // // console.log(newRebuttals);
+        // setRebuttals(newRebuttals);
+        const rebuttalCandidates = rebuttals;
+        const rebuttalDict: { [key: string]: number } = {};
+        for (let i = 0; i < rebuttalCandidates.length; i++) {
+            const rebuttal = rebuttalCandidates[i];
+            const rebKey = JSON.stringify({ src: rebuttal.src, tgt: rebuttal.tgt });
+            if (rebuttalDict[rebKey] === undefined) {
+                rebuttalDict[rebKey] = 1;
+            } else {
+                rebuttalDict[rebKey]++;
+                isTfBase = false;
+            }
+        }
+
+        const repeatedRebuttals: Rebuttal[] = Object.keys(rebuttalDict)
+            .filter(key => rebuttalDict[key] >= repeatedNum)
+            .map(key => JSON.parse(key) as Rebuttal);
+        
+        const rebuttalsToUse = isTfBase ? data.rebuttals : repeatedRebuttals;
+
+        for (let i = 0; i < rebuttalsToUse.length; i++) {
+            const rebuttal = rebuttalsToUse[i];
+            const srcSequenceId = rebuttal.src;
+            const tgtSequenceId = rebuttal.tgt;
+
+            if (srcSequenceId === tgtSequenceId) {
+                continue;
+            }
+
             newRebuttals.push({
-                id: `reb-${rebuttal.id}`,
-                source: `arg-${rebuttal.src}`,
-                target: `arg-${rebuttal.tgt}`,
-                animated: true,
+                id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+                source: `arg-${srcSequenceId}`,
+                target: `arg-${tgtSequenceId}`,
+                // type: isGovernmentFromSpeechId(srcSequenceId, 8) ? 'govEdge' : 'oppEdge',
             });
-        });
-        // console.log(newRebuttals);
+        }
+
         setRebuttals(newRebuttals);
     }
 

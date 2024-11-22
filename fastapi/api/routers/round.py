@@ -16,7 +16,7 @@ from log_config import logger
 
 router = APIRouter()
 
-from cruds.gpt import segment2argument_units, segment2argument_units_unstructured, speeches2rebuttals, digest2motion
+from cruds.gpt import segment2argument_units, speeches2rebuttals, digest2motion, ratio
 
 # request schema
 class SegmentCreate(BaseModel):  # たぶんだけどSegmentを返すことはない
@@ -99,6 +99,19 @@ class RoundResponse(BaseModel):
     class Config:
         orm_mode = True
 
+class ArgumentUnitResponseAcc(BaseModel):
+    start: float
+    end: float
+    text: str
+
+class RoundResponseAcc(BaseModel):
+    title: str
+    motion: str
+    speeches: List[List[ArgumentUnitResponseAcc]]
+
+    class Config:
+        orm_mode = True
+
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
@@ -113,7 +126,7 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
     return rounds
 
 @router.get("/batch-rounds", response_model=List[RoundResponse])
-async def get_rounds(db: AsyncSession = Depends(get_db)):
+async def get_rounds_batch(db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
         selectinload(round_db_model.Round.pois),
         selectinload(round_db_model.Round.rebuttals),
@@ -124,6 +137,53 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     rounds = result.scalars().unique().all()
     return rounds
+
+@router.get("/batch-rounds/{round_id}", response_model=RoundResponse)
+async def get_round_batch(round_id:int, db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    ).filter_by(id=round_id)
+    result = await db.execute(query)
+    round = result.scalars().first()
+    if round is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    return round
+
+@router.get("/batch-rounds-accuracy/{round_id}", response_model=RoundResponseAcc)
+async def get_round_batch(round_id: int, db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    ).filter_by(id=round_id)
+    result = await db.execute(query)
+    round = result.scalars().first()
+    if round is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+    # データを希望の形式に変換
+    speeches_formatted = []
+    for speech in round.speeches:
+        argument_units_formatted = []
+        for arg_unit in speech.argument_units:
+            argument_units_formatted.append({
+                "start": arg_unit.start,
+                "end": arg_unit.end,
+                "text": arg_unit.text
+            })
+        speeches_formatted.append(argument_units_formatted)
+
+    response_data = {
+        "title": round.title,
+        "motion": round.motion,
+        "speeches": speeches_formatted
+    }
+
+    return response_data
 
 @router.get("/rounds/{round_id}")
 async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
@@ -213,6 +273,88 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
             sequence_id += 1
         
         # スピーチとArgument Unitsをデータベースに保存するためのリストに追加
+        speeches.append(
+            round_db_model.Speech(argument_units=argument_units, round=round)
+        )
+    
+    db.add_all(speeches)  # スピーチをデータベースに追加
+
+    # GPTによる反論判定
+    rebuttals = await speeches2rebuttals(speeches) 
+    logger.info("反論:"+str(rebuttals))
+    db_rebuttals = []
+    for rebuttal in rebuttals:
+        db_rebuttals.append(
+            round_db_model.Rebuttal(
+                src=rebuttal.src,
+                tgt=rebuttal.tgt,
+                round=round
+            )
+        )
+    db.add_all(db_rebuttals)
+
+    # ここまでの変更全てをコミット
+    await db.commit()
+    await db.refresh(round)
+
+    # roundデータを取得し、関連するリレーションをロード
+    await db.execute(
+        select(round_db_model.Round)
+        .options(
+            selectinload(round_db_model.Round.rebuttals),
+            selectinload(round_db_model.Round.pois),
+            selectinload(round_db_model.Round.speeches).selectinload(
+                round_db_model.Speech.argument_units
+            ),
+        )
+        .filter_by(id=round.id)
+    )
+
+    end_time = time.time()  # 終了時間を記録
+    logger.info(f"非同期処理の実行時間: {end_time - start_time}秒")
+
+    return round
+
+@router.post("/rounds-accuracy", response_model=RoundResponse)
+async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
+    if len(round_create.speeches) not in [6, 8]:
+        raise HTTPException(status_code=400, detail="The number of speeches must be 6 or 8.")
+    
+    logger.info(f"round_create.title: {round_create.title}, is empty?: {round_create.title == ''}")
+    
+    if round_create.title == "":
+        raise HTTPException(status_code=400, detail="Title must not be empty.")
+
+    round = round_db_model.Round(
+        title=f"<accuracy test: {str(ratio())}>"+str(round_create.title),
+        motion=round_create.motion,
+    )
+    db.add(round)
+    
+    speeches = []
+
+    start_time = time.time()  # 開始時間を記録
+    logger.info(f"記録開始：非同期処理の実行時間")
+
+    # ここでsegment2argment_unitsの処理を並行実行しない！！！！全segmentをargument_unitsとして扱う！！
+    # segment_tasks = [segment2argument_units4accuracy(speech_create) for speech_create in round_create.speeches]
+    # segment_results = await asyncio.gather(*segment_tasks)  # 並行実行して結果を待つ
+
+
+    # segmentをすべて取り出す
+    logger.info(f"len(round_create.speeches): {len(round_create.speeches)}")
+
+    for i, speech_create in enumerate(round_create.speeches):
+        argument_units = []
+        for j, segment in enumerate(speech_create):
+            argument_units.append(
+                round_db_model.ArgumentUnit(
+                    sequence_id=i*len(speech_create)+j,
+                    start=segment.start,
+                    end=segment.end,
+                    text=segment.text,
+                )
+            )
         speeches.append(
             round_db_model.Speech(argument_units=argument_units, round=round)
         )

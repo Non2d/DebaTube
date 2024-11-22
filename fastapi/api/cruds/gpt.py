@@ -121,7 +121,7 @@ async def speeches2rebuttals(speeches: list[list[Segment]]) -> list[Rebuttal]:
         rebuttal_speech_pair_ids = [(1,0),(2,1),(3,0),(3,2),(4,1),(4,3),(5,0),(5,2),(5,4),(6,0),(6,2),(6,4),(7,1),(7,3),(7,5),(7,6)]
     
     tasks = [
-    argument_units2rebuttals_repeated(speeches[pair[0]], speeches[pair[1]]) #切り替え
+    argument_units2rebuttals_repeated_combined(speeches[pair[0]], speeches[pair[1]]) #切り替え
     for pair in rebuttal_speech_pair_ids
     ]
 
@@ -203,6 +203,36 @@ async def argument_units2rebuttals_repeated(src_speech: list[ArgumentUnit], tgt_
     rebuttals = repeated_rebuttals
     return rebuttals
 
+async def argument_units2rebuttals_repeated_combined(src_speech: list[ArgumentUnit], tgt_speech: list[ArgumentUnit]) -> list[Rebuttal]:
+    prompt_src = ""
+    prompt_tgt = ""
+
+    for argument_unit in src_speech.argument_units:
+        prompt_src += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
+    for argument_unit in tgt_speech.argument_units:
+        prompt_tgt += f"{argument_unit.sequence_id}:{argument_unit.text}\n"
+    
+    completions = await client.beta.chat.completions.parse(
+        model="gpt-4o-2024-08-06",
+        messages=[
+            {"role": "user", "content": "Identify all rebuttals present from the following speech, and return them as a list of tuples in the form of [source_id, target_id]."},
+            {"role": "user", "content": "Each argument unit can rebut to at most one opponent's argument unit."},
+            {"role": "user", "content": "Note that rebuttals are direct response to the opponents, typically starting with rephrasing the opponents' arguments they are focusing on."},
+            {"role": "user", "content": f"Source speech: {prompt_src}"},
+            {"role": "user", "content": f"Target speech: {prompt_tgt}"},
+        ],
+        n=try_num,
+        response_format=Rebuttals,
+    )
+
+    rebuttals = []
+    for choice in completions.choices:
+        logger.info(choice.message.parsed.rebuttals)
+        for rebuttal in choice.message.parsed.rebuttals:
+            rebuttals.append(rebuttal)
+
+    return rebuttals
+
 async def digest2motion(digest: str) -> str:
     response = await client.chat.completions.create(
         model="gpt-4o",
@@ -218,3 +248,6 @@ async def digest2motion(digest: str) -> str:
     result = "<GPT prop> " + motion
 
     return result
+
+def ratio():
+    return f"{repeated_num}/{try_num}"

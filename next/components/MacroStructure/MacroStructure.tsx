@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
-import { govNode, oppNode, DefaultEdge } from './CustomMacroGraphComponents';
+import { govNode, oppNode, GovEdge, OppEdge } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
 import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
 
@@ -11,15 +11,24 @@ import { apiRoot } from '../../components/utils/foundation';
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 
 const nodeTypes = { "govNode": govNode, "oppNode": oppNode };
-const edgeTypes = { "default": DefaultEdge };
+const edgeTypes = { "govEdge": GovEdge, "oppEdge": OppEdge };
+
+const nodeTypeMap: { [key: number]: string } = {}; // sequence_id をキー、nodeType を値とするオブジェクト
+
+interface Rebuttal {
+    src: number;
+    tgt: number;
+}
 
 export default function MacroStructure({ roundId }: { roundId: number }) {
+    let repeatedNum = 4;
+
     const originY = 0;
     const [nodes, setNodes, onNodesChange] = useNodesState([]); //将来的にノード・エッジの追加や編集機能を追加する
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
     useEffect(() => {
-        fetch(apiRoot+`/rounds/${roundId}`, {
+        fetch(apiRoot + `/rounds/${roundId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -39,16 +48,19 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                     const xposOpp = 300;
                     const isGovernment = isGovernmentFromSpeechId(i, speechLength);
 
-                    
+
                     for (let j = 0; j < data.speeches[i].argument_units.length; j++) {
 
-                        const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id)? !isGovernment : isGovernment;
+                        const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id) ? !isGovernment : isGovernment;
 
                         const nodeType = finalIsGovernment ? "govNode" : "oppNode";
                         const argumentUnit = data.speeches[i].argument_units[j];
+
+                        nodeTypeMap[argumentUnit.sequence_id] = nodeType;
+
                         const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
-                        if (speechIdToPositionName[i] === "LOR" && j==0) {
-                            nodeY+=30;
+                        if (speechIdToPositionName[i] === "LOR" && j == 0) {
+                            nodeY += 30;
                         }
                         newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
                         nodeY += 8;
@@ -62,14 +74,53 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
 
                 //エッジの初期化
                 const newEdges = [];
-                for (let i = 0; i < data.rebuttals.length; i++) {
-                    const rebuttal = data.rebuttals[i];
-                    const rallyIds = getRallyIds(dataRebuttals2Tuples(data.rebuttals));
-                    if(rallyIds.includes(i)){
-                        newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default", style: { stroke: 'pink' }});
-                        continue;
+
+                let isTfBase = true;
+
+                const rebuttalCandidates = data.rebuttals;
+                const rebuttalDict: { [key: string]: number } = {};
+                for (let i = 0; i < rebuttalCandidates.length; i++) {
+                    const rebuttal = rebuttalCandidates[i];
+                    const rebKey = JSON.stringify({ src: rebuttal.src, tgt: rebuttal.tgt });
+                    if (rebuttalDict[rebKey] === undefined) {
+                        rebuttalDict[rebKey] = 1;
+                    } else {
+                        rebuttalDict[rebKey]++;
+                        isTfBase = false;
                     }
-                    newEdges.push({ id: "edge-" + i.toString(), source: "adu-" + rebuttal.src.toString(), target: "adu-" + rebuttal.tgt.toString(), type: "default"});
+                }
+
+                const repeatedRebuttals: Rebuttal[] = Object.keys(rebuttalDict)
+                    .filter(key => rebuttalDict[key] >= repeatedNum)
+                    .map(key => JSON.parse(key) as Rebuttal);
+
+                // 使用するリバッタルリストを選択
+                const rebuttalsToUse = isTfBase ? data.rebuttals : repeatedRebuttals;
+
+                for (let i = 0; i < rebuttalsToUse.length; i++) {
+                    const rebuttal = rebuttalsToUse[i];
+                    const srcSequenceId = rebuttal.src;
+                    const tgtSequenceId = rebuttal.tgt;
+
+                    // ソースノードのタイプを取得
+                    const srcNodeType = nodeTypeMap[srcSequenceId];
+
+                    // ソースノードが'govNode'の場合のみエッジを追加
+                    if (srcNodeType === "govNode") {
+                        newEdges.push({
+                            id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+                            source: "adu-" + srcSequenceId.toString(),
+                            target: "adu-" + tgtSequenceId.toString(),
+                            type: "govEdge",
+                        });
+                    } else {
+                        newEdges.push({
+                            id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+                            source: "adu-" + srcSequenceId.toString(),
+                            target: "adu-" + tgtSequenceId.toString(),
+                            type: "oppEdge",
+                        });
+                    }
                 }
 
                 setEdges(newEdges);
@@ -79,7 +130,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
 
     return (
         <div style={{ width: '100%', height: '70vh' }}>
-            
+
             {/* <button onClick={onAddNode}>ノードを追加</button> */}
             <ReactFlow
                 nodes={nodes}

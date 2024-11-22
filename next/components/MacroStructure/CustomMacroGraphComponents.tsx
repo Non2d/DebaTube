@@ -1,25 +1,42 @@
 import React from 'react';
 import { Handle, Position } from "reactflow";
 import { BaseEdge, getBezierPath, getStraightPath, getSmoothStepPath, getSimpleBezierPath } from 'reactflow';
+import hsvToRgb from '../utils/hsv';
 
 // Macroの方ではRootNodeは不要
 
 export const govNode = ({ data }: { data: any }) => {
-    return (
-        <div className="w-32 h-2 bg-blue-500 border-1 border-blue-400">
-            <Handle type="target" id="tgt" position={Position.Right} className="w-1 h-1 bg-red-500" />
-            <Handle type="source" id="src" position={Position.Right} className="w-1 h-1 bg-red-500" />
-        </div>
-    );
+  return (
+    <div style={{ 
+      width: '8rem', 
+      height: '0.5rem', 
+      backgroundColor: "gray", 
+      borderTop: '0.5px solid ' + "lightgray", 
+      borderBottom: '0.5px solid ' + "lightgray" 
+    }}>
+      <span style={{ position: 'absolute', top: '50%', right: '5px', transform: 'translateY(-50%)', zIndex: 1 }}>
+        <Handle type="target" id="tgt" position={Position.Right} style={{ opacity: 0 }} />
+        <Handle type="source" id="src" position={Position.Right} style={{ opacity: 0 }} />
+      </span>
+    </div>
+  );
 };
 
 export const oppNode = ({ data }: { data: any }) => {
-    return (
-        <div className="w-32 h-2 bg-blue-500 border-1 border-blue-400">
-            <Handle type="target" id="tgt" position={Position.Left} className="w-1 h-1 bg-blue-500" />
-            <Handle type="source" id="src" position={Position.Left} className="w-1 h-1 bg-blue-500" />
-        </div>
-    );
+  return (
+    <div style={{ 
+      width: '8rem', 
+      height: '0.5rem', 
+      backgroundColor: "gray", 
+      borderTop: '0.5px solid ' + "lightgray", 
+      borderBottom: '0.5px solid ' + "lightgray" 
+    }}>
+      <span style={{ position: 'absolute', top: '50%', left: '5px', transform: 'translateY(-50%)', zIndex: 1 }}>
+        <Handle type="target" id="tgt" position={Position.Left} style={{ opacity: 0 }} />
+        <Handle type="source" id="src" position={Position.Left} style={{ opacity: 0 }} />
+      </span>
+    </div>
+  );
 };
 
 interface DefaultEdgeProps {
@@ -41,6 +58,36 @@ export function DefaultEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultE
   return (
     <>
       <BaseEdge id={id} path={edgePath} style={{ stroke: 'red', strokeWidth: 2 }} />
+    </>
+  );
+}
+
+export function GovEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultEdgeProps) {
+  const [edgePath] = getStraightPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} style={{ stroke: 'red', strokeWidth: 2 }} />
+    </>
+  );
+}
+
+export function OppEdge({ id, sourceX, sourceY, targetX, targetY }: DefaultEdgeProps) {
+  const [edgePath] = getStraightPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} style={{ stroke: 'blue', strokeWidth: 2 }} />
     </>
   );
 }

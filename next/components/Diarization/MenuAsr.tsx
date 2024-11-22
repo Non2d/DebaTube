@@ -24,7 +24,8 @@ interface ContextMenuProps {
 function MenuAsr({ id, top, left, right, bottom, nodeData, type, setMenu, asrDiars, setAsrDiars, previousIsStart, setPreviousIsStart, ...props }: ContextMenuProps) {
     const { pois, setPois, isNA, zoomLevel } = useAppContext();
 
-    const [isStart, setIsStart] = useState(!previousIsStart);
+    // const [isStart, setIsStart] = useState(!previousIsStart);
+    const [isStart, setIsStart] = useState(true);
     const [selectedPosition, setSelectedPosition] = useState(-100);
     const [speechIdToPositionName, setSpeechIdToPositionName] = useState(speechIdToPositionNameNA);
 
@@ -125,9 +126,9 @@ function MenuAsr({ id, top, left, right, bottom, nodeData, type, setMenu, asrDia
                 <span>
                     <strong>{id}</strong> is set as <strong>{speechIdToPositionName[newSelectedPosition]}</strong>&apos;s <strong>{isStart ? "start" : "end"}</strong> seg.
                 </span>,
-                { duration: 5000 }
+                { duration: 50000 }
             );
-
+            
             setPreviousIsStart(isStart);
             setMenu(null);
         }

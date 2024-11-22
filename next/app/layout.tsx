@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="jp">
       <body>
         <Header />
-        <Toaster />
+        <Toaster position="top-right" />
         <AppProvider>
           {children}
         </AppProvider>
