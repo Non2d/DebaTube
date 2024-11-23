@@ -2,15 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
-import { govNode, oppNode, GovEdge, OppEdge } from './CustomMacroGraphComponents';
+import { govNode, oppNode, GovEdge, OppEdge, backgroundNode } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
 import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
 
 import { apiRoot } from '../../components/utils/foundation';
 
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
+import { start } from 'repl';
 
-const nodeTypes = { "govNode": govNode, "oppNode": oppNode };
+const nodeTypes = { "govNode": govNode, "oppNode": oppNode, "backgroundNode": backgroundNode };
 const edgeTypes = { "govEdge": GovEdge, "oppEdge": OppEdge };
 
 const nodeTypeMap: { [key: number]: string } = {}; // sequence_id をキー、nodeType を値とするオブジェクト
@@ -21,7 +22,7 @@ interface Rebuttal {
 }
 
 export default function MacroStructure({ roundId }: { roundId: number }) {
-    let repeatedNum = 4;
+    let repeatedNum = 5;
 
     const originY = 0;
     const [nodes, setNodes, onNodesChange] = useNodesState([]); //将来的にノード・エッジの追加や編集機能を追加する
@@ -47,9 +48,15 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                     const originX = 100;
                     const xposOpp = 300;
                     const isGovernment = isGovernmentFromSpeechId(i, speechLength);
+                    const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
 
+                    let startNodeY = nodeY;
 
                     for (let j = 0; j < data.speeches[i].argument_units.length; j++) {
+                        if (speechIdToPositionName[i] === "LOR" && j == 0) {
+                            nodeY += 10;
+                            startNodeY = nodeY;
+                        }
 
                         const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id) ? !isGovernment : isGovernment;
 
@@ -58,13 +65,15 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
 
                         nodeTypeMap[argumentUnit.sequence_id] = nodeType;
 
-                        const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
-                        if (speechIdToPositionName[i] === "LOR" && j == 0) {
-                            nodeY += 30;
-                        }
+                        
+                        
                         newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
                         nodeY += 8;
                     }
+
+                    const endNodeY = nodeY;
+
+                    newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height:endNodeY-startNodeY, isGovernment:isGovernment } });
                 }
                 setNodes(newNodes);
 
@@ -145,8 +154,8 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                 panOnDrag={[1, 2]}
                 fitView
             >
-                <Controls />
-                <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+                {/* <Controls /> */}
+                {/* <Background variant={BackgroundVariant.Dots} gap={12} size={1} /> */}
             </ReactFlow>
         </div>
     );

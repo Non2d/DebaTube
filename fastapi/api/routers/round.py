@@ -193,8 +193,6 @@ async def get_video_metadata(video_id: str):
         metadata = all_data["items"][0]["snippet"]
         return metadata
 
-
-
 @router.post("/rounds", response_model=RoundResponse)
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
     if len(round_create.speeches) not in [6, 8]:
@@ -234,8 +232,6 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     segment_tasks = [segment2argument_units(speech_create) for speech_create in round_create.speeches]
     segment_results = await asyncio.gather(*segment_tasks)  # 並行実行して結果を待つ
 
-    # segment_results = [[0, 7, 10, 22, 68], [0, 8, 13, 23, 69, 92], [0, 5, 18, 29, 46, 91], [0, 5, 7, 12, 25, 35, 51, 70, 94], [0, 6, 11, 16, 21, 30, 59, 73, 89, 102, 112, 118], [0, 3, 6, 11, 17, 24, 33, 37, 50, 85], [0, 8, 12, 23, 35, 46, 55], [0, 4, 8, 15, 19, 28, 34, 42, 49, 57, 62]]
-
     logger.info(f"segment_results: {segment_results}")
     logger.info(f"poi_segment_ids: {round_create.poi_segment_ids}")
 
@@ -268,7 +264,6 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
             for arg_head in first_seg_ids:
                 if first_poi_based_head < arg_head < last_poi_based_head:
                     fixed_arg_heads.remove(arg_head)
-                    fixed_pois.remove(arg_head)
         
         for poi_based_heads in poi_based_head_pairs:
             if poi_based_heads[0] not in fixed_arg_heads:
@@ -323,18 +318,20 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
     #POIの処理
     db.add_all(fixed_pois)
 
+    fixed_poi_ids = [poi.argument_unit_id for poi in fixed_pois]
+
     # GPTによる反論判定
-    # rebuttals = await speeches2rebuttals(speeches) 
-    # logger.info("反論:"+str(rebuttals))
+    rebuttals = await speeches2rebuttals(fixed_poi_ids, speeches)
+    logger.info("反論:"+str(rebuttals))
     db_rebuttals = []
-    # for rebuttal in rebuttals:
-    #     db_rebuttals.append(
-    #         round_db_model.Rebuttal(
-    #             src=rebuttal.src,
-    #             tgt=rebuttal.tgt,
-    #             round=round
-    #         )
-    #     )
+    for rebuttal in rebuttals:
+        db_rebuttals.append(
+            round_db_model.Rebuttal(
+                src=rebuttal.src,
+                tgt=rebuttal.tgt,
+                round=round
+            )
+        )
     db.add_all(db_rebuttals)
 
     # ここまでの変更全てをコミット

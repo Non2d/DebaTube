@@ -9,11 +9,6 @@ import Image from 'next/image';
 
 export default function Home() {
     const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-    const videoMetadataFromTitle = async (title) => {
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${title}&key=${YOUTUBE_API_KEY}`);
-        const metadata = await response.json();
-        return metadata;
-    }
     const [videoTitle, setVideoTitle] = useState('');
 
     // API Input
@@ -23,6 +18,15 @@ export default function Home() {
     const [transcript, setTranscript] = useState([]); // filesをtranscriptsに変更
     const [poiSegmentIds, setPoiSegmentIds] = useState([]);
     const [error, setError] = useState('');
+
+    const videoMetadataFromTitle = async (title) => {
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${title}&key=${YOUTUBE_API_KEY}`);
+        if (!response.ok) {
+            return;
+        }
+        const data = await response.json();
+        return data;
+    }
 
     const handleFileChange = async (event) => {
         const selectedFile = event.target.files[0];
