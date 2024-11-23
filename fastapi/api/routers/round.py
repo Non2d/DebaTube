@@ -582,6 +582,18 @@ async def create_batch_rounds(rounds: List[RoundBatchCreate], db: AsyncSession =
         round = await create_batch_round(round_create, db)
     return "Batch rounds created successfully."
 
+@router.post("/rounds/tag/{round_id}")
+async def add_tag(round_id: int, tag: str, db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).filter_by(id=round_id)
+    result = await db.execute(query)
+    db_round = result.scalars().first()
+    if db_round is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    db_round.tag = tag
+    await db.commit()
+    await db.refresh(db_round)
+    return db_round
+
 # 操作ログ用エンドポイント
 class OperationLogRequest(BaseModel):
     operation: str

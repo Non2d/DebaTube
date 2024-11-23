@@ -60,7 +60,6 @@ export default function YoutubeGraph() {
     { value: "CriminalJustice", label: "Criminal Justice" },
     { value: "Feminism", label: "Feminism" },
     { value: "Economy", label: "Economy" },
-    { value: "Environment", label: "Environment" },
     { value: "SocialPolicy", label: "Social Policy" },
   ];
 
