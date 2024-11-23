@@ -115,21 +115,26 @@ export default function YoutubeGraph() {
 
   const onGraphNodeClicked = (roundId: number, start: number) => {
     const nodeOwnerRound = debateItems.find(item => item.id === roundId);
-  
+
     if (!nodeOwnerRound) {
       console.error(`Round with id ${roundId} not found`);
       return;
     }
-  
+
     if (!nodeOwnerRound.videoId || !nodeOwnerRound.title) {
       console.error(`Round with id ${roundId} is missing videoId or title`);
       return;
     }
-  
+
     setYtId(nodeOwnerRound.videoId);
     setYtTitle(nodeOwnerRound.title);
     setIsVisible(true);
-    ytPlayer.seekTo(start, true);
+
+    if (ytPlayer) {
+      ytPlayer.seekTo(start, true);
+    } else {
+      console.error('YouTube player is undefined');
+    }
   };
 
   return (
