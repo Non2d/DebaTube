@@ -7,7 +7,7 @@ import time
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 import models.round as round_db_model
 from log_config import logger
@@ -46,8 +46,14 @@ class ArgumentUnitCreate(BaseModel):
 class ArgumentUnitsCreate(BaseModel):
     argument_units: List[ArgumentUnitCreate]
 class RoundBatchCreate(BaseModel):
-    title: str
-    motion: str
+    video_id: Optional[str]
+    title: Optional[str]
+    description: Optional[str]
+    motion: Optional[str]
+    date_uploaded: Optional[str]
+    channel_id: Optional[str]
+    tag: Optional[str]
+
     speeches: List[ArgumentUnitsCreate]
     pois: List[int]
     rebuttals: List[RebuttalCreate]
@@ -59,13 +65,6 @@ class ArgumentUnitCreate(BaseModel):
     text: str
 
 # response schema
-class PoiResponse(BaseModel):
-    # id: int
-    argument_unit_id: int
-
-    class Config:
-        orm_mode = True
-
 class RebuttalResponse(BaseModel):
     # id: int
     src: int
@@ -92,10 +91,15 @@ class SpeechResponse(BaseModel):
         orm_mode = True
 
 class RoundResponse(BaseModel):
-    # id: int
-    title: str
-    motion: str
-    pois: List[PoiResponse]
+    video_id: Optional[str]
+    title: Optional[str]
+    description: Optional[str]
+    motion: Optional[str]
+    date_uploaded: Optional[str]
+    channel_id: Optional[str]
+    tag: Optional[str]
+
+    pois: List[int]
     rebuttals: List[RebuttalResponse]
     speeches: List[SpeechResponse]
 
@@ -138,11 +142,40 @@ async def get_rounds_batch(db: AsyncSession = Depends(get_db)):
         ),
     )
     result = await db.execute(query)
-    rounds = result.scalars().unique().all()
-    return rounds
+    db_rounds = result.scalars().unique().all()
+
+    return [
+        RoundResponse(
+            video_id=db_round.video_id,
+            title=db_round.title,
+            description=db_round.description,
+            motion=db_round.motion,
+            date_uploaded=db_round.date_uploaded,
+            channel_id=db_round.channel_id,
+            tag=db_round.tag,
+
+            pois=[poi.argument_unit_id for poi in db_round.pois],
+            rebuttals=[
+                RebuttalResponse(src=rebuttal.src, tgt=rebuttal.tgt)
+                for rebuttal in db_round.rebuttals
+            ],
+            speeches=[
+                SpeechResponse(
+                    argument_units=[
+                        ArgumentUnitResponse(
+                            sequence_id=au.sequence_id,
+                            start=au.start,
+                            end=au.end,
+                            text=au.text
+                        ) for au in speech.argument_units
+                    ]
+                ) for speech in db_round.speeches
+            ]
+        ) for db_round in db_rounds
+    ]
 
 @router.get("/batch-rounds/{round_id}", response_model=RoundResponse)
-async def get_round_batch(round_id:int, db: AsyncSession = Depends(get_db)):
+async def get_round_batch(round_id: int, db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
         selectinload(round_db_model.Round.pois),
         selectinload(round_db_model.Round.rebuttals),
@@ -150,11 +183,42 @@ async def get_round_batch(round_id:int, db: AsyncSession = Depends(get_db)):
             round_db_model.Speech.argument_units
         ),
     ).filter_by(id=round_id)
+
     result = await db.execute(query)
-    round = result.scalars().first()
-    if round is None:
+    db_round = result.scalars().first()
+
+    if not db_round:
         raise HTTPException(status_code=404, detail="Round not found")
-    return round
+
+    logger.info(f"round.pois: {db_round.pois}")
+
+    return RoundResponse(
+        video_id=db_round.video_id,
+        title=db_round.title,
+        description=db_round.description,
+        motion=db_round.motion,
+        date_uploaded=db_round.date_uploaded,
+        channel_id=db_round.channel_id,
+        tag=db_round.tag,
+
+        pois=[poi.argument_unit_id for poi in db_round.pois],
+        rebuttals=[
+            RebuttalResponse(src=rebuttal.src, tgt=rebuttal.tgt)
+            for rebuttal in db_round.rebuttals
+        ],
+        speeches=[
+            SpeechResponse(
+                argument_units=[
+                    ArgumentUnitResponse(
+                        sequence_id=au.sequence_id,
+                        start=au.start,
+                        end=au.end,
+                        text=au.text
+                    ) for au in speech.argument_units
+                ]
+            ) for speech in db_round.speeches
+        ]
+    )
 
 @router.get("/rounds/{round_id}")
 async def get_round(round_id: int, db: AsyncSession = Depends(get_db)):
@@ -376,6 +440,11 @@ async def create_batch_round(round_create: RoundBatchCreate, db: AsyncSession = 
     round = round_db_model.Round(
         title=round_create.title,
         motion=round_create.motion,
+        video_id=round_create.video_id,
+        description=round_create.description,
+        date_uploaded=round_create.date_uploaded,
+        channel_id=round_create.channel_id,
+        tag=round_create.tag
     )
     db.add(round)
     

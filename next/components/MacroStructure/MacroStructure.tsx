@@ -21,8 +21,8 @@ interface Rebuttal {
     tgt: number;
 }
 
-export default function MacroStructure({ data }: { data: any }) {
-    let repeatedNum = 5;
+export default function MacroStructure({ data, onGraphNodeClicked }: { data: any, onGraphNodeClicked: any }) {
+    let repeatedNum = 4;
 
     const originY = 0;
     const [nodes, setNodes, onNodesChange] = useNodesState([]); //将来的にノード・エッジの追加や編集機能を追加する
@@ -58,15 +58,13 @@ export default function MacroStructure({ data }: { data: any }) {
 
                 nodeTypeMap[argumentUnit.sequence_id] = nodeType;
 
-
-
-                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
+                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString(), round_id: data.roundId, time: data.speeches[i].argument_units[j].start, isBackground:false} });
                 nodeY += 8;
             }
 
             const endNodeY = nodeY;
 
-            newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height: endNodeY - startNodeY, isGovernment: isGovernment } });
+            newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height: endNodeY - startNodeY, isGovernment: isGovernment, isBackground:true } });
         }
         setNodes(newNodes);
 
@@ -128,6 +126,13 @@ export default function MacroStructure({ data }: { data: any }) {
         setEdges(newEdges);
     }, []);
 
+    const handleNodeClick = (node: any) => { //薄い部分をクリックすると手前に出てくるバグ
+        console.log(node.data);
+        if (!node.data.isBackground) {
+            onGraphNodeClicked(node.data.round_id, node.data.time);
+        }
+    }
+
     return (
         <div style={{ width: '100%', height: '70vh' }}>
 
@@ -144,6 +149,7 @@ export default function MacroStructure({ data }: { data: any }) {
                 panOnScroll
                 panOnDrag={[1, 2]}
                 fitView
+                onNodeClick={(event, node) => handleNodeClick(node)}
             >
                 {/* <Controls /> */}
                 <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
