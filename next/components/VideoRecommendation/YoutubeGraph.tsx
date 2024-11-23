@@ -18,6 +18,7 @@ interface DebateItem { //UI表示用にデータ生成する際のバリデー�
   title: string
   motion: string
   publishedAt: string
+  tag: string
 
   graphItems: {
     roundId: number;
@@ -53,28 +54,22 @@ export default function YoutubeGraph() {
   const [ytTitle, setYtTitle] = useState('');
   const [ytIsRight, setYtIsRight] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('all')
+  const [selectedTab, setSelectedTab] = useState('All')
   const tabValues = [
     { value: "All", label: "All" },
     { value: "CriminalJustice", label: "Criminal Justice" },
-    { value: "feminism", label: "Feminism" },
-    { value: "Feminism", label: "Economy" },
-    { value: "Politics", label: "Politics" },
+    { value: "Feminism", label: "Feminism" },
+    { value: "Economy", label: "Economy" },
     { value: "Environment", label: "Environment" },
-    { value: "Education", label: "Education" },
-    { value: "Democracy", label: "Democracy" },
-    { value: "Others", label: "Others" },
+    { value: "SocialPolicy", label: "Social Policy" },
   ];
 
   const [scrollPosition, setScrollPosition] = useState(0);
 
   const [debateItems, setDebateItems] = useState<DebateItem[]>([]);
+  const [selectedDebateItems, setSelectedDebateItems] = useState<DebateItem[]>([]);
 
   useEffect(() => {
-    logOperation('TagClicked', {
-      tag: selectedTab,
-    });
-
     fetch(apiRoot + '/rounds', {
       method: 'GET',
       headers: {
@@ -83,16 +78,14 @@ export default function YoutubeGraph() {
     })
       .then(response => response.json())
       .then((data: Round[]) => {
-        const filteredRounds = selectedTab === 'All'
-          ? data
-          : data.filter(round => selectedTab.includes(round.tag));
-        const debateItems = filteredRounds.map(round => {
+        const debateItems = data.map(round => {
           return {
             id: round.id,
             videoId: round.video_id,
             title: round.title,
             motion: round.motion,
             publishedAt: round.date_uploaded,
+            tag: round.tag,
             graphItems: {
               roundId: round.id,
               pois: round.pois,
@@ -104,7 +97,20 @@ export default function YoutubeGraph() {
         setDebateItems(debateItems);
       })
       .catch(error => console.error('Error fetching data:', error));
-  }, [selectedTab])
+  }, []);
+
+  useEffect(() => {
+    logOperation('TagClicked', {
+      tag: selectedTab,
+    });
+
+    if (selectedTab === 'All') {
+      setSelectedDebateItems(debateItems);
+    } else {
+      setSelectedDebateItems(debateItems.filter(item => item.tag.toLowerCase().includes(selectedTab.toLowerCase())));
+    }
+    
+  }, [selectedTab, debateItems]);
 
   const logOperation = async (operation: string, data: object) => {
     const requestBody = {
@@ -133,7 +139,7 @@ export default function YoutubeGraph() {
   };
 
   const scrollNext = () => {
-    setScrollPosition(prev => Math.min(prev + 1, debateItems.length - 1))
+    setScrollPosition(prev => Math.min(prev + 1, selectedDebateItems.length - 1))
   }
   const scrollPrevious = () => {
     setScrollPosition(prev => Math.max(prev - 1, 0))
@@ -155,7 +161,7 @@ export default function YoutubeGraph() {
   }
 
   const onGraphNodeClicked = async (roundId: number, start: number, nodeSequenceId: number) => {
-    const nodeOwnerRound = debateItems.find(item => item.id === roundId);
+    const nodeOwnerRound = selectedDebateItems.find(item => item.id === roundId);
 
     if (!nodeOwnerRound) {
       console.error(`Round with id ${roundId} not found`);
@@ -201,7 +207,7 @@ export default function YoutubeGraph() {
           className="flex gap-6 transition-transform duration-300 ease-in-out"
           style={{ transform: `translateX(-${scrollPosition * 100 / 4}%)`, marginLeft: '15%' }}
         >
-          {debateItems.map((item) => (
+          {selectedDebateItems.map((item) => (
             <div
               key={item.id}
               className="flex-none w-1/4"
@@ -247,7 +253,7 @@ export default function YoutubeGraph() {
           <span className="sr-only">Previous</span>
         </Button>
       )}
-      {scrollPosition < debateItems.length - 3 && (
+      {scrollPosition < selectedDebateItems.length - 3 && (
         <Button
           variant="ghost"
           size="icon"
@@ -285,7 +291,7 @@ export default function YoutubeGraph() {
               <Youtube
                 videoId={ytId}
                 opts={ytProps}
-                onReady={(e:any) => setYtPlayer(e.target)}
+                onReady={(e: any) => setYtPlayer(e.target)}
                 className="w-full h-full"
               />
             </div>
