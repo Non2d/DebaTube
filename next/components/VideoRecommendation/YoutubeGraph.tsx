@@ -115,9 +115,8 @@ export default function YoutubeGraph() {
 
   const onGraphNodeClicked = (roundId:number, start:number) => {
     const nodeOwnerRound = debateItems.find(item => item.id === roundId);
-    console.log(nodeOwnerRound.videoId);
-    setYtId(nodeOwnerRound.videoId);
-    setYtTitle(nodeOwnerRound.title);
+    setYtId(nodeOwnerRound?.videoId);
+    setYtTitle(nodeOwnerRound?.title);
     setIsVisible(true);
     ytPlayer.seekTo(start, true);
   }
