@@ -6,7 +6,7 @@ import { govNode, oppNode, GovEdge, OppEdge, backgroundNode } from './CustomMacr
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
 import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
 
-import { apiRoot } from '../../components/utils/foundation';
+import { apiRoot } from '../utils/foundation';
 
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 import { start } from 'repl';
@@ -21,7 +21,7 @@ interface Rebuttal {
     tgt: number;
 }
 
-export default function MacroStructure({ roundId }: { roundId: number }) {
+export default function MacroStructure({ data }: { data: any }) {
     let repeatedNum = 5;
 
     const originY = 0;
@@ -29,113 +29,104 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
     useEffect(() => {
-        fetch(apiRoot + `/rounds/${roundId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
+
+        const poiArgUnitIds = data.pois.map((poi: { argument_unit_id: number }) => poi.argument_unit_id);
+
+        //ノードの初期化
+        const newNodes = [];
+
+        let nodeY = originY;
+        for (let i = 0; i < data.speeches.length; i++) {
+            const speechLength = data.speeches.length;
+            const originX = 100;
+            const xposOpp = 300;
+            const isGovernment = isGovernmentFromSpeechId(i, speechLength);
+            const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
+
+            let startNodeY = nodeY;
+
+            for (let j = 0; j < data.speeches[i].argument_units.length; j++) {
+                if (speechIdToPositionName[i] === "LOR" && j == 0) {
+                    nodeY += 10;
+                    startNodeY = nodeY;
+                }
+
+                const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id) ? !isGovernment : isGovernment;
+
+                const nodeType = finalIsGovernment ? "govNode" : "oppNode";
+                const argumentUnit = data.speeches[i].argument_units[j];
+
+                nodeTypeMap[argumentUnit.sequence_id] = nodeType;
+
+
+
+                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
+                nodeY += 8;
             }
-        })
-            .then(response => response.json())
-            .then(data => {
-                const poiArgUnitIds = data.pois.map((poi: { argument_unit_id: number }) => poi.argument_unit_id);
 
-                //ノードの初期化
-                const newNodes = [];
+            const endNodeY = nodeY;
 
-                let nodeY = originY;
-                for (let i = 0; i < data.speeches.length; i++) {
-                    const speechLength = data.speeches.length;
-                    const originX = 100;
-                    const xposOpp = 300;
-                    const isGovernment = isGovernmentFromSpeechId(i, speechLength);
-                    const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
+            newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height: endNodeY - startNodeY, isGovernment: isGovernment } });
+        }
+        setNodes(newNodes);
 
-                    let startNodeY = nodeY;
+        //エッジの前処理
+        // console.log(dataRebuttals2Tuples(data.rebuttals));
+        // console.log(getRallyIds(dataRebuttals2Tuples(data.rebuttals)));
 
-                    for (let j = 0; j < data.speeches[i].argument_units.length; j++) {
-                        if (speechIdToPositionName[i] === "LOR" && j == 0) {
-                            nodeY += 10;
-                            startNodeY = nodeY;
-                        }
+        //エッジの初期化
+        const newEdges = [];
 
-                        const finalIsGovernment = poiArgUnitIds.includes(data.speeches[i].argument_units[j].sequence_id) ? !isGovernment : isGovernment;
+        let isTfBase = true;
 
-                        const nodeType = finalIsGovernment ? "govNode" : "oppNode";
-                        const argumentUnit = data.speeches[i].argument_units[j];
+        const rebuttalCandidates = data.rebuttals;
+        const rebuttalDict: { [key: string]: number } = {};
+        for (let i = 0; i < rebuttalCandidates.length; i++) {
+            const rebuttal = rebuttalCandidates[i];
+            const rebKey = JSON.stringify({ src: rebuttal.src, tgt: rebuttal.tgt });
+            if (rebuttalDict[rebKey] === undefined) {
+                rebuttalDict[rebKey] = 1;
+            } else {
+                rebuttalDict[rebKey]++;
+                isTfBase = false;
+            }
+        }
 
-                        nodeTypeMap[argumentUnit.sequence_id] = nodeType;
+        const repeatedRebuttals: Rebuttal[] = Object.keys(rebuttalDict)
+            .filter(key => rebuttalDict[key] >= repeatedNum)
+            .map(key => JSON.parse(key) as Rebuttal);
 
-                        
-                        
-                        newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString() } });
-                        nodeY += 8;
-                    }
+        // 使用するリバッタルリストを選択
+        const rebuttalsToUse = isTfBase ? data.rebuttals : repeatedRebuttals;
 
-                    const endNodeY = nodeY;
+        for (let i = 0; i < rebuttalsToUse.length; i++) {
+            const rebuttal = rebuttalsToUse[i];
+            const srcSequenceId = rebuttal.src;
+            const tgtSequenceId = rebuttal.tgt;
 
-                    newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height:endNodeY-startNodeY, isGovernment:isGovernment } });
-                }
-                setNodes(newNodes);
+            // ソースノードのタイプを取得
+            const srcNodeType = nodeTypeMap[srcSequenceId];
 
-                //エッジの前処理
-                // console.log(dataRebuttals2Tuples(data.rebuttals));
-                // console.log(getRallyIds(dataRebuttals2Tuples(data.rebuttals)));
+            // ソースノードが'govNode'の場合のみエッジを追加
+            if (srcNodeType === "govNode") {
+                newEdges.push({
+                    id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+                    source: "adu-" + srcSequenceId.toString(),
+                    target: "adu-" + tgtSequenceId.toString(),
+                    type: "govEdge",
+                });
+            } else {
+                newEdges.push({
+                    id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+                    source: "adu-" + srcSequenceId.toString(),
+                    target: "adu-" + tgtSequenceId.toString(),
+                    type: "oppEdge",
+                });
+            }
+        }
 
-                //エッジの初期化
-                const newEdges = [];
-
-                let isTfBase = true;
-
-                const rebuttalCandidates = data.rebuttals;
-                const rebuttalDict: { [key: string]: number } = {};
-                for (let i = 0; i < rebuttalCandidates.length; i++) {
-                    const rebuttal = rebuttalCandidates[i];
-                    const rebKey = JSON.stringify({ src: rebuttal.src, tgt: rebuttal.tgt });
-                    if (rebuttalDict[rebKey] === undefined) {
-                        rebuttalDict[rebKey] = 1;
-                    } else {
-                        rebuttalDict[rebKey]++;
-                        isTfBase = false;
-                    }
-                }
-
-                const repeatedRebuttals: Rebuttal[] = Object.keys(rebuttalDict)
-                    .filter(key => rebuttalDict[key] >= repeatedNum)
-                    .map(key => JSON.parse(key) as Rebuttal);
-
-                // 使用するリバッタルリストを選択
-                const rebuttalsToUse = isTfBase ? data.rebuttals : repeatedRebuttals;
-
-                for (let i = 0; i < rebuttalsToUse.length; i++) {
-                    const rebuttal = rebuttalsToUse[i];
-                    const srcSequenceId = rebuttal.src;
-                    const tgtSequenceId = rebuttal.tgt;
-
-                    // ソースノードのタイプを取得
-                    const srcNodeType = nodeTypeMap[srcSequenceId];
-
-                    // ソースノードが'govNode'の場合のみエッジを追加
-                    if (srcNodeType === "govNode") {
-                        newEdges.push({
-                            id: `edge-${srcSequenceId}-${tgtSequenceId}`,
-                            source: "adu-" + srcSequenceId.toString(),
-                            target: "adu-" + tgtSequenceId.toString(),
-                            type: "govEdge",
-                        });
-                    } else {
-                        newEdges.push({
-                            id: `edge-${srcSequenceId}-${tgtSequenceId}`,
-                            source: "adu-" + srcSequenceId.toString(),
-                            target: "adu-" + tgtSequenceId.toString(),
-                            type: "oppEdge",
-                        });
-                    }
-                }
-
-                setEdges(newEdges);
-            })
-            .catch(error => console.error('Error fetching data:', error));
-    }, [roundId]);
+        setEdges(newEdges);
+    }, []);
 
     return (
         <div style={{ width: '100%', height: '70vh' }}>
@@ -155,7 +146,7 @@ export default function MacroStructure({ roundId }: { roundId: number }) {
                 fitView
             >
                 {/* <Controls /> */}
-                {/* <Background variant={BackgroundVariant.Dots} gap={12} size={1} /> */}
+                <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             </ReactFlow>
         </div>
     );

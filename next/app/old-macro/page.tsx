@@ -4,8 +4,6 @@ import React, { useEffect, useState, ChangeEvent } from 'react';
 import MacroStructure from '../../components/MacroStructure/MacroStructure';
 import { apiRoot } from '../../components/utils/foundation';
 
-import YoutubeGraph from '../../components/VideoRecommendation/YoutubeGraph';
-
 interface Round {
   id: number;
   title: string;
@@ -79,7 +77,7 @@ export default function Home() {
               </div>
             )}
             {selectedRounds[index] != null && selectedRounds[index]?.id != null && (
-              <MacroStructure roundId={selectedRounds[index]!.id} />
+              <MacroStructure data={selectedRounds[index]} />
             )}
           </div>
         ))}

@@ -1,80 +1,122 @@
 'use client'
+import MacroStructure from '../../components/MacroStructure/MacroStructure';
+import YouTube from 'react-youtube';
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '../ui/button'
+import { apiRoot } from '../../components/utils/foundation';
 import 'reactflow/dist/style.css'
+import { Button } from '../ui/button'
 import {
   Tabs,
   TabsList,
   TabsTrigger,
 } from '../ui/tabs'
-interface DebateItem {
+interface DebateItem { //UI表示用にデータ生成する際のバリデーション
   videoId: string
   title: string
-  channel: string
-  views: string
+  motion: string
   publishedAt: string
-  graphUrl: string
+
+  graphItems: {
+    pois: any;
+    speeches: any;
+    rebuttals: any;
+  }
 }
-interface VideoInfo {
-  title: string
-  channel: string
-  views: string
-  publishedAt: string
+interface Round { //取得時のバリデーション
+  id: number;
+  video_id: string;
+  title: string;
+  description: string;
+  motion: string;
+  date_uploaded: string;
+  channel_id: string;
+  tag: string;
+
+  pois: any;
+  speeches: any;
+  rebuttals: any;
 }
 export default function YoutubeGraph() {
+  const ytProps = {
+    height: (400 * 9) / 16,
+    width: 400,
+    playerVars: {
+      autoplay: 0, // 自動再生を無効
+    },
+  };
+  const [ytPlayer, setYtPlayer] = useState<YT.Player>();
+  const [ytId, setYtId] = useState('');
+  const [ytTitle, setYtTitle] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('all')
+  const tabValues = [
+    { value: "all", label: "All" },
+    { value: "criminal", label: "Criminal Justice" },
+    { value: "feminism", label: "Feminism" },
+    { value: "economy", label: "Economy" },
+    { value: "politics", label: "Politics" },
+    { value: "environment", label: "Environment" },
+    { value: "others", label: "Others" },
+  ];
+
   const [scrollPosition, setScrollPosition] = useState(0);
-  const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
 
-  const videoInfo = async (videoId: string) => {
-    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet%2Cstatistics&id=${videoId}&key=${YOUTUBE_API_KEY}`)
-    const data = await response.json()
-    return data
-  }
+  const [debateItems, setDebateItems] = useState<DebateItem[]>([]);
 
-  const channelInfo = async (channelId: string) => {
-    const response = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet%2Cstatistics&id=${channelId}&key=${YOUTUBE_API_KEY}`)
-    const data = await response.json()
-    return data
-  }
+  useEffect(() => {
+    console.log("selected tab: ", selectedTab);
+    fetch(apiRoot + '/rounds', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+      .then(response => response.json())
+      .then((data: Round[]) => {
+        // const filteredRounds = data.filter(round => round.tag === selectedTab);
+        const debateItems = data.map(round => {
+          return {
+            videoId: round.video_id,
+            title: round.title,
+            motion: round.motion,
+            publishedAt: round.date_uploaded,
+            graphItems: {
+              pois: round.pois,
+              speeches: round.speeches,
+              rebuttals: round.rebuttals,
+            }
+          }
+        })
+        setDebateItems(debateItems);
+      })
+      .catch(error => console.error('Error fetching data:', error));
+  }, [selectedTab])
 
-  // useEffect(() => {
-  //   const fetchVideoInfo = async () => {
-  //     const data = await videoInfo('LGTZGNpZ7X8')
-  //     console.log(data)
-  //   }
-  //   fetchVideoInfo()
-
-  //   const fetchChannelInfo = async () => {
-  //     const data = await channelInfo('UC-GlZlp4aytmS6ob3ERm5Rg')
-  //     console.log(data)
-  //   }
-  //   fetchChannelInfo()
-  // }, [])
-
-  const debateItems: DebateItem[] = [
-    { videoId: 'LGTZGNpZ7X8', title: '[spno]構造員を理解sakdfjkjksejj', channel: 'Debate Channel 1', views: '10K views', publishedAt: '1 week ago', graphUrl: '/placeholder.svg?height=200&width=300' },
-  ]
   const scrollNext = () => {
     setScrollPosition(prev => Math.min(prev + 1, debateItems.length - 1))
   }
   const scrollPrevious = () => {
     setScrollPosition(prev => Math.max(prev - 1, 0))
   }
+  const onMovieClicked = (videoId: string, videoTitle:string) => () => {
+    setYtId(videoId);
+    setYtTitle(videoTitle);
+    setIsVisible(true);
+    
+  }
   return (
     <div className="flex flex-col w-full mx-auto p-4 gap-6">
       <header className="flex items-center justify-start">
         <h2 className="text-2xl font-bold mr-20">Debate Structure Visualizer</h2>
-        <Tabs defaultValue="all" className="w-auto justify-start">
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto justify-start">
           <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="criminal">Criminal Justice</TabsTrigger>
-            <TabsTrigger value="feminism">Feminism</TabsTrigger>
-            <TabsTrigger value="economy">Economy</TabsTrigger>
-            <TabsTrigger value="politics">Politics</TabsTrigger>
-            <TabsTrigger value="environment">Environment</TabsTrigger>
-            <TabsTrigger value="others">Others</TabsTrigger>
+            {tabValues.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
       </header>
@@ -89,7 +131,10 @@ export default function YoutubeGraph() {
               className="flex-none w-1/4"
             >
               <div className="flex flex-col gap-4">
-                <div className="flex gap-4">
+                <div
+                  className="flex gap-4 bg-white hover:bg-gray-300 cursor-pointer transition-all duration-300 ease-in-out"
+                  onClick={onMovieClicked(item.videoId, item.title)}
+                >
                   <div className="w-[180px] flex-none">
                     <div className="aspect-video relative bg-muted rounded-lg overflow-hidden">
                       <Image
@@ -101,18 +146,13 @@ export default function YoutubeGraph() {
                     </div>
                   </div>
                   <div className="flex flex-col flex-grow">
-                    <h3 className="font-medium text-base mb-1 line-clamp-2">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-1">{item.channel}</p>
-                    <p className="text-sm text-muted-foreground">{item.views} • {item.publishedAt}</p>
+                    <h3 className="font-medium text-base mb-1 line-clamp-1">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
                   </div>
                 </div>
-                <div className="aspect-[16/9] relative bg-blue-100 rounded-lg overflow-hidden" style={{ height: '80vh' }}>
-                  {/* <Image
-                    src={item.graphUrl}
-                    alt="Debate Graph"
-                    layout="fill"
-                    className="object-cover"
-                  /> */}
+                <div className="aspect-[16/9] relative bg-white rounded-lg overflow-hidden" style={{ height: '70vh' }}>
+                  <MacroStructure data={item.graphItems} />
                 </div>
               </div>
             </div>
@@ -141,6 +181,29 @@ export default function YoutubeGraph() {
           <span className="sr-only">Next</span>
         </Button>
       )}
+      {
+        isVisible && (
+          <div className="fixed bottom-4 right-4 w-128 h-68 rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden bg-black">
+            <div className="flex items-center justify-between bg-gray-800 text-white px-3 py-2">
+              <h4 className="text-sm font-semibold">{ytTitle}</h4>
+              <button
+                onClick={() => setIsVisible(false)}
+                className="text-gray-300 hover:text-red-500"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="w-full h-full">
+              <YouTube
+                videoId={ytId}
+                opts={ytProps}
+                onReady={(e) => setYtPlayer(e.target)}
+                className="w-full h-full"
+              />
+            </div>
+          </div>
+        )
+      }
     </div>
   )
 }
