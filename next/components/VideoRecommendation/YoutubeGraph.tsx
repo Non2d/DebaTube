@@ -70,6 +70,7 @@ export default function YoutubeGraph() {
   const [selectedDebateItems, setSelectedDebateItems] = useState<DebateItem[]>([]);
 
   useEffect(() => {
+    // API叩くのは初期レンダリング時のみ。データが変わることはないため
     fetch(apiRoot + '/rounds', {
       method: 'GET',
       headers: {
@@ -229,7 +230,7 @@ export default function YoutubeGraph() {
                     </div>
                   </div>
                   <div className="flex flex-col flex-grow">
-                    <h3 className="font-medium text-base mb-1 line-clamp-1">{item.title}</h3>
+                    <h3 className="font-medium text-base mb-1 line-clamp-1"><span className="font-bold text-red-700">&lt;{item.id}&gt;</span> {item.title}</h3>
                     <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
                     <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
                   </div>

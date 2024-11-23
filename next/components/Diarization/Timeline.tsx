@@ -96,7 +96,7 @@ const Timeline = () => {
         height: (400 * 9) / 16,
         width: 400,
         playerVars: {
-            autoplay: 0, // 自動再生を無効
+            autoplay: 1, // 自動再生を無効
         },
     };
     const [ytPlayer, setYtPlayer] = useState<YT.Player>();

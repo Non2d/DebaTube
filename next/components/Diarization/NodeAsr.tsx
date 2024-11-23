@@ -59,7 +59,7 @@ const NodeAsr = ({ data }: NodeAsrProps) => {
             fontSize: '14px',
             position: 'relative', // positionを追加
             zIndex: 100,
-            color: /thank|Thank you/.test(text) ? 'red' : 'inherit', // テキストに'thank'または'Thank you'が含まれている場合、文字色を赤にする
+            color: /thank|Thank you|proud/.test(text) ? 'red' : 'inherit', // テキストに'thank','Thank you','proud'が含まれている場合、文字色を赤にする
           }}
         >
           {text}
