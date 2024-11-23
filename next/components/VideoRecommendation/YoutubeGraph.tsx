@@ -169,10 +169,11 @@ export default function YoutubeGraph() {
                   <div className="w-[180px] flex-none">
                     <div className="aspect-video relative bg-muted rounded-lg overflow-hidden">
                       <Image
-                        src={`https://img.youtube.com/vi/${item.videoId}/maxresdefault.jpg`}
+                        src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
                         alt={item.title}
                         layout="fill"
                         className="object-cover"
+                        unoptimized // 画像の最適化を無効化し，直接URLを使う
                       />
                     </div>
                   </div>
