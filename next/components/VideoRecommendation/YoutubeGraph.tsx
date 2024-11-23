@@ -113,13 +113,24 @@ export default function YoutubeGraph() {
     setIsVisible(true);
   }
 
-  const onGraphNodeClicked = (roundId:number, start:number) => {
+  const onGraphNodeClicked = (roundId: number, start: number) => {
     const nodeOwnerRound = debateItems.find(item => item.id === roundId);
-    setYtId(nodeOwnerRound?.videoId);
-    setYtTitle(nodeOwnerRound?.title);
+  
+    if (!nodeOwnerRound) {
+      console.error(`Round with id ${roundId} not found`);
+      return;
+    }
+  
+    if (!nodeOwnerRound.videoId || !nodeOwnerRound.title) {
+      console.error(`Round with id ${roundId} is missing videoId or title`);
+      return;
+    }
+  
+    setYtId(nodeOwnerRound.videoId);
+    setYtTitle(nodeOwnerRound.title);
     setIsVisible(true);
     ytPlayer.seekTo(start, true);
-  }
+  };
 
   return (
     <div className="flex flex-col w-full mx-auto p-4 gap-6">
