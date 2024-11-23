@@ -7,13 +7,15 @@ import time
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel
 import models.round as round_db_model
 from log_config import logger
 router = APIRouter()
 from cruds.gpt import segment2argument_units, speeches2rebuttals, digest2motion, group_consecutive
 import os, httpx
+from datetime import datetime
+import pytz
 
 # request schema
 class SegmentCreate(BaseModel):  # たぶんだけどSegmentを返すことはない
@@ -513,7 +515,31 @@ async def create_batch_round(round_create: RoundBatchCreate, db: AsyncSession = 
 
 @router.post("/batch-rounds", response_model=str)
 async def create_batch_rounds(rounds: List[RoundBatchCreate], db: AsyncSession = Depends(get_db)):
-    created_rounds = []
     for round_create in rounds:
         round = await create_batch_round(round_create, db)
     return "Batch rounds created successfully."
+
+# 操作ログ用エンドポイント
+class OperationLogRequest(BaseModel):
+    operation: str
+    data: Dict
+
+@router.post("/log/operation")
+async def log_operation(operation_log: OperationLogRequest, db: AsyncSession = Depends(get_db)):
+    jst = pytz.timezone('Asia/Tokyo')
+    readable_current_time = datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
+    logger.info(f"{readable_current_time}: Operation is logged: {operation_log}")
+    db.add(round_db_model.OperationLog(
+        operation=operation_log.operation,
+        timestamp=readable_current_time,
+        data=operation_log.data,
+    ))
+    await db.commit()
+    return "Operation logged successfully: " + str(operation_log)
+
+@router.get("/log/operation")
+async def get_operation_logs(db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.OperationLog)
+    result = await db.execute(query)
+    logs = result.scalars().all()
+    return logs

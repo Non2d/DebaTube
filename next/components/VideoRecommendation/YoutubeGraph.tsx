@@ -42,8 +42,8 @@ interface Round { //取得時のバリデーション
 }
 export default function YoutubeGraph() {
   const ytProps = {
-    height: (400 * 9) / 16,
-    width: 400,
+    height: (800 * 9) / 16,
+    width: 800,
     playerVars: {
       autoplay: 1, // 自動再生を無効
     },
@@ -61,6 +61,8 @@ export default function YoutubeGraph() {
     { value: "economy", label: "Economy" },
     { value: "politics", label: "Politics" },
     { value: "environment", label: "Environment" },
+    { value: "education", label: "Education" },
+    { value: "democracy", label: "Democracy" },
     { value: "others", label: "Others" },
   ];
 
@@ -69,7 +71,10 @@ export default function YoutubeGraph() {
   const [debateItems, setDebateItems] = useState<DebateItem[]>([]);
 
   useEffect(() => {
-    console.log("selected tab: ", selectedTab);
+    logOperation('TagClicked', {
+      tag: selectedTab,
+    });
+
     fetch(apiRoot + '/rounds', {
       method: 'GET',
       headers: {
@@ -101,19 +106,55 @@ export default function YoutubeGraph() {
       .catch(error => console.error('Error fetching data:', error));
   }, [selectedTab])
 
+  const logOperation = async (operation: string, data: object) => {
+    const requestBody = {
+      operation,
+      data,
+    };
+
+    try {
+      const response = await fetch(apiRoot + '/log/operation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const result = await response.json();
+      console.log('Operation logged successfully:', result);
+    } catch (error) {
+      console.error('Error logging operation:', error);
+    }
+  };
+
   const scrollNext = () => {
     setScrollPosition(prev => Math.min(prev + 1, debateItems.length - 1))
   }
   const scrollPrevious = () => {
     setScrollPosition(prev => Math.max(prev - 1, 0))
   }
-  const onMovieItemClicked = (videoId: string, videoTitle: string) => () => {
+  const onMovieItemClicked = (videoId: string, videoTitle: string) => async () => {
     setYtId(videoId);
     setYtTitle(videoTitle);
     setIsVisible(true);
+
+    await logOperation('MovieItemClicked', {
+      owner_round_id: videoId,
+      node_start: 0,
+      node_sequence_id: -1,
+    });
+
+    if (ytPlayer) {
+      ytPlayer.seekTo(0, true);
+    }
   }
 
-  const onGraphNodeClicked = (roundId: number, start: number) => {
+  const onGraphNodeClicked = async (roundId: number, start: number, nodeSequenceId: number) => {
     const nodeOwnerRound = debateItems.find(item => item.id === roundId);
 
     if (!nodeOwnerRound) {
@@ -130,10 +171,14 @@ export default function YoutubeGraph() {
     setYtTitle(nodeOwnerRound.title);
     setIsVisible(true);
 
+    await logOperation('GraphNodeClicked', {
+      owner_round_id: roundId,
+      node_start: start,
+      node_sequence_id: nodeSequenceId,
+    });
+
     if (ytPlayer) {
       ytPlayer.seekTo(start, true);
-    } else {
-      console.error('YouTube player is undefined');
     }
   };
 
@@ -158,7 +203,7 @@ export default function YoutubeGraph() {
         >
           {debateItems.map((item) => (
             <div
-              key={item.videoId}
+              key={item.id}
               className="flex-none w-1/4"
             >
               <div className="flex flex-col gap-4">
@@ -216,23 +261,25 @@ export default function YoutubeGraph() {
       {
         isVisible && (
           <div
-            className={`fixed bottom-4 ${ytIsRight ? 'right-4' : 'left-4'
-              } w-128 h-68 rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden bg-black`}
+            className={`fixed bottom-4 ${ytIsRight ? 'right-4' : 'left-4'} rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden bg-black`}
+            style={{ width: '800px', height: '800*10/16px' }} // サイズを大きく調整
           >
-            <div className="flex items-center justify-start bg-gray-800 text-white px-3 py-2">
+            <div className="flex items-center justify-between bg-gray-800 text-white px-3 py-2">
               <h4 className="text-sm font-semibold">{ytTitle}</h4>
-              <button
-                onClick={() => setYtIsRight(!ytIsRight)}
-                className="text-gray-300 hover:text-red-500 ml-10 mr-3"
-              >
-                <span>{ytIsRight ? '←左下へ移動' : '→右下へ移動'}</span>
-              </button>
-              <button
-                onClick={() => setIsVisible(false)}
-                className="text-gray-300 hover:text-red-500 mr-1"
-              >
-                ✕
-              </button>
+              <div className="ml-auto flex items-center">
+                <button
+                  onClick={() => setYtIsRight(!ytIsRight)}
+                  className="text-gray-300 hover:text-red-500 ml-10 mr-3"
+                >
+                  <span>{ytIsRight ? '←左下へ移動' : '→右下へ移動'}</span>
+                </button>
+                <button
+                  onClick={() => setIsVisible(false)}
+                  className="text-gray-300 hover:text-red-500 mr-1"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="w-full h-full">
               <Youtube

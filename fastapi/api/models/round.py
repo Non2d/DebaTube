@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON
 from sqlalchemy.orm import relationship
 
 from db import Base
@@ -64,3 +64,10 @@ class Rebuttal(Base):
 
     round_id = Column(Integer, ForeignKey("rounds.id"))
     round = relationship("Round", back_populates="rebuttals")
+
+class OperationLog(Base):
+    __tablename__ = "operation_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    operation = Column(String(1024))
+    timestamp = Column(String(1024))
+    data = Column(JSON)

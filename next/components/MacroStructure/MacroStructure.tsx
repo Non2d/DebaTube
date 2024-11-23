@@ -58,7 +58,7 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
 
                 nodeTypeMap[argumentUnit.sequence_id] = nodeType;
 
-                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { label: argumentUnit.sequence_id.toString(), round_id: data.roundId, time: data.speeches[i].argument_units[j].start, isBackground:false} });
+                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { sequence_id: argumentUnit.sequence_id, label: argumentUnit.sequence_id.toString(), round_id: data.roundId, time: argumentUnit.start, isBackground:false} });
                 nodeY += 8;
             }
 
@@ -129,7 +129,7 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
     const handleNodeClick = (node: any) => { //薄い部分をクリックすると手前に出てくるバグ
         console.log(node.data);
         if (!node.data.isBackground) {
-            onGraphNodeClicked(node.data.round_id, node.data.time);
+            onGraphNodeClicked(node.data.round_id, node.data.time, node.data.sequence_id);
         }
     }
 
