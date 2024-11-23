@@ -57,6 +57,10 @@ export default function Home() {
     setSelectedRounds(newSelectedRounds);
   };
 
+  const handleGraphNodeClick = (node: any) => {
+    console.log('Graph node clicked:', node);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -77,7 +81,7 @@ export default function Home() {
               </div>
             )}
             {selectedRounds[index] != null && selectedRounds[index]?.id != null && (
-              <MacroStructure data={selectedRounds[index]} />
+              <MacroStructure data={selectedRounds[index]} onGraphNodeClicked={handleGraphNodeClick} />
             )}
           </div>
         ))}
