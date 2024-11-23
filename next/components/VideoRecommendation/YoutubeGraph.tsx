@@ -55,15 +55,15 @@ export default function YoutubeGraph() {
   const [isVisible, setIsVisible] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all')
   const tabValues = [
-    { value: "all", label: "All" },
-    { value: "criminal", label: "Criminal Justice" },
+    { value: "All", label: "All" },
+    { value: "CriminalJustice", label: "Criminal Justice" },
     { value: "feminism", label: "Feminism" },
-    { value: "economy", label: "Economy" },
-    { value: "politics", label: "Politics" },
-    { value: "environment", label: "Environment" },
-    { value: "education", label: "Education" },
-    { value: "democracy", label: "Democracy" },
-    { value: "others", label: "Others" },
+    { value: "Feminism", label: "Economy" },
+    { value: "Politics", label: "Politics" },
+    { value: "Environment", label: "Environment" },
+    { value: "Education", label: "Education" },
+    { value: "Democracy", label: "Democracy" },
+    { value: "Others", label: "Others" },
   ];
 
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -83,7 +83,7 @@ export default function YoutubeGraph() {
     })
       .then(response => response.json())
       .then((data: Round[]) => {
-        const filteredRounds = selectedTab === 'all'
+        const filteredRounds = selectedTab === 'All'
           ? data
           : data.filter(round => selectedTab.includes(round.tag));
         const debateItems = filteredRounds.map(round => {
@@ -285,7 +285,7 @@ export default function YoutubeGraph() {
               <Youtube
                 videoId={ytId}
                 opts={ytProps}
-                onReady={(e) => setYtPlayer(e.target)}
+                onReady={(e:any) => setYtPlayer(e.target)}
                 className="w-full h-full"
               />
             </div>
