@@ -109,6 +109,9 @@ export default function YoutubeGraph() {
     } else {
       setSelectedDebateItems(debateItems.filter(item => item.tag.toLowerCase().includes(selectedTab.toLowerCase())));
     }
+
+    // タグを新しく選択するたびにスクロール位置をリセット
+    setScrollPosition(0);
     
   }, [selectedTab, debateItems]);
 
