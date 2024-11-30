@@ -96,7 +96,7 @@ const Timeline = () => {
         height: (400 * 9) / 16,
         width: 400,
         playerVars: {
-            autoplay: 1, // 自動再生を無効
+            autoplay: 0, // 自動再生を無効
         },
     };
     const [ytPlayer, setYtPlayer] = useState<YT.Player>();
@@ -185,6 +185,7 @@ const Timeline = () => {
                 id: `asr-${index}`,
                 type: 'NodeAsr',
                 data: {
+                    id: index,
                     text: asr.text,
                     start: asr.start,
                     end: asr.end,
@@ -438,15 +439,22 @@ const Timeline = () => {
                     onNodeClick(event, node);// ノードがクリックされたときはメニューを閉じない
                     event.stopPropagation(); // 親要素へのクリックイベント伝播を止める
                 }}
-                // onNodeContextMenu={(event, node) => { //右クリックメニュー
-                //     if (node.type != 'NodeAsr') {
-                //         setRightMenu(null);
-                //         return;
-                //     }
-                //     setMenu(null);
-                //     onNodeContextMenu(event, node); // ノードのコンテキストメニューが開かれたときはメニューを閉じない
-                //     event.stopPropagation(); // 親要素へのクリックイベント伝播を止める
-                // }}
+                onNodeContextMenu={(event, node) => { //右クリックメニュー
+                    //デフォルトの動作をキャンセル
+                    event.preventDefault();
+                    if(node.type = "NodeAsr"){
+                        console.log(node.data.id);
+                        if (pois.includes(node.data.id)) {
+                            const newPois = pois.filter(poi => poi !== node.data.id);
+                            setPois(newPois);
+                        } else {
+                            setPois(pois.concat(node.data.id));
+                        }
+                    }
+                    // setMenu(null);
+                    // onNodeContextMenu(event, node); // ノードのコンテキストメニューが開かれたときはメニューを閉じない
+                    event.stopPropagation(); // 親要素へのクリックイベント伝播を止める
+                }}
                 defaultViewport={defaultViewport} // デフォルトのカメラの座標を指定
             >
                 <Background

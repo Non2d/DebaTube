@@ -50,9 +50,9 @@ const YoutubeGraph2 = () => {
   const tabValues = [
     { value: "All", label: "All" },
     { value: "CriminalJustice", label: "Criminal Justice" },
-    { value: "Feminism", label: "Feminism" },
+    { value: "Feminism", label: "Gender" },
     { value: "Economy", label: "Economy" },
-    { value: "SocialPolicy", label: "Social Policy" },
+    { value: "SocialPolicy", label: "Politics" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
