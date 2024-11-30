@@ -61,7 +61,7 @@ const SidebarTimeline = ({ isNA, setIsNA, zoomLevel, setZoomLevel, nodeTranspare
                                     const exportFileNameWoExt = e.target.files[0].name.replace(/\..*$/, '');
                                     setExportFileName(exportFileNameWoExt + ".json");
                                     const response = await fetch(
-                                        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
+                                        `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(
                                             exportFileNameWoExt
                                         )}&key=${YOUTUBE_API_KEY}`
                                     );

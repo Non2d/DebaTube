@@ -58,7 +58,7 @@ export default function Home() {
   };
 
   const handleGraphNodeClick = (node: any) => {
-    console.log('Graph node clicked:', node);
+    // console.log('Graph node clicked:', node);
   };
 
   return (

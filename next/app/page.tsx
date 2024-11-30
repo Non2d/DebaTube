@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState, ChangeEvent } from 'react';
-import YoutubeGraph from '../components/VideoRecommendation/YoutubeGraph';
+import YoutubeGraph2 from '../components/VideoRecommendation/YoutubeGraph2';
 
 export default function Home() {
   return (
     <>
-    <YoutubeGraph />
+    <YoutubeGraph2 />
     </>
   )
 }

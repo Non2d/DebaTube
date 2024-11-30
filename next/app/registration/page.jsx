@@ -68,7 +68,7 @@ export default function Home() {
 
             const requestText = "1st proposition:" + first20SegmentsOfPM + ", 1st opposition:" + first20SegmentsOfLO;
 
-            console.log(requestText);
+            // console.log(requestText);
 
             const response = await fetch(apiRoot + '/motion', {
                 method: 'POST',
@@ -84,7 +84,7 @@ export default function Home() {
 
             const data = await response.json();
 
-            console.log(data);
+            // console.log(data);
             setMotion(data);
         } catch (error) {
             handleCancel();
@@ -132,7 +132,7 @@ export default function Home() {
                 }
             );
 
-            console.log(data);
+            // console.log(data);
 
         } catch (error) {
             console.error('Error processing files:', error)

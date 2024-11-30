@@ -127,14 +127,14 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
     }, []);
 
     const handleNodeClick = (node: any) => { //薄い部分をクリックすると手前に出てくるバグ
-        console.log(node.data);
+        // console.log(node.data);
         if (!node.data.isBackground) {
             onGraphNodeClicked(node.data.round_id, node.data.time, node.data.sequence_id);
         }
     }
 
     return (
-        <div style={{ width: '100%', height: '70vh' }}>
+        <div style={{ cursor:"default", width: '100%', height: '100%' }}>
 
             {/* <button onClick={onAddNode}>ノードを追加</button> */}
             <ReactFlow
@@ -152,7 +152,7 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
                 onNodeClick={(event, node) => handleNodeClick(node)}
             >
                 {/* <Controls /> */}
-                <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+                {/* <Background variant={BackgroundVariant.Dots} gap={12} size={1} /> */}
             </ReactFlow>
         </div>
     );

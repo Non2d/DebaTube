@@ -135,7 +135,7 @@ export default function YoutubeGraph() {
       }
 
       const result = await response.json();
-      console.log('Operation logged successfully:', result);
+      // console.log('Operation logged successfully:', result);
     } catch (error) {
       console.error('Error logging operation:', error);
     }

@@ -6,7 +6,6 @@ const diarizationColors = [
     'rgba(51, 255, 245, 0.5)', // Cyan
     'rgba(255, 165, 0, 0.5)', // Light Orange
     'rgba(140, 51, 255, 0.5)', // Purple
-    'rgba(51, 255, 140, 0.5)', // Light Green
     'rgba(255, 51, 51, 0.5)', // Dark Red
     'rgba(51, 51, 255, 0.5)', // Dark Blue
     'rgba(255, 215, 0, 0.5)', // Gold
@@ -24,6 +23,7 @@ const diarizationColors = [
     'rgba(50, 205, 50, 0.5)', // Lime Green
     'rgba(255, 99, 71, 0.5)',  // Tomato
     'rgba(64, 224, 208, 0.5)', // Turquoise
+    'rgba(51, 255, 140, 0.5)', // Light Green
 ];
 
 export default diarizationColors;
