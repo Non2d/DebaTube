@@ -8,3 +8,4 @@ openai
 httpx
 cryptography
 pytz
+mysql-connector-python

@@ -32,7 +32,7 @@ services:
     env_file:
       - ./mysql/.env
     volumes:
-      - dsv_mysql_amami:/var/lib/mysql
+      - dsv_mysql_cn:/var/lib/mysql
     networks:
       - dsv_network
 
@@ -45,7 +45,7 @@ services:
       - dsv_network
 
 volumes:
-  dsv_mysql_amami:
+  dsv_mysql_cn: # amami->cn
 
 networks:
   dsv_network:

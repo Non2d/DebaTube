@@ -50,9 +50,9 @@ const YoutubeGraph2 = () => {
   const tabValues = [
     { value: "All", label: "All" },
     { value: "CriminalJustice", label: "Criminal Justice" },
-    { value: "Feminism", label: "Gender" },
+    { value: "Gender", label: "Gender" },
     { value: "Economy", label: "Economy" },
-    { value: "SocialPolicy", label: "Politics" },
+    { value: "Politics", label: "Politics" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
@@ -110,7 +110,9 @@ const YoutubeGraph2 = () => {
       .map(pinnedId => selectedDebateItems.find(item => item.id === pinnedId))
       .filter(item => item !== undefined) as DebateItem[];
 
-    const unpinnedDebateItems = selectedDebateItems.filter(item => !pinnedItems.includes(item.id));
+    const unpinnedDebateItems = selectedDebateItems
+      .filter(item => !pinnedItems.includes(item.id))
+      .sort((a, b) => b.id - a.id);
 
     setDisplayDebateItems([...pinnedDebateItems, ...unpinnedDebateItems]);
   }, [pinnedItems, selectedDebateItems]);

@@ -13,6 +13,7 @@ export default function Home() {
 
     // API Input
     const [motion, setMotion] = useState('');
+    const [tag, setTag] = useState('');
     const [videoId, setVideoId] = useState('');
     const [fileName, setFileName] = useState('');
     const [transcript, setTranscript] = useState([]); // filesをtranscriptsに変更
@@ -102,6 +103,7 @@ export default function Home() {
                 "video_id": videoId,
                 "poi_segment_ids": poiSegmentIds,
                 "speeches": transcript, //あとでUPDATEで上書きされる
+                "tag": tag,
             }
 
             const data = await toast.promise(
@@ -166,6 +168,20 @@ export default function Home() {
                             className="mt-1 p-2 border w-full rounded"
                             value={motion}
                             onChange={(e) => setMotion(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="mb-4">
+                        <label className="block text-gray-700 mb-2" htmlFor="motion">
+                            Tag
+                        </label>
+                        <input
+                            type="text"
+                            id="tag"
+                            placeholder="Crime,Environment,etc."
+                            className="mt-1 p-2 border w-full rounded"
+                            value={tag}
+                            onChange={(e) => setTag(e.target.value)}
                         />
                     </div>
 

@@ -17,6 +17,7 @@ import os, httpx
 from datetime import datetime
 import pytz
 from fastapi import Query
+import html, re
 
 # request schema
 
@@ -32,7 +33,7 @@ class RoundCreate(BaseModel):
     motion: str
     # date_uploaded: str
     # channel_id: str
-    # tag: str
+    tag: str #追加
 
     speeches: List[List[SegmentCreate]]
     poi_segment_ids: List[int]  # リクエストの時点ではpoiはまだ確定していない
@@ -142,6 +143,10 @@ class RoundResponse(BaseModel):
 
 #     class Config:
 #         orm_mode = True
+
+def remove_invalid_characters(text):
+    # 無効な文字（絵文字や特殊文字）を削除する正規表現
+    return re.sub(r'[^\x00-\x7F]+', '', text)
 
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
@@ -341,14 +346,21 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
         all_data = response.json()
         metadata = all_data["items"][0]["snippet"]
 
+    # メタデータからタグを取得し、エスケープ処理を行う
+    video_tag = ""
+    if "tags" in metadata and metadata["tags"]:
+        video_tag = html.escape(str(metadata["tags"][0])) + ","
+
+    secure_description = html.escape(remove_invalid_characters(metadata["description"]))
+
     round = round_db_model.Round(
         video_id = round_create.video_id,
         motion = round_create.motion,
         title = metadata["title"],
-        description = metadata["description"],
+        description = secure_description,
         date_uploaded = metadata["publishedAt"],
         channel_id = metadata["channelId"],
-        tag = metadata["tags"][0] if "tags" in metadata else ""
+        tag = video_tag+round_create.tag
     )
     db.add(round)
     
@@ -421,6 +433,9 @@ async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get
             segment_texts = [speech_create[j].text.strip() for j in range(first_seg_id, last_seg_id + 1)]
             plain_text = ' '.join(segment_texts)
 
+            if first_seg_id < 0 or first_seg_id >= len(speech_create) or last_seg_id < 0 or last_seg_id >= len(speech_create):
+                logger.error(f"Index out of range: first_seg_id={first_seg_id}, last_seg_id={last_seg_id}, len_speech_create={len(speech_create)}")
+                continue
             argument_units.append(
                 round_db_model.ArgumentUnit(
                     sequence_id=sequence_id,
