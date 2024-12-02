@@ -240,7 +240,7 @@ const YoutubeGraph2 = () => {
         isVisible && ( // 動画ポップアップ
           <div
             className={`fixed bottom-4 ${ytIsRight ? 'right-4' : 'left-4'} rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden bg-black`}
-            style={{ width: '800px', height: '450px' }}
+            style={{ width: '800px', height: '500px' }}
           >
             <div className="flex items-center justify-between bg-gray-800 text-white px-3 py-2">
               <h4 className="text-sm font-semibold">{ytTitle}</h4>
