@@ -158,7 +158,7 @@ const YoutubeGraph2 = () => {
     });
   };
 
-  const onGraphNodeClicked = async (roundId: number, start: number, nodeSequenceId: number) => {
+  const onGraphNodeRightClicked = async (roundId: number, start: number, nodeSequenceId: number) => {
     const nodeOwnerRound = selectedDebateItems.find(item => item.id === roundId);
 
     if (!nodeOwnerRound) {
@@ -210,10 +210,10 @@ const YoutubeGraph2 = () => {
             <div
               key={item.id}
               className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-200' : 'border-white'}`}
+              onClick={onMovieItemClicked(item.id)}
             >
               <div
-                className="mb-1 flex gap-4 bg-white hover:bg-gray-300 cursor-pointer transition-all duration-300 ease-in-out"
-                onClick={onMovieItemClicked(item.id)}
+                className="mb-1 flex gap-4 bg-white"
               >
                 <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
                   <Image
@@ -230,7 +230,7 @@ const YoutubeGraph2 = () => {
                 </div>
               </div>
               <div className="aspect-[16/9] relative bg-white" style={{ height: '35vh' }}>
-                <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeClicked} />
+                <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeRightClicked} />
               </div>
             </div>
           ))}

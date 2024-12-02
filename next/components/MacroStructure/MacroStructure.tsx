@@ -58,13 +58,13 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
 
                 nodeTypeMap[argumentUnit.sequence_id] = nodeType;
 
-                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { sequence_id: argumentUnit.sequence_id, label: argumentUnit.sequence_id.toString(), round_id: data.roundId, time: argumentUnit.start, isBackground:false} });
+                newNodes.push({ id: "adu-" + argumentUnit.sequence_id.toString(), type: nodeType, position: { x: originX + xposOpp * +!finalIsGovernment, y: nodeY }, data: { sequence_id: argumentUnit.sequence_id, label: argumentUnit.sequence_id.toString(), round_id: data.roundId, time: argumentUnit.start, isBackground: false } });
                 nodeY += 8;
             }
 
             const endNodeY = nodeY;
 
-            newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height: endNodeY - startNodeY, isGovernment: isGovernment, isBackground:true } });
+            newNodes.unshift({ id: "speech-" + i.toString(), type: "backgroundNode", position: { x: originX + xposOpp * +!isGovernment, y: startNodeY }, data: { height: endNodeY - startNodeY, isGovernment: isGovernment, isBackground: true } });
         }
         setNodes(newNodes);
 
@@ -134,7 +134,7 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
     }
 
     return (
-        <div style={{ cursor:"default", width: '100%', height: '100%' }}>
+        <div style={{ cursor: "default", width: '100%', height: '100%' }}>
 
             {/* <button onClick={onAddNode}>ノードを追加</button> */}
             <ReactFlow
@@ -146,10 +146,20 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
                 nodesDraggable={false}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
-                panOnScroll
-                panOnDrag={[1, 2]}
+                // panOnScroll
+                // panOnDrag={[1, 2]}
+                panOnScroll={false} // スクロールによるパンを無効化
+                zoomOnScroll={false} // スクロールによるズームを無効化
+                zoomOnPinch={false} // ピンチによるズームを無効化
+                panOnDrag={false} // ドラッグによるパンを無効化
+                zoomOnDoubleClick={false} // ダブルクリックによるズームを無効化
                 fitView
-                onNodeClick={(event, node) => handleNodeClick(node)}
+
+                // onNodeClick={(event, node) => handleNodeClick(node)}
+                onNodeContextMenu={(event, node) => {
+                    event.preventDefault(); // デフォルトの右クリックメニューを表示しない
+                    handleNodeClick(node);
+                }}
             >
                 {/* <Controls /> */}
                 {/* <Background variant={BackgroundVariant.Dots} gap={12} size={1} /> */}
