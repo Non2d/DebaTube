@@ -81,7 +81,7 @@ export default function Home() {
               </div>
             )}
             {selectedRounds[index] != null && selectedRounds[index]?.id != null && (
-              <MacroStructure data={selectedRounds[index]} onGraphNodeClicked={handleGraphNodeClick} />
+              <MacroStructure data={selectedRounds[index]} onGraphNodeClicked={handleGraphNodeClick} isPinned={true}/>
             )}
           </div>
         ))}

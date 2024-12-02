@@ -230,7 +230,7 @@ const YoutubeGraph2 = () => {
                 </div>
               </div>
               <div className="aspect-[16/9] relative bg-white" style={{ height: '35vh' }}>
-                <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeRightClicked} />
+                <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeRightClicked} isPinned={pinnedItems.includes(item.id)} />
               </div>
             </div>
           ))}

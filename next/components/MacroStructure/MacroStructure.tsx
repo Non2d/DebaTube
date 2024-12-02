@@ -21,7 +21,7 @@ interface Rebuttal {
     tgt: number;
 }
 
-export default function MacroStructure({ data, onGraphNodeClicked }: { data: any, onGraphNodeClicked: any }) {
+export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: { data: any, onGraphNodeClicked: any, isPinned: boolean }) {
     let repeatedNum = 4;
 
     const originY = 0;
@@ -158,6 +158,9 @@ export default function MacroStructure({ data, onGraphNodeClicked }: { data: any
                 // onNodeClick={(event, node) => handleNodeClick(node)}
                 onNodeContextMenu={(event, node) => {
                     event.preventDefault(); // デフォルトの右クリックメニューを表示しない
+                    if(!isPinned){
+                        return;
+                    }
                     handleNodeClick(node);
                 }}
             >

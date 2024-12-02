@@ -238,7 +238,7 @@ export default function YoutubeGraph() {
                   </div>
                 </div>
                 <div className="aspect-[16/9] relative bg-white rounded-lg overflow-hidden" style={{ height: '70vh' }}>
-                  <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeClicked} />
+                  <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeClicked} isPinned={true}/>
                 </div>
               </div>
             </div>
