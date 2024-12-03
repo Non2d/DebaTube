@@ -183,10 +183,6 @@ const YoutubeGraph2 = () => {
       node_sequence_id: nodeSequenceId,
     });
 
-    if(ytPlayer) {
-      ytPlayer.seekTo(start, true);
-    }
-
   };
 
   useEffect(() => {
