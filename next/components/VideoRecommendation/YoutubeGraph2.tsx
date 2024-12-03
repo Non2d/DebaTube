@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { apiRoot } from '../../components/utils/foundation';
 import MacroStructure from '../../components/MacroStructure/MacroStructure';
 import Youtube from 'react-youtube';
+import toast from "react-hot-toast";
 
 interface DebateItem { //UI表示用にデータ生成する際のバリデーション
   id: number
@@ -46,6 +47,7 @@ const YoutubeGraph2 = () => {
   const [selectedDebateItems, setSelectedDebateItems] = useState<DebateItem[]>([]);
   const [pinnedItems, setPinnedItems] = useState<number[]>([]);
   const [displayDebateItems, setDisplayDebateItems] = useState<DebateItem[]>([]);
+  const [whenToSeek, setWhenToSeek] = useState(0);
 
   const tabValues = [
     { value: "All", label: "All" },
@@ -105,7 +107,6 @@ const YoutubeGraph2 = () => {
   }, [selectedTab, debateItems]);
 
   useEffect(() => { //カテゴリ変更時またはピン留め時に更新
-    console.log("PIN IS NOTHIGN")
     const pinnedDebateItems = pinnedItems
       .map(pinnedId => selectedDebateItems.find(item => item.id === pinnedId))
       .filter(item => item !== undefined) as DebateItem[];
@@ -160,6 +161,7 @@ const YoutubeGraph2 = () => {
 
   const onGraphNodeRightClicked = async (roundId: number, start: number, nodeSequenceId: number) => {
     const nodeOwnerRound = selectedDebateItems.find(item => item.id === roundId);
+    setWhenToSeek(start);
 
     if (!nodeOwnerRound) {
       console.error(`Round with id ${roundId} not found`);
@@ -181,14 +183,33 @@ const YoutubeGraph2 = () => {
       node_sequence_id: nodeSequenceId,
     });
 
-    if (ytPlayer) {
+    if(ytPlayer) {
       ytPlayer.seekTo(start, true);
     }
+
   };
 
+  useEffect(() => {
+    if (ytPlayer) {
+      const timeoutId = setTimeout(() => {
+        ytPlayer.seekTo(whenToSeek, true);
+      }, 700); // 1.0秒 (1000ミリ秒) 遅らせる
+  
+      // クリーンアップ関数を返して、コンポーネントがアンマウントされたときにタイムアウトをクリア
+      return () => clearTimeout(timeoutId);
+    }
+  }, [whenToSeek, ytPlayer]);
+
   const onPlayerReady = (event: any) => {
-    setYtPlayer(event.target);
+    setYtPlayer(event.target);    
   };
+
+  const taskIsDone = () => async () => {
+    toast.success('Task is done!');
+    await logOperation('TaskIsDone', {
+      pinned_items: pinnedItems,
+    });
+  }
 
   return (
     <div className="bg-white flex flex-col w-full mx-auto p-4 gap-2">
@@ -203,6 +224,12 @@ const YoutubeGraph2 = () => {
             ))}
           </TabsList>
         </Tabs>
+        <button
+          onClick={taskIsDone()}
+          className="ml-auto bg-red-500 text-white px-4 py-1 rounded hover:bg-red-700"
+        >
+          Task is done!
+        </button>
       </header>
       <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
@@ -210,7 +237,7 @@ const YoutubeGraph2 = () => {
             <div
               key={item.id}
               className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-200' : 'border-white'}`}
-              onClick={onMovieItemClicked(item.id)}
+              onDoubleClick={onMovieItemClicked(item.id)}
             >
               <div
                 className="mb-1 flex gap-4 bg-white"
