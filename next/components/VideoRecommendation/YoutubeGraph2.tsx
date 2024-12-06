@@ -55,6 +55,7 @@ const YoutubeGraph2 = () => {
     { value: "Gender", label: "Gender" },
     { value: "Economy", label: "Economy" },
     { value: "Politics", label: "Politics" },
+    { value: "Practice", label: "Practice" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
