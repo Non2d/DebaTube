@@ -194,7 +194,7 @@ export default function YoutubeGraph() {
   return (
     <div className="flex flex-col w-full mx-auto p-4 gap-6">
       <header className="flex items-center justify-start">
-        <h2 className="text-2xl font-bold mr-20">Debate Structure Visualizer</h2>
+        <h2 className="text-2xl font-bold mr-20">DebaTube</h2>
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto justify-start">
           <TabsList>
             {tabValues.map((tab) => (
