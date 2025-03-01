@@ -220,19 +220,19 @@ const YoutubeGraph2 = () => {
             ))}
           </TabsList>
         </Tabs>
-        <button
+        {/* <button
           onClick={taskIsDone()}
           className="ml-auto bg-red-500 text-white px-4 py-1 rounded hover:bg-red-700"
         >
           Task is done!
-        </button>
+        </button> */}
       </header>
       <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
           {displayDebateItems.map((item) => (
             <div
               key={item.id}
-              className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-200' : 'border-white'}`}
+              className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white'}`}
               onDoubleClick={onMovieItemClicked(item.id)}
             >
               <div
@@ -248,6 +248,7 @@ const YoutubeGraph2 = () => {
                   />
                 </div>
                 <div className="flex flex-col flex-grow">
+                  {/* <span className="text-xs font-bold line-clamp-1">{item.title}</span> */}
                   <span className="text-xs font-bold line-clamp-1"><span className="text-red-700">&lt;{item.id}&gt;</span> {item.title}</span>
                   <p className="text-xs line-clamp-3">{item.motion}</p>
                 </div>

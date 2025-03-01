@@ -14,7 +14,8 @@ export const govNode = ({ data }: { data: any }) => {
       // borderTop: '0.5px solid ' + "lightgray", 
       // borderBottom: '0.5px solid ' + "lightgray" 
     }}>
-        {/* <span style={{ marginLeft: '-20px' }}>{data.label}</span>  // デバッグ用*/}
+      {/* // デバッグ用 */}
+      {/* <span style={{ marginLeft: '-20px', position: 'absolute', top: '-5px', fontSize: '10px' }}>{data.label}</span>   */}
       <span style={{ position: 'absolute', top: '50%', right: '5px', transform: 'translateY(-50%)', zIndex: 1 }}>
         <Handle type="target" id="tgt" position={Position.Right} style={{ opacity: 0 }} />
         <Handle type="source" id="src" position={Position.Right} style={{ opacity: 0 }} />
@@ -32,7 +33,8 @@ export const oppNode = ({ data }: { data: any }) => {
       // borderTop: '0.5px solid ' + "lightgray", 
       // borderBottom: '0.5px solid ' + "lightgray" 
     }}>
-      {/* <span style={{ marginLeft: '-20px' }}>{data.label}</span>  // デバッグ用*/}
+      {/* // デバッグ用 */}
+      {/* <span style={{ marginLeft: '-20px', position: 'absolute', top: '-5px', fontSize: '10px' }}>{data.label}</span>   */}
       <span style={{ position: 'absolute', top: '50%', left: '5px', transform: 'translateY(-50%)', zIndex: 1 }}>
         <Handle type="target" id="tgt" position={Position.Left} style={{ opacity: 0 }} />
         <Handle type="source" id="src" position={Position.Left} style={{ opacity: 0 }} />
