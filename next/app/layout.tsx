@@ -5,7 +5,7 @@ import Header from '../components/utils/Header';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-  title: 'Debate Structure Visualizer',
+  title: 'DebaTube',
   description: 'Created for Competitive Debaters',
 };
 

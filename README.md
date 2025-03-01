@@ -2,7 +2,7 @@
 
 ## デモ動画
 
-[![DebateVizSystem_Youtube_Link](https://github.com/user-attachments/assets/06283ef3-4071-4a8b-96ef-449d2e996478)](https://youtu.be/ybbw3yxqi90)
+[![DebateVizSystem_Youtube_Link](https://github.com/user-attachments/assets/06283ef3-4071-4a8b-96ef-449d2e996478)](https://youtu.be/WRu5sfoN7XM?si=b77CnGqQXiB80TWU)
 
 ## 概要
 

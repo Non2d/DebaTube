@@ -55,6 +55,7 @@ const YoutubeGraph2 = () => {
     { value: "Gender", label: "Gender" },
     { value: "Economy", label: "Economy" },
     { value: "Politics", label: "Politics" },
+    { value: "Practice", label: "Practice" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
@@ -248,8 +249,6 @@ const YoutubeGraph2 = () => {
                   />
                 </div>
                 <div className="flex flex-col flex-grow">
-                  {/* <span className="text-xs font-bold line-clamp-1">{item.title}</span> */}
-                  <span className="text-xs font-bold line-clamp-1"><span className="text-red-700">&lt;{item.id}&gt;</span> {item.title}</span>
                   <p className="text-xs line-clamp-3">{item.motion}</p>
                 </div>
               </div>

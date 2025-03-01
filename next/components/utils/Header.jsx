@@ -8,7 +8,7 @@ export default function Header() {
         <header className="bg-blue-500 p-4 flex justify-between items-center z-1100">
             <Link href="/">
                 <h1 className="mr-5 px-4 py-2 text-white font-bold hover:text-blue-700 transition-colors duration-300 cursor-pointer text-xl">
-                    Debate Structure Visualizer
+                    DebaTube
                 </h1>
             </Link>
             <div className="flex items-center">
