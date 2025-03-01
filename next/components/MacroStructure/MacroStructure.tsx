@@ -4,12 +4,8 @@ import React, { useState, useEffect } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
 import { govNode, oppNode, GovEdge, OppEdge, backgroundNode } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
-import { dataRebuttals2Tuples, getRallyIds } from './ModelDebate';
-
-import { apiRoot } from '../utils/foundation';
 
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
-import { start } from 'repl';
 
 const nodeTypes = { "govNode": govNode, "oppNode": oppNode, "backgroundNode": backgroundNode };
 const edgeTypes = { "govEdge": GovEdge, "oppEdge": OppEdge };
@@ -55,6 +51,7 @@ export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: {
 
                 const nodeType = finalIsGovernment ? "govNode" : "oppNode";
                 const argumentUnit = data.speeches[i].argument_units[j];
+                //2025/03/01: とりあえずAPI側でargument_units[i].textは送信しないことにした
 
                 nodeTypeMap[argumentUnit.sequence_id] = nodeType;
 
@@ -133,6 +130,8 @@ export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: {
         }
     }
 
+    const proOptions = { hideAttribution: true };
+
     return (
         <div style={{ cursor: "default", width: '100%', height: '100%' }}>
 
@@ -154,6 +153,7 @@ export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: {
                 panOnDrag={false} // ドラッグによるパンを無効化
                 zoomOnDoubleClick={false} // ダブルクリックによるズームを無効化
                 fitView
+                proOptions={proOptions}
 
                 // onNodeClick={(event, node) => handleNodeClick(node)}
                 onNodeContextMenu={(event, node) => {

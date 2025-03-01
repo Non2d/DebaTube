@@ -1,7 +1,6 @@
 import React from 'react';
 import { Handle, Position } from "reactflow";
 import { BaseEdge, getBezierPath, getStraightPath, getSmoothStepPath, getSimpleBezierPath } from 'reactflow';
-import hsvToRgb from '../utils/hsv';
 
 // Macroの方ではRootNodeは不要
 

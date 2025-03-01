@@ -48,6 +48,7 @@ const YoutubeGraph2 = () => {
   const [pinnedItems, setPinnedItems] = useState<number[]>([]);
   const [displayDebateItems, setDisplayDebateItems] = useState<DebateItem[]>([]);
   const [whenToSeek, setWhenToSeek] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const tabValues = [
     { value: "All", label: "All" },
@@ -55,7 +56,6 @@ const YoutubeGraph2 = () => {
     { value: "Gender", label: "Gender" },
     { value: "Economy", label: "Economy" },
     { value: "Politics", label: "Politics" },
-    { value: "Practice", label: "Practice" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
@@ -66,7 +66,7 @@ const YoutubeGraph2 = () => {
   };
 
   useEffect(() => {
-    fetch(apiRoot + '/rounds', {
+    fetch(apiRoot + '/rounds-without-text', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -89,8 +89,12 @@ const YoutubeGraph2 = () => {
           }
         }));
         setDebateItems(debateItems);
+        setIsLoading(false);
       })
-      .catch(error => console.error('Error fetching data:', error));
+      .catch(error => {
+        console.error('Error fetching data:', error);
+        setIsLoading(false); // エラーが発生してもローディング状態を解除
+      });
   }, []);
 
   useEffect(() => {
@@ -139,9 +143,9 @@ const YoutubeGraph2 = () => {
       }
 
       const result = await response.json();
-      console.log('Operation logged successfully:', result);
+      // console.log('Operation logged successfully:', result);
     } catch (error) {
-      console.error('Error logging operation:', error);
+      // console.error('Error ', error);
     }
   };
 
@@ -191,14 +195,14 @@ const YoutubeGraph2 = () => {
       const timeoutId = setTimeout(() => {
         ytPlayer.seekTo(whenToSeek, true);
       }, 700); // 1.0秒 (1000ミリ秒) 遅らせる
-  
+
       // クリーンアップ関数を返して、コンポーネントがアンマウントされたときにタイムアウトをクリア
       return () => clearTimeout(timeoutId);
     }
   }, [whenToSeek, ytPlayer]);
 
   const onPlayerReady = (event: any) => {
-    setYtPlayer(event.target);    
+    setYtPlayer(event.target);
   };
 
   const taskIsDone = () => async () => {
@@ -221,44 +225,68 @@ const YoutubeGraph2 = () => {
             ))}
           </TabsList>
         </Tabs>
-        {/* <button
-          onClick={taskIsDone()}
-          className="ml-auto bg-red-500 text-white px-4 py-1 rounded hover:bg-red-700"
-        >
-          Task is done!
-        </button> */}
       </header>
-      <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
-          {displayDebateItems.map((item) => (
-            <div
-              key={item.id}
-              className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white'}`}
-              onDoubleClick={onMovieItemClicked(item.id)}
-            >
-              <div
-                className="mb-1 flex gap-4 bg-white"
-              >
-                <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
-                  <Image
-                    src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
-                    alt={item.title}
-                    layout="fill"
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-                <div className="flex flex-col flex-grow">
-                  <p className="text-xs line-clamp-3">{item.motion}</p>
-                </div>
-              </div>
-              <div className="aspect-[16/9] relative bg-white" style={{ height: '35vh' }}>
-                <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeRightClicked} isPinned={pinnedItems.includes(item.id)} />
+      <>
+        {isLoading ? (
+          <>
+            <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
+                {[...Array(8)].map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-col border-4 border-white animate-pulse"
+                  >
+                    <div className="mb-1 flex gap-4 bg-white">
+                      <div className="aspect-square relative bg-gray-300 ml-1 mt-1 rounded-md" style={{ width: '8vh', height: '8vh' }}></div>
+                      <div className="flex flex-col flex-grow">
+                        <div className="h-4 bg-gray-300 rounded w-3/4 mb-1"></div>
+                        <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                    <div className="aspect-[16/9] relative bg-gray-300 rounded-md" style={{ height: '35vh' }}></div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+
+          </>
+        ) : (
+          <>
+            <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
+                {displayDebateItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white'}`}
+                    onDoubleClick={onMovieItemClicked(item.id)}
+                  >
+                    <div
+                      className="mb-1 flex gap-4 bg-white"
+                    >
+                      <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
+                        <Image
+                          src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
+                          alt={item.title}
+                          layout="fill"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                      <div className="flex flex-col flex-grow">
+                        <p className="text-xs line-clamp-3">{item.motion}</p>
+                      </div>
+                    </div>
+                    <div className="aspect-[16/9] relative bg-white" style={{ height: '35vh' }}>
+                      <MacroStructure data={item.graphItems} onGraphNodeClicked={onGraphNodeRightClicked} isPinned={pinnedItems.includes(item.id)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )
+        }
+      </>
       {
         isVisible && ( // 動画ポップアップ
           <div
@@ -293,6 +321,9 @@ const YoutubeGraph2 = () => {
           </div>
         )
       }
+      <footer className="text-center py-4">
+        <span className="text-gray-500 underline">Powered by <a href="https://reactflow.dev/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-700">React Flow</a></span>
+      </footer>
     </div>
   );
 };

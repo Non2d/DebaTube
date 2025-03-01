@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, defer
 from sqlalchemy.future import select
 from db import get_db
 import time
@@ -148,6 +148,7 @@ def remove_invalid_characters(text):
     # 無効な文字（絵文字や特殊文字）を削除する正規表現
     return re.sub(r'[^\x00-\x7F]+', '', text)
 
+
 @router.get("/rounds")
 async def get_rounds(db: AsyncSession = Depends(get_db)):
     query = select(round_db_model.Round).options(
@@ -156,6 +157,20 @@ async def get_rounds(db: AsyncSession = Depends(get_db)):
         selectinload(round_db_model.Round.speeches).selectinload(
             round_db_model.Speech.argument_units
         ),
+    )
+    result = await db.execute(query)
+    rounds = result.scalars().unique().all()
+    return rounds
+
+# textは省く
+@router.get("/rounds-without-text")
+async def get_rounds_without_text(db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ).options(defer(round_db_model.ArgumentUnit.text)),
     )
     result = await db.execute(query)
     rounds = result.scalars().unique().all()
