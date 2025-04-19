@@ -134,7 +134,6 @@ export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: {
 
     return (
         <div style={{ cursor: "default", width: '100%', height: '100%' }}>
-
             {/* <button onClick={onAddNode}>ノードを追加</button> */}
             <ReactFlow
                 nodes={nodes}
