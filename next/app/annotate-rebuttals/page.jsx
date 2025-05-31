@@ -5,37 +5,50 @@ import EditorPanel from './components/EditorPanel';
 import PreviewPanel from './components/PreviewPanel';
 
 // 定数定義
-const DEFAULT_MARKDOWN = `First cell
+const DEFAULT_MARKDOWN = `## PM
+First Prime Minister speech
 Multiple lines of text
 
-Second cell
+## LO
+Leader of Opposition speech
 Short text
 
-Third cell`;
+## DPM
+Deputy Prime Minister speech
+
+## DLO
+Deputy Leader of Opposition speech
+
+## GW
+Government Whip speech
+
+## OW
+Opposition Whip speech
+
+## LOR
+Leader of Opposition Reply speech
+
+## PMR
+Prime Minister Reply speech`;
 
 const CELL_SEPARATOR = '\n\n';  // 空白改行でセルを区切る
 
-const CELL_COLORS = {
-  background: [
-    'bg-blue-50 border-blue-200',
-    'bg-green-50 border-green-200', 
-    'bg-purple-50 border-purple-200',
-    'bg-orange-50 border-orange-200',
-    'bg-pink-50 border-pink-200',
-    'bg-indigo-50 border-indigo-200',
-    'bg-yellow-50 border-yellow-200',
-    'bg-red-50 border-red-200'
-  ],
-  highlight: [
-    'bg-blue-100',
-    'bg-green-100', 
-    'bg-purple-100',
-    'bg-orange-100',
-    'bg-pink-100',
-    'bg-indigo-100',
-    'bg-yellow-100',
-    'bg-red-100'
-  ]
+const DEBATE_ROLES = {
+  GOVERNMENT: ['PM', 'DPM', 'GW', 'PMR'],
+  OPPOSITION: ['LO', 'DLO', 'OW', 'LOR']
+};
+
+const convertRoleToSide = (role) => {
+  if (DEBATE_ROLES.GOVERNMENT.includes(role)) return true;  // 政府側（肯定）
+  if (DEBATE_ROLES.OPPOSITION.includes(role)) return false; // 野党側（否定）
+  return undefined;
+};
+
+const getSideColor = (isGovernment, type = 'background') => {
+  if (isGovernment === undefined) return type === 'background' ? 'bg-white border-gray-200' : 'bg-gray-100';
+  return isGovernment ? 
+    (type === 'background' ? 'bg-red-50 border-red-200' : 'bg-red-100') : 
+    (type === 'background' ? 'bg-blue-50 border-blue-200' : 'bg-blue-100');
 };
 
 const InteractiveSheetApp = () => {
@@ -49,6 +62,7 @@ const InteractiveSheetApp = () => {
   const parseMarkdownToCells = (text) => {
     const parts = text.split(CELL_SEPARATOR);
     let currentPosition = 0;
+    let currentRole = null;
     
     const cells = parts.map((cellContent, index) => {
       const trimmedContent = cellContent.trim();
@@ -58,15 +72,69 @@ const InteractiveSheetApp = () => {
       // Update position for next cell (including separator length)
       currentPosition = endPosition + (index < parts.length - 1 ? CELL_SEPARATOR.length : 0);
       
+      // Extract role from markdown header (## ROLE format)
+      const roleMatch = trimmedContent.match(/^##\s+([A-Z]+)$/);
+      if (roleMatch) {
+        currentRole = roleMatch[1];
+        return {
+          id: index,
+          content: '',
+          role: currentRole,
+          isEmpty: false,
+          startPosition,
+          endPosition,
+          rawContent: cellContent,
+          isGovernment: convertRoleToSide(currentRole),
+          isRoleHeader: true
+        };
+      }
+      
+      // If the content starts with ## ROLE but has more content, split it
+      const roleWithContentMatch = trimmedContent.match(/^##\s+([A-Z]+)\n(.*)/s);
+      if (roleWithContentMatch) {
+        currentRole = roleWithContentMatch[1];
+        const content = roleWithContentMatch[2].trim();
+        
+        // Create two cells: one for the role header and one for the content
+        const roleCell = {
+          id: index,
+          content: '',
+          role: currentRole,
+          isEmpty: false,
+          startPosition,
+          endPosition: startPosition + roleWithContentMatch[0].length,
+          rawContent: `## ${currentRole}`,
+          isGovernment: convertRoleToSide(currentRole),
+          isRoleHeader: true
+        };
+        
+        const contentCell = {
+          id: index + 0.5, // Use decimal to maintain order
+          content,
+          role: currentRole,
+          isEmpty: content === '',
+          startPosition: startPosition + roleWithContentMatch[0].length,
+          endPosition,
+          rawContent: content,
+          isGovernment: convertRoleToSide(currentRole),
+          isRoleHeader: false
+        };
+        
+        return [roleCell, contentCell];
+      }
+      
       return {
         id: index,
         content: trimmedContent,
+        role: currentRole,
         isEmpty: trimmedContent === '',
         startPosition,
         endPosition,
-        rawContent: cellContent
+        rawContent: cellContent,
+        isGovernment: currentRole ? convertRoleToSide(currentRole) : undefined,
+        isRoleHeader: false
       };
-    });
+    }).flat(); // Flatten the array in case we have nested arrays from split cells
     
     return cells.filter(cell => !(cell.id === cells.length - 1 && cell.content === ''));
   };
@@ -108,11 +176,8 @@ const InteractiveSheetApp = () => {
   const renderCellContent = (content) => {
     if (!content) return null;
     
-    // Split content by markdown patterns and render as React elements
-    const text = content;
-    
     // Simple approach: just render with basic JSX elements to avoid innerHTML
-    const lines = text.split('\n');
+    const lines = content.split('\n');
     return (
       <div>
         {lines.map((line, index) => (
@@ -126,11 +191,13 @@ const InteractiveSheetApp = () => {
   };
 
   const getCellColor = (index) => {
-    return CELL_COLORS.background[index % CELL_COLORS.background.length];
+    const cell = cellData[index];
+    return getSideColor(cell?.isGovernment, 'background');
   };
 
   const getHighlightColor = (index) => {
-    return CELL_COLORS.highlight[index % CELL_COLORS.highlight.length];
+    const cell = cellData[index];
+    return getSideColor(cell?.isGovernment, 'highlight');
   };
 
   const scrollToCellInPreview = (cellIndex) => {

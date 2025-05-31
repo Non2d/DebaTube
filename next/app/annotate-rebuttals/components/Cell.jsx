@@ -2,6 +2,20 @@ import React from 'react';
 import { Navigation } from 'lucide-react';
 
 const Cell = ({ cell, index, isSelected, isHighlighted, onClick, onMouseEnter, onMouseLeave, getCellColor, getHighlightColor, renderCellContent, cellVersions, cellRefs }) => {
+  if (cell.isRoleHeader) {
+    return (
+      <div className="relative">
+        <div className={`px-2 py-1 rounded text-xs font-mono ${
+          cell.isGovernment === true ? 'bg-red-100 text-red-800' : 
+          cell.isGovernment === false ? 'bg-blue-100 text-blue-800' :
+          'bg-gray-100 text-gray-800'
+        }`}>
+          {cell.role}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={el => cellRefs.current[index] = el}
@@ -9,18 +23,20 @@ const Cell = ({ cell, index, isSelected, isHighlighted, onClick, onMouseEnter, o
         isSelected ? getCellColor(index) : 'bg-white hover:bg-gray-50'
       } ${
         isHighlighted ? 'ring-2 ring-blue-400 ring-opacity-50' : ''
+      } ${
+        cell.isGovernment === true ? 'ml-0 mr-auto' : 
+        cell.isGovernment === false ? 'mr-0 ml-auto' : ''
       }`}
-      style={{ borderTop: index === 0 ? '2px solid #374151' : '1px solid #d1d5db' }}
+      style={{ 
+        borderTop: index === 0 ? '2px solid #374151' : '1px solid #d1d5db',
+        maxWidth: '80%'
+      }}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       {/* Cell Number with Color Indicator */}
       <div className="absolute -left-12 top-2 flex items-center space-x-1">
-        <div 
-          className={`w-3 h-3 rounded-full ${getCellColor(index).split(' ')[0]} border ${getCellColor(index).split(' ')[1]}`}
-        ></div>
-        <span className="text-xs text-gray-400 font-mono">{index + 1}</span>
       </div>
       
       {/* Click indicator */}
