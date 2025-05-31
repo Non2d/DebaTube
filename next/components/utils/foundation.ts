@@ -1,4 +1,11 @@
-export const apiRoot = process.env.NODE_ENV === 'production' ? 'https://vps4.nkmr.io/debates/v1' : 'http://localhost:8080';
+const host = typeof window !== "undefined" ? window.location.host : "";
+
+export const apiRoot =
+  host.endsWith(".ts.net")
+    ? `https://${host}/v1`
+    : process.env.NODE_ENV === "production"
+      ? "https://vps4.nkmr.io/debates/v1"
+      : "http://localhost:8080";
 
 export const calculateMode = (numbers: number[]): number | null => {
     const frequencyMap: { [key: number]: number } = {};
