@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, createRef } from 'react';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { apiRoot } from '../../components/utils/foundation';
@@ -7,6 +7,7 @@ import Youtube from 'react-youtube';
 import toast from "react-hot-toast";
 import { useAtom } from 'jotai';
 import { userNameAtom } from '../../components/store/userAtom';
+import { toPng } from 'html-to-image';
 
 interface DebateItem { //UI表示用にデータ生成する際のバリデーション
   id: number
@@ -15,6 +16,7 @@ interface DebateItem { //UI表示用にデータ生成する際のバリデー�
   motion: string
   publishedAt: string
   tag: string
+  description: string
 
   graphItems: {
     roundId: number;
@@ -54,6 +56,10 @@ const YoutubeGraph2 = () => {
   const [displayDebateItems, setDisplayDebateItems] = useState<DebateItem[]>([]);
   const [whenToSeek, setWhenToSeek] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // 各MacroStructureコンポーネントへのrefを格納する配列
+  const macroStructureRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
 
   const tabValues = [
     { value: "All", label: "All" },
@@ -98,6 +104,7 @@ const YoutubeGraph2 = () => {
           videoId: round.video_id,
           title: round.title,
           motion: round.motion,
+          description: round.description,
           publishedAt: round.date_uploaded,
           tag: round.tag,
           graphItems: {
@@ -234,6 +241,107 @@ const YoutubeGraph2 = () => {
     });
   }
 
+  // displayDebateItemsが変更されたときにrefの配列を更新
+  useEffect(() => {
+    macroStructureRefs.current = displayDebateItems.map((_, i) =>
+      macroStructureRefs.current[i] || createRef()
+    );
+  }, [displayDebateItems]);
+
+  // 一括画像エクスポート関数
+  const exportAllImages = async () => {
+    setIsExporting(true);
+
+    // ピン留めされたアイテムがある場合はそれらのみ、なければ全てをエクスポート
+    const itemsToExport = pinnedItems.length > 0
+      ? displayDebateItems.filter(item => pinnedItems.includes(item.id))
+      : displayDebateItems;
+
+    const exportType = pinnedItems.length > 0 ? 'ピン留め' : '全';
+    toast.loading(`${exportType}画像をエクスポート中...`, { id: 'export-toast' });
+
+    try {
+      for (let i = 0; i < itemsToExport.length; i++) {
+        const item = itemsToExport[i];
+        // 元の配列でのインデックスを取得
+        const originalIndex = displayDebateItems.findIndex(debateItem => debateItem.id === item.id);
+        const ref = macroStructureRefs.current[originalIndex];
+
+        if (ref && ref.current) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 少し待機
+
+          const targetElement = ref.current;
+
+          // 余白を設定（ピクセル単位）
+          const verticalPadding = 20; // 上下の余白
+          const horizontalPadding = 0; // 左右の余白
+
+          // 元のサイズを取得
+          const originalWidth = targetElement.scrollWidth;
+          const originalHeight = targetElement.scrollHeight;
+
+          // 余白を含めた新しいサイズを計算
+          const newWidth = originalWidth + (horizontalPadding * 2);
+          const newHeight = originalHeight + (verticalPadding * 2);
+
+          // 中央揃えのための変換を計算
+          const translateX = horizontalPadding;
+          const translateY = verticalPadding;
+
+          const dataUrl = await toPng(targetElement, {
+            backgroundColor: '#ffffff',
+            pixelRatio: 2, // 高解像度
+            filter: (node) => {
+              // ReactFlowのコントロールやミニマップを除外
+              return !node?.classList?.contains('react-flow__controls') &&
+                !node?.classList?.contains('react-flow__minimap') &&
+                !node?.classList?.contains('react-flow__attribution');
+            },
+            // 余白を含めたサイズに設定
+            width: newWidth,
+            height: newHeight,
+            style: {
+              // 中央揃えのためのtransform
+              transform: `translate(${translateX}px, ${translateY}px)`,
+              transformOrigin: 'top left'
+            }
+          });
+
+          // ファイル名を生成（タイトルから不正な文字を除去）
+          const fileName = item.description
+            .replace(/[<>:"/\\|?*]/g, '') // 不正な文字を除去
+            .replace(/\s+/g, '_') // スペースをアンダースコアに
+            .substring(0, 100); // 長すぎる場合は切り詰め
+
+          // ダウンロード
+          const link = document.createElement('a');
+          link.download = `${fileName}_graph.png`;
+          link.href = dataUrl;
+          link.click();
+
+          // 少し待機（ブラウザの負荷軽減）
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      toast.success(`${itemsToExport.length}件の画像をエクスポートしました！`, { id: 'export-toast' });
+
+      // 操作ログを記録
+      await logOperation('BulkImageExport', {
+        exported_count: itemsToExport.length,
+        export_type: pinnedItems.length > 0 ? 'pinned_only' : 'all',
+        current_tab: selectedTab,
+        pinned_items: pinnedItems
+      });
+
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('エクスポート中にエラーが発生しました', { id: 'export-toast' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="bg-white flex flex-col w-full mx-auto p-4 gap-2 min-h-screen">
       {/* --- ヘッダーは常に表示 --- */}
@@ -250,6 +358,20 @@ const YoutubeGraph2 = () => {
             ))}
           </TabsList>
         </Tabs>
+
+        {/* 一括エクスポートボタンを追加 */}
+        <button
+          onClick={exportAllImages}
+          disabled={isExporting || displayDebateItems.length === 0}
+          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+          {isExporting
+            ? '📥 エクスポート中...'
+            : pinnedItems.length > 0
+              ? `📥 ピン留め画像エクスポート (${pinnedItems.length}件)`
+              : `📥 全画像エクスポート (${displayDebateItems.length}件)`}
+        </button>
+
         <div
           className="ml-auto text-gray-700 text-xl font-medium cursor-pointer hover:underline"
           onClick={() => {
@@ -297,7 +419,7 @@ const YoutubeGraph2 = () => {
               {/* debateItems 表示部（省略せず） */}
               <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
-                  {displayDebateItems.map((item) => (
+                  {displayDebateItems.map((item, index) => (
                     <div
                       key={item.id}
                       className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white'}`}
@@ -328,6 +450,7 @@ const YoutubeGraph2 = () => {
                           style={{ pointerEvents: 'none' }}
                         >
                           <MacroStructure
+                            ref={macroStructureRefs.current[index]}
                             data={item.graphItems}
                             onGraphNodeClicked={onGraphNodeRightClicked}
                             isPinned={pinnedItems.includes(item.id)}

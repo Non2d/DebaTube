@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
 import { govNode, oppNode, GovEdge, OppEdge, backgroundNode } from './CustomMacroGraphComponents';
 import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
@@ -17,7 +17,13 @@ interface Rebuttal {
     tgt: number;
 }
 
-export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: { data: any, onGraphNodeClicked: any, isPinned: boolean }) {
+interface MacroStructureProps {
+    data: any;
+    onGraphNodeClicked: any;
+    isPinned: boolean;
+}
+
+const MacroStructure = forwardRef<HTMLDivElement, MacroStructureProps>(({ data, onGraphNodeClicked, isPinned }, ref) => {
     let repeatedNum = 1; //まだフロントにあったんかお前
 
     const originY = 0;
@@ -133,7 +139,7 @@ export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: {
     const proOptions = { hideAttribution: true };
 
     return (
-        <div style={{ cursor: "default", width: '100%', height: '100%' }}>
+        <div ref={ref} style={{ cursor: "default", width: '100%', height: '100%' }}>
             {/* <button onClick={onAddNode}>ノードを追加</button> */}
             <ReactFlow
                 nodes={nodes}
@@ -168,4 +174,8 @@ export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: {
             </ReactFlow>
         </div>
     );
-}
+});
+
+MacroStructure.displayName = 'MacroStructure';
+
+export default MacroStructure;
