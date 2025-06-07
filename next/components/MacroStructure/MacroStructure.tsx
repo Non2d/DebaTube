@@ -18,7 +18,7 @@ interface Rebuttal {
 }
 
 export default function MacroStructure({ data, onGraphNodeClicked, isPinned }: { data: any, onGraphNodeClicked: any, isPinned: boolean }) {
-    let repeatedNum = 4;
+    let repeatedNum = 1; //まだフロントにあったんかお前
 
     const originY = 0;
     const [nodes, setNodes, onNodesChange] = useNodesState([]); //将来的にノード・エッジの追加や編集機能を追加する
