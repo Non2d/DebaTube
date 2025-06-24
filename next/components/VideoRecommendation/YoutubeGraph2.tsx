@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
-import { apiRoot } from '../../components/utils/foundation';
-import MacroStructure from '../../components/MacroStructure/MacroStructure';
+import { apiRoot } from '../utils/foundation';
+import MacroStructure from '../MacroStructure/MacroStructure';
 import Youtube from 'react-youtube';
 import toast from "react-hot-toast";
 import { useAtom } from 'jotai';
-import { userNameAtom } from '../../components/store/userAtom';
-import { toPng } from 'html-to-image';
+import { userNameAtom } from '../store/userAtom';
+// import { toPng } from 'html-to-image';
 
 interface DebateItem { //UI表示用にデータ生成する際のバリデーション
   id: number
@@ -249,98 +249,98 @@ const YoutubeGraph2 = () => {
   }, [displayDebateItems]);
 
   // 一括画像エクスポート関数
-  const exportAllImages = async () => {
-    setIsExporting(true);
+  // const exportAllImages = async () => {
+  //   setIsExporting(true);
 
-    // ピン留めされたアイテムがある場合はそれらのみ、なければ全てをエクスポート
-    const itemsToExport = pinnedItems.length > 0
-      ? displayDebateItems.filter(item => pinnedItems.includes(item.id))
-      : displayDebateItems;
+  //   // ピン留めされたアイテムがある場合はそれらのみ、なければ全てをエクスポート
+  //   const itemsToExport = pinnedItems.length > 0
+  //     ? displayDebateItems.filter(item => pinnedItems.includes(item.id))
+  //     : displayDebateItems;
 
-    const exportType = pinnedItems.length > 0 ? 'ピン留め' : '全';
-    toast.loading(`${exportType}画像をエクスポート中...`, { id: 'export-toast' });
+  //   const exportType = pinnedItems.length > 0 ? 'ピン留め' : '全';
+  //   toast.loading(`${exportType}画像をエクスポート中...`, { id: 'export-toast' });
 
-    try {
-      for (let i = 0; i < itemsToExport.length; i++) {
-        const item = itemsToExport[i];
-        // 元の配列でのインデックスを取得
-        const originalIndex = displayDebateItems.findIndex(debateItem => debateItem.id === item.id);
-        const ref = macroStructureRefs.current[originalIndex];
+  //   try {
+  //     for (let i = 0; i < itemsToExport.length; i++) {
+  //       const item = itemsToExport[i];
+  //       // 元の配列でのインデックスを取得
+  //       const originalIndex = displayDebateItems.findIndex(debateItem => debateItem.id === item.id);
+  //       const ref = macroStructureRefs.current[originalIndex];
 
-        if (ref && ref.current) {
-          await new Promise(resolve => setTimeout(resolve, 500)); // 少し待機
+  //       if (ref && ref.current) {
+  //         await new Promise(resolve => setTimeout(resolve, 500)); // 少し待機
 
-          const targetElement = ref.current;
+  //         const targetElement = ref.current;
 
-          // 余白を設定（ピクセル単位）
-          const verticalPadding = 20; // 上下の余白
-          const horizontalPadding = 0; // 左右の余白
+  //         // 余白を設定（ピクセル単位）
+  //         const verticalPadding = 20; // 上下の余白
+  //         const horizontalPadding = 0; // 左右の余白
 
-          // 元のサイズを取得
-          const originalWidth = targetElement.scrollWidth;
-          const originalHeight = targetElement.scrollHeight;
+  //         // 元のサイズを取得
+  //         const originalWidth = targetElement.scrollWidth;
+  //         const originalHeight = targetElement.scrollHeight;
 
-          // 余白を含めた新しいサイズを計算
-          const newWidth = originalWidth + (horizontalPadding * 2);
-          const newHeight = originalHeight + (verticalPadding * 2);
+  //         // 余白を含めた新しいサイズを計算
+  //         const newWidth = originalWidth + (horizontalPadding * 2);
+  //         const newHeight = originalHeight + (verticalPadding * 2);
 
-          // 中央揃えのための変換を計算
-          const translateX = horizontalPadding;
-          const translateY = verticalPadding;
+  //         // 中央揃えのための変換を計算
+  //         const translateX = horizontalPadding;
+  //         const translateY = verticalPadding;
 
-          const dataUrl = await toPng(targetElement, {
-            backgroundColor: '#ffffff',
-            pixelRatio: 2, // 高解像度
-            filter: (node) => {
-              // ReactFlowのコントロールやミニマップを除外
-              return !node?.classList?.contains('react-flow__controls') &&
-                !node?.classList?.contains('react-flow__minimap') &&
-                !node?.classList?.contains('react-flow__attribution');
-            },
-            // 余白を含めたサイズに設定
-            width: newWidth,
-            height: newHeight,
-            style: {
-              // 中央揃えのためのtransform
-              transform: `translate(${translateX}px, ${translateY}px)`,
-              transformOrigin: 'top left'
-            }
-          });
+  //         // const dataUrl = await toPng(targetElement, {
+  //         //   backgroundColor: '#ffffff',
+  //         //   pixelRatio: 2, // 高解像度
+  //         //   filter: (node:any) => {
+  //         //     // ReactFlowのコントロールやミニマップを除外
+  //         //     return !node?.classList?.contains('react-flow__controls') &&
+  //         //       !node?.classList?.contains('react-flow__minimap') &&
+  //         //       !node?.classList?.contains('react-flow__attribution');
+  //         //   },
+  //         //   // 余白を含めたサイズに設定
+  //         //   width: newWidth,
+  //         //   height: newHeight,
+  //         //   style: {
+  //         //     // 中央揃えのためのtransform
+  //         //     transform: `translate(${translateX}px, ${translateY}px)`,
+  //         //     transformOrigin: 'top left'
+  //         //   }
+  //         // });
 
-          // ファイル名を生成（タイトルから不正な文字を除去）
-          const fileName = item.description
-            .replace(/[<>:"/\\|?*]/g, '') // 不正な文字を除去
-            .replace(/\s+/g, '_') // スペースをアンダースコアに
-            .substring(0, 100); // 長すぎる場合は切り詰め
+  //         // ファイル名を生成（タイトルから不正な文字を除去）
+  //         const fileName = item.description
+  //           .replace(/[<>:"/\\|?*]/g, '') // 不正な文字を除去
+  //           .replace(/\s+/g, '_') // スペースをアンダースコアに
+  //           .substring(0, 100); // 長すぎる場合は切り詰め
 
-          // ダウンロード
-          const link = document.createElement('a');
-          link.download = `${fileName}_graph.png`;
-          link.href = dataUrl;
-          link.click();
+  //         // ダウンロード
+  //         const link = document.createElement('a');
+  //         link.download = `${fileName}_graph.png`;
+  //         link.href = dataUrl;
+  //         link.click();
 
-          // 少し待機（ブラウザの負荷軽減）
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
+  //         // 少し待機（ブラウザの負荷軽減）
+  //         await new Promise(resolve => setTimeout(resolve, 200));
+  //       }
+  //     }
 
-      toast.success(`${itemsToExport.length}件の画像をエクスポートしました！`, { id: 'export-toast' });
+  //     toast.success(`${itemsToExport.length}件の画像をエクスポートしました！`, { id: 'export-toast' });
 
-      // 操作ログを記録
-      await logOperation('BulkImageExport', {
-        exported_count: itemsToExport.length,
-        export_type: pinnedItems.length > 0 ? 'pinned_only' : 'all',
-        current_tab: selectedTab,
-        pinned_items: pinnedItems
-      });
+  //     // 操作ログを記録
+  //     await logOperation('BulkImageExport', {
+  //       exported_count: itemsToExport.length,
+  //       export_type: pinnedItems.length > 0 ? 'pinned_only' : 'all',
+  //       current_tab: selectedTab,
+  //       pinned_items: pinnedItems
+  //     });
 
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('エクスポート中にエラーが発生しました', { id: 'export-toast' });
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error('Export error:', error);
+  //     toast.error('エクスポート中にエラーが発生しました', { id: 'export-toast' });
+  //   } finally {
+  //     setIsExporting(false);
+  //   }
+  // };
 
   return (
     <div className="bg-white flex flex-col w-full mx-auto p-4 gap-2 min-h-screen">
@@ -360,7 +360,7 @@ const YoutubeGraph2 = () => {
         </Tabs>
 
         {/* 一括エクスポートボタンを追加 */}
-        <button
+        {/* <button
           onClick={exportAllImages}
           disabled={isExporting || displayDebateItems.length === 0}
           className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -370,9 +370,9 @@ const YoutubeGraph2 = () => {
             : pinnedItems.length > 0
               ? `📥 ピン留め画像エクスポート (${pinnedItems.length}件)`
               : `📥 全画像エクスポート (${displayDebateItems.length}件)`}
-        </button>
+        </button> */}
 
-        <div
+        {/* <div
           className="ml-auto text-gray-700 text-xl font-medium cursor-pointer hover:underline"
           onClick={() => {
             localStorage.removeItem('user_name');
@@ -381,11 +381,11 @@ const YoutubeGraph2 = () => {
           title="クリックでログアウト"
         >
           Welcome {username}
-        </div>
+        </div> */}
       </header>
 
       {/* --- ユーザー名が未入力なら案内を表示 --- */}
-      {!username ? (
+      {false ? (
         <div className="flex-1 flex flex-col items-center justify-center text-gray-600 mt-20">
           <p className="text-lg font-medium">ユーザー名を入力してください</p>
           <p className="text-sm text-gray-400 mt-2">ブラウザをリロードすると再入力できます</p>
