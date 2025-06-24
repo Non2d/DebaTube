@@ -57,6 +57,7 @@ const YoutubeGraph2 = () => {
   const [whenToSeek, setWhenToSeek] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [sortOption, setSortOption] = useState('Distance');
 
   // 各MacroStructureコンポーネントへのrefを格納する配列
   const macroStructureRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
@@ -67,6 +68,13 @@ const YoutubeGraph2 = () => {
     { value: "Gender", label: "Gender" },
     { value: "Economy", label: "Economy" },
     { value: "Politics", label: "Politics" },
+  ];
+
+  const sortOptions = [
+    { value: "Distance", label: "Distance" },
+    { value: "Interval", label: "Interval" },
+    { value: "Order", label: "Order" },
+    { value: "Rally", label: "Rally" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
@@ -358,6 +366,22 @@ const YoutubeGraph2 = () => {
             ))}
           </TabsList>
         </Tabs>
+        
+        {/* ソート選択ドロップダウンを右上に追加 */}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Sort by:</span>
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* 一括エクスポートボタンを追加 */}
         {/* <button
