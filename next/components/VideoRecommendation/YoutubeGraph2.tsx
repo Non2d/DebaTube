@@ -9,6 +9,13 @@ import { useAtom } from 'jotai';
 import { userNameAtom } from '../store/userAtom';
 // import { toPng } from 'html-to-image';
 
+interface MacroStructuralFeatures {
+  distance: number;
+  interval: number;
+  order: number;
+  rally: number;
+}
+
 interface DebateItem { //UI表示用にデータ生成する際のバリデーション
   id: number
   videoId: string
@@ -17,6 +24,7 @@ interface DebateItem { //UI表示用にデータ生成する際のバリデー�
   publishedAt: string
   tag: string
   description: string
+  features: MacroStructuralFeatures
 
   graphItems: {
     roundId: number;
@@ -34,6 +42,7 @@ interface Round { //取得時のバリデーション
   date_uploaded: string;
   channel_id: string;
   tag: string;
+  features: MacroStructuralFeatures;
 
   pois: any;
   speeches: any;
@@ -99,7 +108,7 @@ const YoutubeGraph2 = () => {
   }, [hydrated, username]);
 
   useEffect(() => {
-    fetch(apiRoot + '/rounds-without-text', {
+    fetch(apiRoot + '/batch-rounds-with-features', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -115,6 +124,7 @@ const YoutubeGraph2 = () => {
           description: round.description,
           publishedAt: round.date_uploaded,
           tag: round.tag,
+          features: round.features,
           graphItems: {
             roundId: round.id,
             pois: round.pois,
@@ -174,17 +184,31 @@ const YoutubeGraph2 = () => {
     setSelectedDebateItems(filteredItems);
   }, [selectedTab, debateItems]);
 
-  useEffect(() => { //カテゴリ変更時またはピン留め時に更新
+  useEffect(() => { //カテゴリ変更時、ピン留め時、またはソート変更時に更新
     const pinnedDebateItems = pinnedItems
       .map(pinnedId => selectedDebateItems.find(item => item.id === pinnedId))
       .filter(item => item !== undefined) as DebateItem[];
 
     const unpinnedDebateItems = selectedDebateItems
       .filter(item => !pinnedItems.includes(item.id))
-      .sort((a, b) => b.id - a.id);
+      .sort((a, b) => {
+        // ソートオプションに基づいて並び替え
+        switch (sortOption) {
+          case 'Distance':
+            return b.features.distance - a.features.distance; // 降順
+          case 'Interval':
+            return b.features.interval - a.features.interval; // 降順
+          case 'Order':
+            return b.features.order - a.features.order; // 降順
+          case 'Rally':
+            return b.features.rally - a.features.rally; // 降順
+          default:
+            return b.id - a.id; // デフォルトは ID の降順
+        }
+      });
 
     setDisplayDebateItems([...pinnedDebateItems, ...unpinnedDebateItems]);
-  }, [pinnedItems, selectedDebateItems]);
+  }, [pinnedItems, selectedDebateItems, sortOption]);
 
   const onMovieItemClicked = (id: number) => async () => {
     setPinnedItems((prev) => {
@@ -372,7 +396,13 @@ const YoutubeGraph2 = () => {
           <span className="text-sm font-medium text-gray-700">Sort by:</span>
           <select
             value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
+            onChange={(e) => {
+              const newSortOption = e.target.value;
+              setSortOption(newSortOption);
+              logOperation('SortChanged', {
+                sort_option: newSortOption,
+              });
+            }}
             className="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             {sortOptions.map((option) => (
@@ -463,6 +493,10 @@ const YoutubeGraph2 = () => {
                           <h3 className="font-medium text-base mb-1 line-clamp-1"> {item.title}</h3>
                           <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
                           <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
+                          {/* Features表示（デバッグ用） */}
+                          <div className="text-xs text-gray-400 mt-1">
+                            {sortOption}: {item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)}
+                          </div>
                         </div>
                       </div>
                       <div
