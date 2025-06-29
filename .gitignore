@@ -2,6 +2,4 @@ data
 .env
 .vscode
 .DS_Store
-fastapi/api/batch/batch.py
-fastapi/api/batch/debate.sql
 fastapi/sql/debate0421.sql
