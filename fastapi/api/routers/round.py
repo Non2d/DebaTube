@@ -18,6 +18,7 @@ from datetime import datetime
 import pytz
 from fastapi import Query
 import html, re
+from features.macro_structural import calculate_features
 
 # request schema
 
@@ -107,6 +108,29 @@ class RoundBatchResponse(BaseModel):
     pois: List[int]
     rebuttals: List[RebuttalResponse]
     speeches: List[SpeechResponse]
+
+    class Config:
+        orm_mode = True
+
+class MacroStructuralFeatures(BaseModel):
+    distance: float
+    interval: float
+    order: float
+    rally: float
+
+class RoundBatchWithFeaturesResponse(BaseModel):
+    video_id: Optional[str]
+    title: Optional[str]
+    description: Optional[str]
+    motion: Optional[str]
+    date_uploaded: Optional[str]
+    channel_id: Optional[str]
+    tag: Optional[str]
+
+    pois: List[int]
+    rebuttals: List[RebuttalResponse]
+    speeches: List[SpeechResponse]
+    features: MacroStructuralFeatures
 
     class Config:
         orm_mode = True
@@ -217,6 +241,88 @@ async def get_rounds_batch(db: AsyncSession = Depends(get_db)):
             ]
         ) for db_round in db_rounds
     ]
+
+@router.get("/batch-rounds-with-features", response_model=List[RoundBatchWithFeaturesResponse])
+async def get_rounds_batch_with_features(db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    )
+    result = await db.execute(query)
+    db_rounds = result.scalars().unique().all()
+
+    response_list = []
+    for db_round in db_rounds:
+        # Convert to RoundBatchResponse format for feature calculation
+        round_data = {
+            "video_id": db_round.video_id,
+            "title": db_round.title,
+            "description": db_round.description,
+            "motion": db_round.motion,
+            "date_uploaded": db_round.date_uploaded,
+            "channel_id": db_round.channel_id,
+            "tag": db_round.tag,
+            "pois": [poi.argument_unit_id for poi in db_round.pois],
+            "rebuttals": [
+                {"src": rebuttal.src, "tgt": rebuttal.tgt}
+                for rebuttal in db_round.rebuttals
+            ],
+            "speeches": [
+                {
+                    "argument_units": [
+                        {
+                            "sequence_id": au.sequence_id,
+                            "start": au.start,
+                            "end": au.end,
+                            "text": au.text
+                        } for au in speech.argument_units
+                    ]
+                } for speech in db_round.speeches
+            ]
+        }
+        
+        # Calculate features
+        features = calculate_features(round_data)
+        
+        response_list.append(
+            RoundBatchWithFeaturesResponse(
+                video_id=db_round.video_id,
+                title=db_round.title,
+                description=db_round.description,
+                motion=db_round.motion,
+                date_uploaded=db_round.date_uploaded,
+                channel_id=db_round.channel_id,
+                tag=db_round.tag,
+                pois=[poi.argument_unit_id for poi in db_round.pois],
+                rebuttals=[
+                    RebuttalResponse(src=rebuttal.src, tgt=rebuttal.tgt)
+                    for rebuttal in db_round.rebuttals
+                ],
+                speeches=[
+                    SpeechResponse(
+                        argument_units=[
+                            ArgumentUnitResponse(
+                                sequence_id=au.sequence_id,
+                                start=au.start,
+                                end=au.end,
+                                text=au.text
+                            ) for au in speech.argument_units
+                        ]
+                    ) for speech in db_round.speeches
+                ],
+                features=MacroStructuralFeatures(
+                    distance=features["distance"],
+                    interval=features["interval"],
+                    order=features["order"],
+                    rally=features["rally"]
+                )
+            )
+        )
+    
+    return response_list
 
 @router.get("/batch-rounds/{round_id}", response_model=RoundBatchResponse)
 async def get_round_batch(round_id: int, db: AsyncSession = Depends(get_db)):
