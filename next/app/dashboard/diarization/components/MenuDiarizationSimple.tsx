@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { diarizationColors, speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../../../components/lib/constants';
-import { useAppContext } from '../../../context/context';
+import { diarizationColors, speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../../../../components/lib/constants';
+import { useAppContext } from '../../../../context/context';
 import { toast } from 'react-hot-toast';
 
 interface ContextMenuProps {

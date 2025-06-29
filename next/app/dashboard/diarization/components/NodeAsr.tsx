@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernment } from '../../../components/lib/constants';
-import { useAppContext } from '../../../context/context';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernment } from '../../../../components/lib/constants';
+import { useAppContext } from '../../../../context/context';
 
 interface NodeAsrProps {
   data: {
