@@ -378,40 +378,66 @@ const YoutubeGraph2 = () => {
   return (
     <div className="bg-white flex flex-col w-full mx-auto p-4 gap-2 min-h-screen">
       {/* --- ヘッダーは常に表示 --- */}
-      <header className="flex items-center justify-start">
-        <h2 className="text-xl font-bold mr-20">
-          Deba<span className="text-red-600">Tube</span>
-        </h2>
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto justify-start">
-          <TabsList>
-            {tabValues.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <header className="flex items-center justify-between bg-white border-b border-gray-100 pb-4">
+        <div className="flex items-center gap-6">
+          <h2 className="text-xl font-bold">
+            Deba<span className="text-red-600">Tube</span>
+          </h2>
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
+            <TabsList>
+              {tabValues.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
         
-        {/* ソート選択ドロップダウンを右上に追加 */}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Sort by:</span>
-          <select
-            value={sortOption}
-            onChange={(e) => {
-              const newSortOption = e.target.value;
-              setSortOption(newSortOption);
-              logOperation('SortChanged', {
-                sort_option: newSortOption,
-              });
-            }}
-            className="px-3 py-1 border border-gray-300 rounded-md bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-4">
+          {/* ピン留め情報を表示 */}
+          {pinnedItems.length > 0 && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 shadow-sm">
+              <div className="p-1 bg-amber-100 rounded-lg">
+                <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2L3 9h4v9h6v-9h4l-7-7z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-amber-800">
+                {pinnedItems.length} pinned
+              </span>
+            </div>
+          )}
+
+          {/* ソート選択ドロップダウン */}
+          <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-gray-100 rounded-lg">
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-gray-700">Sort by</span>
+            </div>
+            <div className="h-4 w-px bg-gray-300"></div>
+            <select
+              value={sortOption}
+              onChange={(e) => {
+                const newSortOption = e.target.value;
+                setSortOption(newSortOption);
+                logOperation('SortChanged', {
+                  sort_option: newSortOption,
+                });
+              }}
+              className="bg-transparent border-none text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0 cursor-pointer appearance-none min-w-[80px]"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value} className="text-gray-900 bg-white">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* 一括エクスポートボタンを追加 */}
@@ -494,9 +520,11 @@ const YoutubeGraph2 = () => {
                           <h3 className="font-medium text-base mb-1 line-clamp-1"> {item.title}</h3>
                           <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
                           <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
-                          {/* Features表示（デバッグ用） */}
-                          <div className="text-xs text-gray-400 mt-1">
-                            ID: {item.id} | {sortOption}: {item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)}
+                          {/* Features表示 */}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              {sortOption}: {item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)}
+                            </span>
                           </div>
                         </div>
                       </div>
