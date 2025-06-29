@@ -1,12 +1,10 @@
 "use client";
-
-import React, { useEffect, useState, ChangeEvent } from 'react';
-import YoutubeGraph2 from '../components/VideoRecommendation/YoutubeGraph2';
+import Explore from './explore/page';
 
 export default function Home() {
   return (
     <>
-      <YoutubeGraph2 />
+      <Explore />
     </>
   )
 }

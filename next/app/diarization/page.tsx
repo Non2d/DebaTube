@@ -1,5 +1,5 @@
 "use client";
-import Timeline from "../../components/Diarization/Timeline";
+import Timeline from "./components/Timeline";
 
 export default function Home() {
   return (
