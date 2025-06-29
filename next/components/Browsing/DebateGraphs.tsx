@@ -5,6 +5,9 @@ import { getAPIRoot } from '../lib/utils';
 import MacroStructure from '../MacroStructure/MacroStructure';
 import Youtube from 'react-youtube';
 import toast from "react-hot-toast";
+import Header from '../shared/Header';
+import { useAtom } from 'jotai';
+import { themeAtom } from '../store/userAtom';
 
 interface MacroStructuralFeatures {
   distance: number;
@@ -47,6 +50,7 @@ interface Round { //取得時のバリデーション
 }
 
 const DebateGraphs = () => {
+  const [isDark] = useAtom(themeAtom);
   const [ytPlayer, setYtPlayer] = useState<YT.Player | null>(null);
   const [ytId, setYtId] = useState('');
   const [ytTitle, setYtTitle] = useState('');
@@ -259,24 +263,27 @@ const DebateGraphs = () => {
     );
   }, [displayDebateItems]);
 
+  const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
+  const textColor = isDark ? 'text-white' : 'text-gray-900';
+  const borderColor = isDark ? 'border-gray-700' : 'border-gray-100';
+
   return (
-    <div className="bg-white flex flex-col w-full mx-auto p-4 gap-2 min-h-screen">
-      {/* --- ヘッダーは常に表示 --- */}
-      <header className="flex items-center justify-between bg-white border-b border-gray-100 pb-4">
-        <div className="flex items-center gap-6">
-          <h2 className="text-xl font-bold">
-            Deba<span className="text-red-600">Tube</span>
-          </h2>
-          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
-            <TabsList>
-              {tabValues.map((tab) => (
-                <TabsTrigger key={tab.value} value={tab.value}>
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
+    <>
+      <Header />
+      <div className={`${bgColor} ${textColor} flex flex-col w-full mx-auto p-4 gap-2 min-h-screen pt-20`}>
+        {/* --- コンテンツヘッダー --- */}
+        <header className={`flex items-center justify-between ${bgColor} border-b ${borderColor} pb-4`}>
+          <div className="flex items-center gap-6">
+            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
+              <TabsList>
+                {tabValues.map((tab) => (
+                  <TabsTrigger key={tab.value} value={tab.value}>
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
         
         <div className="flex items-center gap-4">
           {/* ピン留め情報を表示 */}
@@ -447,7 +454,8 @@ const DebateGraphs = () => {
             </span>
           </footer>
         </>
-    </div>
+      </div>
+    </>
   );
 
 };

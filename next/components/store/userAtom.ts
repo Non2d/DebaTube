@@ -12,4 +12,4 @@ const safeAtomWithStorage = (key: string, initial: any) => {
 }
 
 export const userNameAtom = safeAtomWithStorage('user_name', '')
-export const themeAtom = safeAtomWithStorage('theme', true)
+export const themeAtom = safeAtomWithStorage('theme', false)

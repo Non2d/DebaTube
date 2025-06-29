@@ -16,7 +16,7 @@ export default function LandingPage() {
   const features = [
     {
       icon: BarChart3,
-      title: "AI-Powered Analysis",
+      title: "LLM-Powered Analysis",
       description: "Advanced LLM technology analyzes debate arguments and rebuttals with precision"
     },
     {
@@ -31,14 +31,14 @@ export default function LandingPage() {
     },
     {
       icon: Play,
-      title: "Audio Processing",
+      title: "End-to-End Processing",
       description: "Automatic transcription and speaker diarization from debate recordings"
     }
   ];
 
   const benefits = [
-    "Instant argument flow visualization",
-    "AI-powered rebuttal analysis",
+    "Instant argument structure visualization",
+    "AI-powered rebuttal detection",
     "Multi-format export capabilities",
     "Real-time collaborative editing",
     "Comprehensive debate archives",
@@ -64,12 +64,13 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                DebateViz
+                DebaTube
               </h1>
             </div>
             
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
+              <a href="/" className="hover:text-blue-600 transition-colors">Browse Videos</a>
+              <a href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</a>
               <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
               <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a>
               <button
@@ -104,7 +105,8 @@ export default function LandingPage() {
         {isMenuOpen && (
           <div className={`md:hidden ${bgColor} border-t ${borderColor}`}>
             <div className="px-4 py-2 space-y-2">
-              <a href="#features" className="block py-2 hover:text-blue-600">Features</a>
+              <a href="/" className="block py-2 hover:text-blue-600">Browse Videos</a>
+              <a href="/dashboard" className="block py-2 hover:text-blue-600">Dashboard</a>
               <a href="#about" className="block py-2 hover:text-blue-600">About</a>
               <a href="#contact" className="block py-2 hover:text-blue-600">Contact</a>
             </div>
@@ -118,11 +120,11 @@ export default function LandingPage() {
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
-                Visualize Debate
+                LLM Visualizes
               </span>
               <br />
               <span className={textColor}>
-                Arguments with AI
+                Parliamentary Debate
               </span>
             </h1>
             <p className={`text-xl ${textSecondary} mb-8 max-w-3xl mx-auto`}>
@@ -182,7 +184,7 @@ export default function LandingPage() {
             <div>
               <h2 className="text-3xl md:text-4xl font-bold mb-6">
                 Why Choose
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> DebateViz?</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> DebaTube?</span>
               </h2>
               <p className={`text-xl ${textSecondary} mb-8`}>
                 Experience the future of debate analysis with our comprehensive platform designed for coaches, students, and researchers.
@@ -234,7 +236,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-              DebateViz
+              DebaTube
             </h3>
             <p className={`${textSecondary} mb-4`}>
               Revolutionizing debate analysis through AI-powered visualization
@@ -245,7 +247,7 @@ export default function LandingPage() {
               <a href="#" className="text-gray-400 hover:text-blue-600 transition-colors">Support</a>
             </div>
             <p className="text-gray-400 text-sm mt-4">
-              © 2024 DebateViz. All rights reserved.
+              © 2024 DebaTube. All rights reserved.
             </p>
           </div>
         </div>

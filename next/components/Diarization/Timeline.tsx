@@ -1,30 +1,17 @@
 import React, { useEffect, useState, useCallback, useRef, use } from 'react';
 import { ReactFlow, Background, BackgroundVariant, SelectionMode } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-
 import Papa from 'papaparse';
-
 import NodeAsr from './NodeAsr';
 import NodeTimeLabel from './NodeTimeLabel';
 import NodeDiarization from './NodeDiarization';
-
 import MenuAsr from './MenuAsr';
-import MenuAsrRight from './MenuAsrRight';
-
 import MenuDiarization from './MenuDiarizationSimple';
-
-import nodeIdToNumber from '../lib/nodeIdToNumber';
-
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, nodeIdToNumber } from '../lib/constants';
 import { useAppContext } from '../../context/context';
-
 import { toast } from 'react-hot-toast';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../lib/speechIdToPositionName';
-
 import SidebarTimeline from './SidebarTimeline';
-
 import Youtube from 'react-youtube';
-
-// import { calculateMode } from '../utils/foundation';
 
 interface AsrNodeDataProps {
     text: string;
