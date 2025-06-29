@@ -2,5 +2,4 @@ data
 .env
 .vscode
 .DS_Store
-fastapi/sql/debate0421.sql
 .claude/settings.local.json
