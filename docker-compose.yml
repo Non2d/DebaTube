@@ -40,14 +40,12 @@ services:
     tty: true
     ports:
       - "3306:3306"
-    # env_file:
-    #   - ./mysql/.env #FastAPIから接続させるため，コメントアウト
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
       MYSQL_DATABASE: "debate"
       TZ: "Asia/Tokyo"
     volumes:
-      - mysql_ct2025-2:/var/lib/mysql
+      - mysql_dsv:/var/lib/mysql
     networks:
       - docker_network
 
@@ -61,8 +59,7 @@ services:
 
 volumes:
   node_modules:
-  # mysql_data_cn_debug: cn version
-  mysql_ct2025-2:
+  mysql_dsv:
 
 networks:
   docker_network:
