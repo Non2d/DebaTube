@@ -132,6 +132,7 @@ const YoutubeGraph2 = () => {
             rebuttals: round.rebuttals,
           }
         }));
+        
         setDebateItems(debateItems);
         setIsLoading(false);
       })
@@ -175,7 +176,8 @@ const YoutubeGraph2 = () => {
       tag: selectedTab,
     });
 
-    setPinnedItems([]);
+    // Don't clear pinned items when changing tabs - keep them persistent
+    // setPinnedItems([]);
 
     const filteredItems = selectedTab === 'All'
       ? debateItems
@@ -185,38 +187,37 @@ const YoutubeGraph2 = () => {
   }, [selectedTab, debateItems]);
 
   useEffect(() => { //カテゴリ変更時、ピン留め時、またはソート変更時に更新
-    const pinnedDebateItems = pinnedItems
-      .map(pinnedId => selectedDebateItems.find(item => item.id === pinnedId))
-      .filter(item => item !== undefined) as DebateItem[];
+    // まず選択されたアイテム全体をソートする
+    const sortedSelectedItems = [...selectedDebateItems].sort((a, b) => {
+      // ソートオプションに基づいて並び替え
+      switch (sortOption) {
+        case 'Distance':
+          return b.features.distance - a.features.distance; // 降順
+        case 'Interval':
+          return b.features.interval - a.features.interval; // 降順
+        case 'Order':
+          return b.features.order - a.features.order; // 降順
+        case 'Rally':
+          return b.features.rally - a.features.rally; // 降順
+        default:
+          return b.id - a.id; // デフォルトは ID の降順
+      }
+    });
 
-    const unpinnedDebateItems = selectedDebateItems
-      .filter(item => !pinnedItems.includes(item.id))
-      .sort((a, b) => {
-        // ソートオプションに基づいて並び替え
-        switch (sortOption) {
-          case 'Distance':
-            return b.features.distance - a.features.distance; // 降順
-          case 'Interval':
-            return b.features.interval - a.features.interval; // 降順
-          case 'Order':
-            return b.features.order - a.features.order; // 降順
-          case 'Rally':
-            return b.features.rally - a.features.rally; // 降順
-          default:
-            return b.id - a.id; // デフォルトは ID の降順
-        }
-      });
+    // ソート済みの中からピン留めとそうでないものを分ける
+    const pinnedDebateItems = sortedSelectedItems.filter(item => pinnedItems.includes(item.id));
+    const unpinnedDebateItems = sortedSelectedItems.filter(item => !pinnedItems.includes(item.id));
 
     setDisplayDebateItems([...pinnedDebateItems, ...unpinnedDebateItems]);
   }, [pinnedItems, selectedDebateItems, sortOption]);
 
   const onMovieItemClicked = (id: number) => async () => {
     setPinnedItems((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((item) => item !== id);
-      } else {
-        return [...prev, id];
-      }
+      const newPinnedItems = prev.includes(id) 
+        ? prev.filter((item) => item !== id)
+        : [...prev, id];
+      
+      return newPinnedItems;
     });
 
     await logOperation('MovieItemClicked', {
@@ -495,7 +496,7 @@ const YoutubeGraph2 = () => {
                           <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
                           {/* Features表示（デバッグ用） */}
                           <div className="text-xs text-gray-400 mt-1">
-                            {sortOption}: {item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)}
+                            ID: {item.id} | {sortOption}: {item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)}
                           </div>
                         </div>
                       </div>

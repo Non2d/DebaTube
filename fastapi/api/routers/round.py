@@ -119,6 +119,7 @@ class MacroStructuralFeatures(BaseModel):
     rally: float
 
 class RoundBatchWithFeaturesResponse(BaseModel):
+    id: Optional[int]
     video_id: Optional[str]
     title: Optional[str]
     description: Optional[str]
@@ -289,6 +290,7 @@ async def get_rounds_batch_with_features(db: AsyncSession = Depends(get_db)):
         
         response_list.append(
             RoundBatchWithFeaturesResponse(
+                id=db_round.id,
                 video_id=db_round.video_id,
                 title=db_round.title,
                 description=db_round.description,
