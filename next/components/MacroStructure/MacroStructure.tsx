@@ -3,7 +3,7 @@
 import React, { useState, useEffect, forwardRef } from 'react';
 import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
 import { govNode, oppNode, GovEdge, OppEdge, backgroundNode } from './CustomMacroGraphComponents';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../utils/speechIdToPositionName';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../lib/constants';
 
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 

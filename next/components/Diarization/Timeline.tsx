@@ -13,12 +13,12 @@ import MenuAsrRight from './MenuAsrRight';
 
 import MenuDiarization from './MenuDiarizationSimple';
 
-import nodeIdToNumber from '../utils/nodeIdToNumber';
+import nodeIdToNumber from '../lib/nodeIdToNumber';
 
 import { useAppContext } from '../../context/context';
 
 import { toast } from 'react-hot-toast';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../utils/speechIdToPositionName';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../lib/speechIdToPositionName';
 
 import SidebarTimeline from './SidebarTimeline';
 

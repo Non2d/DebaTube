@@ -1,4 +1,4 @@
-import diarizationColors from '../utils/DiarizationColors';
+import diarizationColors from '../lib/constants';
 
 interface NodeTimeLabelProps {
     data: {

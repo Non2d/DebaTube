@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernment } from '../utils/speechIdToPositionName';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernment } from '../lib/constants';
 import { useAppContext } from '../../context/context';
 
 interface NodeAsrProps {

@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
-import { apiRoot } from '../utils/foundation';
+import { getAPIRoot } from '../lib/utils';
 import MacroStructure from '../MacroStructure/MacroStructure';
 import Youtube from 'react-youtube';
 import toast from "react-hot-toast";
 import { useAtom } from 'jotai';
 import { userNameAtom } from '../store/userAtom';
-// import { toPng } from 'html-to-image';
 
 interface MacroStructuralFeatures {
   distance: number;
@@ -108,7 +107,7 @@ const YoutubeGraph2 = () => {
   }, [hydrated, username]);
 
   useEffect(() => {
-    fetch(apiRoot + '/batch-rounds-with-features', {
+    fetch(getAPIRoot() + '/batch-rounds-with-features', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -138,7 +137,7 @@ const YoutubeGraph2 = () => {
       })
       .catch(error => {
         console.error('Error fetching data:', error);
-        setIsLoading(false); // エラーが発生してもローディング状態を解除
+        setIsLoading(false);
       });
   }, []);
 
@@ -146,13 +145,13 @@ const YoutubeGraph2 = () => {
     const requestBody = {
       operation,
       data: {
-        ...data, // 既存のデータを展開
-        user_name: username, // user_name プロパティを追加
+        ...data,
+        user_name: username,
       },
     };
 
     try {
-      const response = await fetch(apiRoot + '/log/operation', {
+      const response = await fetch(getAPIRoot() + '/log/operation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,9 +164,7 @@ const YoutubeGraph2 = () => {
       }
 
       const result = await response.json();
-      // console.log('Operation logged successfully:', result);
     } catch (error) {
-      // console.error('Error ', error);
     }
   };
 
@@ -176,8 +173,7 @@ const YoutubeGraph2 = () => {
       tag: selectedTab,
     });
 
-    // Don't clear pinned items when changing tabs - keep them persistent
-    // setPinnedItems([]);
+    setPinnedItems([]);
 
     const filteredItems = selectedTab === 'All'
       ? debateItems

@@ -2,7 +2,7 @@
 import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
-import { apiRoot } from '../../components/utils/foundation';
+import { getAPIRoot } from '../../components/lib/utils';
 import Image from 'next/image';
 
 // Difinition: asr + diarization = transcript
@@ -71,7 +71,7 @@ export default function Home() {
 
             // console.log(requestText);
 
-            const response = await fetch(apiRoot + '/motion', {
+            const response = await fetch(getAPIRoot() + '/motion', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -108,7 +108,7 @@ export default function Home() {
 
             const data = await toast.promise(
                 (async () => {
-                    const response = await fetch(apiRoot + '/rounds', {
+                    const response = await fetch(API_ROOT + '/rounds', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

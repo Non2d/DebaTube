@@ -1,4 +1,4 @@
-const diarizationColors = [
+export const diarizationColors = [
     'rgba(255, 87, 51, 0.5)', // Red
     'rgba(51, 255, 87, 0.5)', // Green
     'rgba(51, 87, 255, 0.5)', // Blue
@@ -26,4 +26,41 @@ const diarizationColors = [
     'rgba(51, 255, 140, 0.5)', // Light Green
 ];
 
-export default diarizationColors;
+export const speechIdToPositionNameAsian = [
+    "PM",
+    "LO",
+    "DPM",
+    "DLO",
+    "GW",
+    "OW",
+    "LOR",
+    "PMR",
+];
+
+export const speechIdToPositionNameNA = [
+    "PM",
+    "LO",
+    "MG",
+    "MO",
+    "LOR",
+    "PMR",
+];
+
+export const nodeIdToNumber = (nodeId: string) => {
+    return Number(nodeId?.split('-')[1]);
+}
+
+export const isGovernment = (positionName: string): boolean => {
+    const governmentPositionNames = ["PM", "DPM", "MG", "GW", "PMR"];
+    return governmentPositionNames.includes(positionName);
+}
+
+export const isGovernmentFromSpeechId = (speechId: number, speechLength: number): boolean => {
+    if (speechLength === 6) {
+        return speechId === 0 || speechId === 2 || speechId === 5;
+    } else if (speechLength === 8) {
+        return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 7;
+    } else {
+        throw new Error("Invalid speech length");
+    }
+}

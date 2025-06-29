@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import diarizationColors from '../utils/DiarizationColors';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../utils/speechIdToPositionName';
+import diarizationColors from '../lib/constants';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../lib/speechIdToPositionName';
 import { useAppContext } from '../../context/context';
 import { toast } from 'react-hot-toast';
 

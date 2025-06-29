@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../utils/speechIdToPositionName';
-import nodeIdToNumber from '../utils/nodeIdToNumber';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA } from '../lib/constants';
+import { nodeIdToNumber } from '../lib/constants';
 
 import { useAppContext } from '../../context/context';
 
