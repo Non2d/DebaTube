@@ -112,6 +112,24 @@ class RoundBatchResponse(BaseModel):
     class Config:
         orm_mode = True
 
+class RoundSummaryResponse(BaseModel):
+    id: Optional[int]
+    video_id: Optional[str]
+    title: Optional[str]
+    description: Optional[str]
+    motion: Optional[str]
+    date_uploaded: Optional[str]
+    channel_id: Optional[str]
+    tag: Optional[str]
+    
+    poi_count: int
+    rebuttal_count: int
+    speech_count: int
+    total_argument_units: int
+
+    class Config:
+        orm_mode = True
+
 class MacroStructuralFeatures(BaseModel):
     distance: float
     interval: float
@@ -240,6 +258,35 @@ async def get_rounds_batch(db: AsyncSession = Depends(get_db)):
                     ]
                 ) for speech in db_round.speeches
             ]
+        ) for db_round in db_rounds
+    ]
+
+@router.get("/rounds-summary", response_model=List[RoundSummaryResponse])
+async def get_rounds_summary(db: AsyncSession = Depends(get_db)):
+    query = select(round_db_model.Round).options(
+        selectinload(round_db_model.Round.pois),
+        selectinload(round_db_model.Round.rebuttals),
+        selectinload(round_db_model.Round.speeches).selectinload(
+            round_db_model.Speech.argument_units
+        ),
+    )
+    result = await db.execute(query)
+    db_rounds = result.scalars().unique().all()
+
+    return [
+        RoundSummaryResponse(
+            id=db_round.id,
+            video_id=db_round.video_id,
+            title=db_round.title,
+            description=db_round.description,
+            motion=db_round.motion,
+            date_uploaded=db_round.date_uploaded,
+            channel_id=db_round.channel_id,
+            tag=db_round.tag,
+            poi_count=len(db_round.pois),
+            rebuttal_count=len(db_round.rebuttals),
+            speech_count=len(db_round.speeches),
+            total_argument_units=sum(len(speech.argument_units) for speech in db_round.speeches)
         ) for db_round in db_rounds
     ]
 
