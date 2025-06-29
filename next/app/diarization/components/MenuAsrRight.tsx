@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { toast } from 'react-hot-toast';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA, nodeIdToNumber } from '../lib/constants';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, nodeIdToNumber } from '../../../components/lib/constants';
 
-import { useAppContext } from '../../context/context';
+import { useAppContext } from '../../../context/context';
 
 interface MenuAsrRightProps {
     id: string;
