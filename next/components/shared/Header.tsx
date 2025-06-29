@@ -30,10 +30,10 @@ export default function Header() {
           </div>
           
           <div className="hidden md:flex items-center space-x-8">
-            <a href="/" className="hover:text-blue-600 transition-colors"> Videos</a>
+            <a href="/" className="hover:text-blue-600 transition-colors">Explore</a>
             <a href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</a>
-            <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
-            <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a>
+            {/* <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
+            <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a> */}
             <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg ${btnBg} ${btnHover} transition-colors`}
@@ -66,10 +66,10 @@ export default function Header() {
       {isMenuOpen && (
         <div className={`md:hidden ${bgColor} border-t ${borderColor}`}>
           <div className="px-4 py-2 space-y-2">
-            <a href="/" className="block py-2 hover:text-blue-600">Browse Videos</a>
+            <a href="/" className="block py-2 hover:text-blue-600">Explore</a>
             <a href="/dashboard" className="block py-2 hover:text-blue-600">Dashboard</a>
-            <a href="#about" className="block py-2 hover:text-blue-600">About</a>
-            <a href="#contact" className="block py-2 hover:text-blue-600">Contact</a>
+            {/* <a href="#about" className="block py-2 hover:text-blue-600">About</a>
+            <a href="#contact" className="block py-2 hover:text-blue-600">Contact</a> */}
           </div>
         </div>
       )}
