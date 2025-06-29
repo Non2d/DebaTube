@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from 'react';
 import { Play, BarChart3, MessageSquare, Users, ArrowRight, Check } from 'lucide-react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../components/store/userAtom';

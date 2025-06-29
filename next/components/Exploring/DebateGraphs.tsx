@@ -4,7 +4,6 @@ import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { getAPIRoot } from '../lib/utils';
 import MacroStructure from '../MacroStructure/MacroStructure';
 import Youtube from 'react-youtube';
-import toast from "react-hot-toast";
 import Header from '../shared/Header';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../store/userAtom';
@@ -63,11 +62,13 @@ const DebateGraphs = () => {
   const [displayDebateItems, setDisplayDebateItems] = useState<DebateItem[]>([]);
   const [whenToSeek, setWhenToSeek] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isExporting, setIsExporting] = useState(false);
-  const [sortOption, setSortOption] = useState('Distance');
+  const [sortOption, setSortOption] = useState('Date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // 各MacroStructureコンポーネントへのrefを格納する配列
   const macroStructureRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const tabValues = [
     { value: "All", label: "All" },
@@ -78,10 +79,11 @@ const DebateGraphs = () => {
   ];
 
   const sortOptions = [
-    { value: "Distance", label: "Distance" },
-    { value: "Interval", label: "Interval" },
-    { value: "Order", label: "Order" },
-    { value: "Rally", label: "Rally" },
+    { value: "Date", label: "Date Uploaded", description: "When uploaded on YouTube or DebaTube" },
+    { value: "Distance", label: "Distance", description: "Spatial separation between argument clusters" },
+    { value: "Interval", label: "Interval", description: "Time gaps between speech segments" },
+    { value: "Order", label: "Order", description: "Sequential position in debate flow" },
+    { value: "Rally", label: "Rally", description: "Frequency of back-and-forth exchanges" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
@@ -168,30 +170,36 @@ const DebateGraphs = () => {
     setSelectedDebateItems(filteredItems);
   }, [selectedTab, debateItems]);
 
-  useEffect(() => { //カテゴリ変更時、ピン留め時、またはソート変更時に更新
-    // まず選択されたアイテム全体をソートする
-    const sortedSelectedItems = [...selectedDebateItems].sort((a, b) => {
-      // ソートオプションに基づいて並び替え
+  useEffect(() => {
+    const sortedItems: DebateItem[] = [...selectedDebateItems];
+    
+    const getSortValue = (item: DebateItem) => {
       switch (sortOption) {
-        case 'Distance':
-          return b.features.distance - a.features.distance; // 降順
-        case 'Interval':
-          return b.features.interval - a.features.interval; // 降順
-        case 'Order':
-          return b.features.order - a.features.order; // 降順
-        case 'Rally':
-          return b.features.rally - a.features.rally; // 降順
-        default:
-          return b.id - a.id; // デフォルトは ID の降順
+        case 'Date': return new Date(item.publishedAt).getTime();
+        case 'Distance': return item.features.distance;
+        case 'Interval': return item.features.interval;
+        case 'Order': return item.features.order;
+        case 'Rally': return item.features.rally;
+        default: return item.id;
+      }
+    };
+    
+    sortedItems.sort((a, b) => {
+      const valueA = getSortValue(a);
+      const valueB = getSortValue(b);
+      
+      if (sortOrder === 'asc') {
+        return valueA - valueB;
+      } else {
+        return valueB - valueA;
       }
     });
 
-    // ソート済みの中からピン留めとそうでないものを分ける
-    const pinnedDebateItems = sortedSelectedItems.filter(item => pinnedItems.includes(item.id));
-    const unpinnedDebateItems = sortedSelectedItems.filter(item => !pinnedItems.includes(item.id));
+    const sortedPinnedItems = sortedItems.filter(item => pinnedItems.includes(item.id));
+    const unpinnedItems = sortedItems.filter(item => !pinnedItems.includes(item.id));
 
-    setDisplayDebateItems([...pinnedDebateItems, ...unpinnedDebateItems]);
-  }, [pinnedItems, selectedDebateItems, sortOption]);
+    setDisplayDebateItems([...sortedPinnedItems, ...unpinnedItems]);
+  }, [pinnedItems, selectedDebateItems, sortOption, sortOrder]);
 
   const onMovieItemClicked = (id: number) => async () => {
     setPinnedItems((prev) => {
@@ -249,19 +257,26 @@ const DebateGraphs = () => {
     setYtPlayer(event.target);
   };
 
-  const taskIsDone = () => async () => {
-    toast.success('Task is done!');
-    await logOperation('TaskIsDone', {
-      pinned_items: pinnedItems,
-    });
-  }
-
   // displayDebateItemsが変更されたときにrefの配列を更新
   useEffect(() => {
     macroStructureRefs.current = displayDebateItems.map((_, i) =>
       macroStructureRefs.current[i] || createRef()
     );
   }, [displayDebateItems]);
+
+  // ドロップダウンの外側クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
   const textColor = isDark ? 'text-white' : 'text-gray-900';
@@ -302,32 +317,51 @@ const DebateGraphs = () => {
 
           {/* ソート選択ドロップダウン */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-gray-100 rounded-lg">
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-                </svg>
-              </div>
-              <span className="text-sm font-medium text-gray-700">Sort by</span>
-            </div>
-            <div className="h-4 w-px bg-gray-300"></div>
-            <select
-              value={sortOption}
-              onChange={(e) => {
-                const newSortOption = e.target.value;
-                setSortOption(newSortOption);
-                logOperation('SortChanged', {
-                  sort_option: newSortOption,
-                });
-              }}
-              className="bg-transparent border-none text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0 cursor-pointer appearance-none min-w-[80px]"
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors w-32"
             >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value} className="text-gray-900 bg-white">
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <span className="text-sm font-medium text-gray-700">
+                {sortOrder === 'desc' ? 'Largest First' : 'Smallest First'}
+              </span>
+            </button>
+            <div className="h-4 w-px bg-gray-300"></div>
+            
+            {/* カスタムドロップダウン */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors min-w-[120px]"
+              >
+                <span>{sortOptions.find(opt => opt.value === sortOption)?.label}</span>
+                <svg className={`w-4 h-4 text-gray-600 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {isDropdownOpen && (
+                <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setSortOption(option.value);
+                        setIsDropdownOpen(false);
+                        logOperation('SortChanged', {
+                          sort_option: option.value,
+                        });
+                      }}
+                      className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                        sortOption === option.value ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                      }`}
+                    >
+                      <div className="font-medium text-gray-900 mb-1">{option.label}</div>
+                      <div className="text-sm text-gray-600">{option.description}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -382,7 +416,11 @@ const DebateGraphs = () => {
                           {/* Features表示 */}
                           <div className="flex items-center gap-2 mt-1">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                              {sortOption}: {item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)}
+                              {sortOption}: {
+                                sortOption === 'Date' 
+                                  ? new Date(item.publishedAt).toISOString().split('T')[0]
+                                  : item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
+                              }
                             </span>
                           </div>
                         </div>
