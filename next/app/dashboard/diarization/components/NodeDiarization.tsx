@@ -1,4 +1,4 @@
-import { diarizationColors } from '../../../components/lib/constants';
+import { diarizationColors } from '../../../../components/lib/constants';
 
 interface NodeTimeLabelProps {
     data: {

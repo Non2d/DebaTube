@@ -1,13 +1,17 @@
 "use client";
 
+import { useState } from 'react';
 import { useAtom } from 'jotai';
+import { Plus } from 'lucide-react';
 import { themeAtom } from '../../components/store/userAtom';
 import Header from '../../components/shared/Header';
+import RegistrationModal from '../../components/shared/RegistrationModal';
 import { useRounds } from './hooks/useRoundsSummary';
 
 export default function Dashboard() {
   const [isDark] = useAtom(themeAtom);
   const { rounds, loading, error } = useRounds();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
   const textColor = isDark ? 'text-white' : 'text-gray-900';
@@ -24,11 +28,20 @@ export default function Dashboard() {
       <Header />
       <div className={`min-h-screen ${bgColor} ${textColor} pt-16`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-300">
-              Overview of all debate rounds and their statistics
-            </p>
+          <div className="mb-8 flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-300">
+                Overview of all debate rounds and their statistics
+              </p>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors shadow-md"
+            >
+              <Plus className="w-5 h-5" />
+              Register New Round
+            </button>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -159,6 +172,15 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <RegistrationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          // Optionally refresh the rounds data
+          window.location.reload();
+        }}
+      />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X, Download } from 'lucide-react';
-import { useAppContext } from '../../../context/context';
+import { useAppContext } from '../../../../context/context';
 
 interface SidebarTimelineProps {
     isNA: boolean;

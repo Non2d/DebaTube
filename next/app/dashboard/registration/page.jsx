@@ -2,7 +2,7 @@
 import toast from 'react-hot-toast';
 import Head from 'next/head'
 import { useState } from 'react'
-import { getAPIRoot } from '../../components/lib/utils';
+import { getAPIRoot } from '../../../components/lib/utils';
 import Image from 'next/image';
 
 // Difinition: asr + diarization = transcript

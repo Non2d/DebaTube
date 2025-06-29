@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA, nodeIdToNumber } from '../../../components/lib/constants';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, nodeIdToNumber } from '../../../../components/lib/constants';
 
-import { useAppContext } from '../../../context/context';
+import { useAppContext } from '../../../../context/context';
 
 interface MenuAsrRightProps {
     id: string;

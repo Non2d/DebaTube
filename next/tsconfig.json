@@ -21,6 +21,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/registration/page.jsx", "app/annotate-rebuttals/layout.jsx", "components/MacroStructure/MacroStructure.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/dashboard/registration/page.jsx", "app/dashboard/annotate-rebuttals/layout.jsx", "components/MacroStructure/MacroStructure.tsx"],
   "exclude": ["node_modules"]
 }
