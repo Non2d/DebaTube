@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
 import Image from 'next/image';
-import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
-import { getAPIRoot } from '../lib/utils';
-import MacroStructure from '../MacroStructure/MacroStructure';
+import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { getAPIRoot } from '../../../components/lib/utils';
+import MacroStructure from './MacroStructure';
 import Youtube from 'react-youtube';
-import Header from '../shared/Header';
+import Header from '../../../components/shared/Header';
 import { useAtom } from 'jotai';
-import { themeAtom } from '../store/userAtom';
+import { themeAtom } from '../../../components/store/userAtom';
 
 interface MacroStructuralFeatures {
   distance: number;

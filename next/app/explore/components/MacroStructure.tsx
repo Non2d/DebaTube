@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, forwardRef } from 'react';
-import ReactFlow, { useNodesState, useEdgesState, Controls, Background, BackgroundVariant } from 'reactflow';
+import React, { useEffect, forwardRef } from 'react';
+import ReactFlow, { useNodesState, useEdgesState } from 'reactflow';
 import { govNode, oppNode, GovEdge, OppEdge, backgroundNode } from './CustomMacroGraphComponents';
-import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../lib/constants';
+import { speechIdToPositionNameAsian, speechIdToPositionNameNA, isGovernmentFromSpeechId } from '../../../components/lib/constants';
 
 import 'reactflow/dist/style.css'; //必須中の必須！！！注意！！！
 
@@ -24,7 +24,7 @@ interface MacroStructureProps {
 }
 
 const MacroStructure = forwardRef<HTMLDivElement, MacroStructureProps>(({ data, onGraphNodeClicked, isPinned }, ref) => {
-    let repeatedNum = 1; //まだフロントにあったんかお前
+    let repeatedNum = 1; //TODO: 10回分取得して特徴量出すのは重すぎるので、DBレベルで確信度という指標に落とし込む
 
     const originY = 0;
     const [nodes, setNodes, onNodesChange] = useNodesState([]); //将来的にノード・エッジの追加や編集機能を追加する

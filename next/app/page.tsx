@@ -1,12 +1,10 @@
 "use client";
-
-import React, { useEffect, useState, ChangeEvent } from 'react';
-import DebateGraphs from '../components/Exploring/DebateGraphs';
+import Explore from './explore/page';
 
 export default function Home() {
   return (
     <>
-      <DebateGraphs />
+      <Explore />
     </>
   )
 }
