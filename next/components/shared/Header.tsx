@@ -24,15 +24,16 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <a href="/landing" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:text-blue-600 transition-colors">
               DebaTube
-            </h1>
+            </a>
           </div>
           
           <div className="hidden md:flex items-center space-x-8">
-            <a href="/" className="hover:text-blue-600 transition-colors">Browse Videos</a>
+            <a href="/" className="hover:text-blue-600 transition-colors"> Videos</a>
             <a href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</a>
-            <a href="/landing" className="hover:text-blue-600 transition-colors">Landing</a>
+            <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
+            <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a>
             <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg ${btnBg} ${btnHover} transition-colors`}
@@ -67,7 +68,8 @@ export default function Header() {
           <div className="px-4 py-2 space-y-2">
             <a href="/" className="block py-2 hover:text-blue-600">Browse Videos</a>
             <a href="/dashboard" className="block py-2 hover:text-blue-600">Dashboard</a>
-            <a href="/landing" className="block py-2 hover:text-blue-600">Landing</a>
+            <a href="#about" className="block py-2 hover:text-blue-600">About</a>
+            <a href="#contact" className="block py-2 hover:text-blue-600">Contact</a>
           </div>
         </div>
       )}

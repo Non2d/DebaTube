@@ -1,17 +1,13 @@
 "use client";
 
 import { useState } from 'react';
-import { Moon, Sun, Menu, X, Play, BarChart3, MessageSquare, Users, ArrowRight, Check } from 'lucide-react';
+import { Play, BarChart3, MessageSquare, Users, ArrowRight, Check } from 'lucide-react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../components/store/userAtom';
+import Header from '../../components/shared/Header';
 
 export default function LandingPage() {
-  const [isDark, setIsDark] = useAtom(themeAtom);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-  };
+  const [isDark] = useAtom(themeAtom);
 
   const features = [
     {
@@ -57,62 +53,9 @@ export default function LandingPage() {
   const textMuted = isDark ? 'text-gray-300' : 'text-gray-700';
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${bgColor} ${textColor}`}>
-      {/* Navigation */}
-      <nav className={`fixed top-0 w-full ${navBg} backdrop-blur-md z-50 border-b ${borderColor}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                DebaTube
-              </h1>
-            </div>
-            
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="/" className="hover:text-blue-600 transition-colors">Browse Videos</a>
-              <a href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</a>
-              <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
-              <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a>
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-lg ${btnBg} ${btnHover} transition-colors`}
-                aria-label="Toggle theme"
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-            </div>
-
-            <div className="md:hidden flex items-center space-x-2">
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-lg ${btnBg}`}
-                aria-label="Toggle theme"
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={`p-2 rounded-lg ${btnBg}`}
-                aria-label="Toggle menu"
-              >
-                {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className={`md:hidden ${bgColor} border-t ${borderColor}`}>
-            <div className="px-4 py-2 space-y-2">
-              <a href="/" className="block py-2 hover:text-blue-600">Browse Videos</a>
-              <a href="/dashboard" className="block py-2 hover:text-blue-600">Dashboard</a>
-              <a href="#about" className="block py-2 hover:text-blue-600">About</a>
-              <a href="#contact" className="block py-2 hover:text-blue-600">Contact</a>
-            </div>
-          </div>
-        )}
-      </nav>
+    <>
+      <Header />
+      <div className={`min-h-screen transition-colors duration-300 ${bgColor} ${textColor} pt-16`}>
 
       {/* Hero Section */}
       <section className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
@@ -252,6 +195,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-    </div>
+      </div>
+    </>
   );
 }
