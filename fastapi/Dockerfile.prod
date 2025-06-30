@@ -5,6 +5,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY ./api/ .
+COPY app/ .
 
 CMD ["sh", "-c", "python migrate_db.py && uvicorn main:app --host 0.0.0.0 --port 8080"]

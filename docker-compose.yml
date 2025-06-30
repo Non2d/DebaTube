@@ -18,7 +18,7 @@ services:
   fastapi:
     container_name: fastapi
     volumes:
-      - ./fastapi/api:/app
+      - ./fastapi/app:/app
     build:
       context: ./fastapi
       dockerfile: Dockerfile.dev
