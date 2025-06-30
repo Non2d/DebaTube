@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymysql
+sqlalchemy
+aiomysql
+python-dotenv
+openai
+httpx
+cryptography
+pytz
