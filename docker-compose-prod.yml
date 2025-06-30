@@ -12,7 +12,7 @@ services:
   fastapi:
     container_name: dsv-fastapi
     build:
-      context: ./fastapi
+      context: ./fastapi/main-service
       dockerfile: Dockerfile.prod
     ports:
       - "7781:8080"

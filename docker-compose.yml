@@ -18,9 +18,9 @@ services:
   fastapi:
     container_name: fastapi
     volumes:
-      - ./fastapi/app:/app
+      - ./fastapi/main-service/app:/app
     build:
-      context: ./fastapi
+      context: ./fastapi/main-service
       dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
