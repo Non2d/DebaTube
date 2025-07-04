@@ -9,3 +9,7 @@ httpx
 cryptography
 pytz
 pandas
+yt-dlp
+torch
+transformers
+pyannote.audio

@@ -1,10 +1,12 @@
 from fastapi import FastAPI
-from routers import sentences
+from routers import sentences, audio, nlp
 import uvicorn
 
 app = FastAPI(title="NLP Service", version="1.0.0")
 
 app.include_router(sentences.router, prefix="/api/v1")
+app.include_router(audio.router, prefix="/api/v1")
+app.include_router(nlp.router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():

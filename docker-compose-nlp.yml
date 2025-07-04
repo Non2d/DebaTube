@@ -11,6 +11,7 @@ services:
       - nlp_db
     volumes:
       - ./fastapi/nlp-service/app:/app
+      - ./storage:/storage
     env_file:
       - .env
 

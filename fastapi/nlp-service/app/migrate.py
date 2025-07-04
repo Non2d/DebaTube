@@ -2,7 +2,7 @@ import time
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
-from models.nlp import Base  # NLP用のモデルをインポート
+from models.sentence import Base
 import os
 from dotenv import load_dotenv
 
