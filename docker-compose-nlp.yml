@@ -11,6 +11,8 @@ services:
       - nlp_db
     volumes:
       - ./fastapi/nlp-service/app:/app
+    env_file:
+      - .env
 
   nlp_db:
     image: mysql:8.0
@@ -32,8 +34,6 @@ services:
       - "7792:8080"
     depends_on:
       - nlp_db
-    environment:
-      ADMINER_DESIGN: galkaev
 
 volumes:
   nlp_base:

@@ -15,7 +15,7 @@ MYSQL_HOST = "nlp_db"  # docker-compose内のDBサービス名
 MYSQL_DATABASE = "nlp"
 
 PROD_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
-DEV_DB_URL = f"mysql+pymysql://root:{MYSQL_ROOT_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
+DEV_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
 
 DB_URL = PROD_DB_URL if os.getenv("ENV") == "production" else DEV_DB_URL
 
