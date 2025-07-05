@@ -7,6 +7,7 @@ from pydantic import BaseModel, HttpUrl, Field
 from typing import Union, List
 
 from models.extract_audio import extract_audio_from_youtube, extract_audio_from_playlist
+from models.job_manager import job_manager, JobType
 
 router = APIRouter()
 
@@ -37,8 +38,8 @@ class AudioResponse(BaseModel):
     success: bool
     file_path: Union[str, List[str]]
     message: str
-    speech_recognition_job_id: str = None
-    speaker_diarization_job_id: str = None
+    speech_recognition_job_id: Union[str, List[str], None] = None
+    speaker_diarization_job_id: Union[str, List[str], None] = None
 
 @router.post("/extract-audio", response_model=AudioResponse)
 async def register_url(request: UrlRequest):
@@ -56,17 +57,66 @@ async def register_url(request: UrlRequest):
         
         if request.is_playlist:
             file_paths = extract_audio_from_playlist(url_str)
+            
+            speech_job_ids = []
+            speaker_job_ids = []
+            
+            if request.start_bg_tasks:
+                for file_path in file_paths:
+                    # Speech recognition job
+                    speech_job_id = job_manager.create_job(
+                        JobType.SPEECH_RECOGNITION, 
+                        file_path, 
+                        request.round_id
+                    )
+                    job_manager.start_job(speech_job_id)
+                    speech_job_ids.append(speech_job_id)
+                    
+                    # Speaker diarization job
+                    speaker_job_id = job_manager.create_job(
+                        JobType.SPEAKER_DIARIZATION, 
+                        file_path, 
+                        request.round_id
+                    )
+                    job_manager.start_job(speaker_job_id)
+                    speaker_job_ids.append(speaker_job_id)
+            
             return AudioResponse(
                 success=True,
                 file_path=file_paths,
-                message=f"Successfully extracted {len(file_paths)} audio files from playlist"
+                message=f"Successfully extracted {len(file_paths)} audio files from playlist",
+                speech_recognition_job_id=speech_job_ids if speech_job_ids else None,
+                speaker_diarization_job_id=speaker_job_ids if speaker_job_ids else None
             )
         else:
             file_path = extract_audio_from_youtube(url_str)
+            
+            speech_job_id = None
+            speaker_job_id = None
+            
+            if request.start_bg_tasks:
+                # Speech recognition job
+                speech_job_id = job_manager.create_job(
+                    JobType.SPEECH_RECOGNITION, 
+                    file_path, 
+                    request.round_id
+                )
+                job_manager.start_job(speech_job_id)
+                
+                # Speaker diarization job
+                speaker_job_id = job_manager.create_job(
+                    JobType.SPEAKER_DIARIZATION, 
+                    file_path, 
+                    request.round_id
+                )
+                job_manager.start_job(speaker_job_id)
+            
             return AudioResponse(
                 success=True,
                 file_path=file_path,
-                message="Successfully extracted audio file"
+                message="Successfully extracted audio file",
+                speech_recognition_job_id=speech_job_id,
+                speaker_diarization_job_id=speaker_job_id
             )
             
     except Exception as e:

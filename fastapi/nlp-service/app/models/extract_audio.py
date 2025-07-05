@@ -42,9 +42,8 @@ def extract_audio_from_youtube(youtube_url: str, output_dir: str = "/storage") -
             text=True
         )
         
-        # 実際に作成されたファイルパスを取得
         expected_file_path = os.path.join(output_dir, f"{file_id}.wav")
-        
+
         if os.path.exists(expected_file_path):
             return expected_file_path
         else:
