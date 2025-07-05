@@ -2,12 +2,30 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Body
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Union, List
+
 from models.extract_audio import extract_audio_from_youtube, extract_audio_from_playlist
 
 router = APIRouter()
+
+@router.post("/update-cookie")
+async def update_cookie(text_content: str = Body(..., media_type="text/plain")):
+    """
+    POSTされた平文をstorage/cookie.txtに完全に上書きして反映するAPI
+    """
+    try:
+        content = text_content.encode('utf-8')
+        cookie_file_path = "/storage/cookies.txt"
+        
+        
+
+        with open(cookie_file_path, "wb") as f:
+            f.write(content)
+        return {"message": "Cookie file updated successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update cookie file: {str(e)}")
 
 class UrlRequest(BaseModel):
     url: HttpUrl = Field(..., example="https://www.youtube.com/watch?v=1TSkkxu8on0")
