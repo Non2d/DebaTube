@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Any, Dict, List
 from models.nlp_models import nlp_models
 from models.sentence import SpeechRecognition, SpeakerDiarization
+from models.job_manager import job_manager, JobType, JobStatus
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -27,6 +28,21 @@ class SpeakerDiarizationResponse(BaseModel):
     success: bool
     message: str
     data: List[Dict[str, Any]]
+
+class JobResponse(BaseModel):
+    job_id: str
+    status: str
+    message: str
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    progress: int
+    created_at: datetime
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    error_message: Optional[str]
+    result: Optional[Any]
 
 class JobStatusResponse(BaseModel):
     job_id: str
@@ -126,3 +142,49 @@ async def process_speaker_diarization(request: JobRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process speaker diarization: {str(e)}")
 
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+async def get_job_status(job_id: str):
+    """
+    ジョブの状態を取得
+    
+    Args:
+        job_id: ジョブID
+    
+    Returns:
+        JobStatusResponse: ジョブの詳細状態
+    """
+    job = job_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return JobStatusResponse(
+        job_id=job.job_id,
+        status=job.status.value,
+        progress=job.progress,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+        error_message=job.error_message,
+        result=job.result
+    )
+
+@router.post("/jobs/{job_id}/retry", response_model=JobResponse)
+async def retry_job(job_id: str):
+    """
+    失敗したジョブをリトライ
+    
+    Args:
+        job_id: ジョブID
+    
+    Returns:
+        JobResponse: リトライ結果
+    """
+    success = job_manager.retry_job(job_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Job cannot be retried")
+    
+    return JobResponse(
+        job_id=job_id,
+        status="processing",
+        message="Job retry started"
+    )
