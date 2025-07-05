@@ -28,6 +28,7 @@ def extract_audio_from_youtube(youtube_url: str, output_dir: str = "/storage") -
         "yt-dlp",
         "-x",
         "--audio-format", "wav",
+        "--cookies", "/storage/cookies.txt",
         "-o", output_template,
         youtube_url
     ]
@@ -79,6 +80,7 @@ def extract_audio_from_playlist(playlist_url: str, output_dir: str = "/storage")
         "yt-dlp",
         "-x",
         "--audio-format", "wav",
+        "--cookies", "/storage/cookies.txt",
         "-o", output_template,
         playlist_url
     ]
