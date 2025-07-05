@@ -1,6 +1,16 @@
-FROM nvidia/cuda:12.1-runtime-ubuntu22.04
+FROM python:3.11-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y python3 python3-pip ffmpeg && rm -rf /var/lib/apt/lists/*
+
+# Install system dependencies including CUDA toolkit (if available)
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    wget \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch with CUDA support
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 COPY app/ .

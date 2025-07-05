@@ -30,6 +30,8 @@ class NLPModels:
             model.to(self.device)
             processor = AutoProcessor.from_pretrained(model_id)
             
+            batch_size = 32 if self.device.startswith("cuda") else 16
+            
             self.speech_recognition_model = transformers_pipeline(
                 "automatic-speech-recognition",
                 model=model,
@@ -37,7 +39,7 @@ class NLPModels:
                 feature_extractor=processor.feature_extractor,
                 max_new_tokens=256,
                 chunk_length_s=30,
-                batch_size=16,
+                batch_size=batch_size,
                 return_timestamps="word",
                 torch_dtype=self.torch_dtype,
                 device=self.device,
