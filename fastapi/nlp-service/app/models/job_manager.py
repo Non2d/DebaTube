@@ -4,7 +4,8 @@ from typing import Dict, Optional, Any
 from enum import Enum
 from datetime import datetime
 import threading
-from models.nlp_models import nlp_models
+from models.whisper import transcribe_audio
+from models.pyannote import diarize_audio
 from models.sentence import SpeechRecognition, SpeakerDiarization
 from database import SessionLocal
 from sqlalchemy.orm import Session
@@ -70,13 +71,13 @@ class JobManager:
             job.progress = 10
             
             if job.job_type == JobType.SPEECH_RECOGNITION:
-                result = nlp_models.transcribe_audio(job.file_path)
+                result = transcribe_audio(job.file_path)
                 job.progress = 80
                 self._save_speech_recognition_to_db(result, job.round_id)
                 job.progress = 100
                 
             elif job.job_type == JobType.SPEAKER_DIARIZATION:
-                result = nlp_models.diarize_speakers(job.file_path)
+                result = diarize_audio(job.file_path)
                 job.progress = 80
                 self._save_speaker_diarization_to_db(result, job.round_id)
                 job.progress = 100

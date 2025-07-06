@@ -44,7 +44,7 @@ def get_pipe():
     
     return _pipe
 
-def transcribe_audio_files(input_dir="src", output_dir="dst/speech-recognition", language="english"):
+def transcribe_audio(input_dir="src", output_dir="dst/speech-recognition", language="english"):
     """指定ディレクトリ内の音声ファイルを文字起こしする"""
     
     # 出力ディレクトリの作成
@@ -84,4 +84,4 @@ def transcribe_audio_files(input_dir="src", output_dir="dst/speech-recognition",
                 print(f"Error processing {file_name}: {e}")
 
 if __name__ == "__main__":
-    transcribe_audio_files()
+    transcribe_audio()

@@ -4,32 +4,35 @@ from dotenv import load_dotenv
 import os
 import csv
 
-# 環境変数の読み込み
 load_dotenv(dotenv_path=".env")
 PYANNOTE_AUTH_TOKEN = os.getenv("PYANNOTE_AUTH_TOKEN")
 
-# GPU/CPU設定
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
+_pipeline = None
 
-def load_pyannote_pipeline():
-    """Pyannoteの話者分離パイプラインをロードする"""
-    pipeline = PyannotePipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        use_auth_token=PYANNOTE_AUTH_TOKEN,
-    )
-    pipeline.to(torch.device(device))
-    return pipeline
+def get_pyannote_pipeline():
+    """Pyannoteの話者分離パイプラインを取得（必要に応じて再ロード）"""
+    global _pipeline
+    
+    # パイプラインが存在しない、または何らかの理由で無効な場合は再ロード
+    if _pipeline is None:
+        print("Loading Pyannote pipeline...")
+        device = "cuda:0"
+        _pipeline = PyannotePipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=PYANNOTE_AUTH_TOKEN,
+        )
+        _pipeline.to(torch.device(device))
+    
+    return _pipeline
 
-def diarize_audio_files(input_dir="src", output_dir="dst/diarization"):
+def diarize_audio(input_dir="src", output_dir="dst/diarization"):
     """指定ディレクトリ内の音声ファイルに対して話者分離を実行する"""
     
     # 出力ディレクトリの作成
     os.makedirs(output_dir, exist_ok=True)
     
-    # パイプラインのロード
-    print("Loading Pyannote pipeline...")
-    pipeline = load_pyannote_pipeline()
+    # 必要に応じてパイプラインを取得
+    pipeline = get_pyannote_pipeline()
     
     # ディレクトリ内のWAVファイルを処理
     for file_name in os.listdir(input_dir):
@@ -62,5 +65,4 @@ def diarize_audio_files(input_dir="src", output_dir="dst/diarization"):
                 print(f"Error processing {file_name}: {e}")
 
 if __name__ == "__main__":
-    # デフォルト設定で実行
-    diarize_audio_files()
+    diarize_audio()
