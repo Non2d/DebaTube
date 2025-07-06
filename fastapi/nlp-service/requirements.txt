@@ -10,6 +10,7 @@ cryptography
 pytz
 pandas
 yt-dlp
-torch
+# torch --index-url https://download.pytorch.org/whl/cu128 torchはnvidia-smiで確認したCUDAのバージョンに合わせてインストール
 transformers
 pyannote.audio
+ffmpeg-python

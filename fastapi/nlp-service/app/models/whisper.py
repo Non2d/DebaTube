@@ -1,46 +1,48 @@
 import torch
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline as transformers_pipeline
-import librosa
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
+from transformers.pipelines import pipeline as transformers_pipeline
 import os
 import csv
-from dotenv import load_dotenv
+import gc
 
-# 環境変数の読み込み
-load_dotenv(dotenv_path=".env")
+# グローバル変数
+_pipe = None
 
-# GPU/CPU設定
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
-torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-
-# Whisperモデルの設定
-model_id = "openai/whisper-large-v3-turbo"
-
-def load_whisper_model():
-    """Whisperモデルとプロセッサーをロードする"""
-    model = AutoModelForSpeechSeq2Seq.from_pretrained(
-        model_id, 
-        torch_dtype=torch_dtype, 
-        low_cpu_mem_usage=True, 
-        use_safetensors=True
-    )
-    model.to(device)
+def get_pipe():
+    """パイプラインを取得（必要に応じて再ロード）"""
+    global _pipe
     
-    processor = AutoProcessor.from_pretrained(model_id)
+    # モデルが存在しない、または何らかの理由で無効な場合は再ロード
+    if _pipe is None:
+        print("Loading Whisper model...")
+        model_id = "openai/whisper-large-v3-turbo"
+        device = "cuda:0"
+        torch_dtype = torch.float16
+        
+        model = AutoModelForSpeechSeq2Seq.from_pretrained(
+            model_id, 
+            torch_dtype=torch_dtype,
+            low_cpu_mem_usage=True, 
+            use_safetensors=True
+        )
+        model.to(device)
+        
+        processor = AutoProcessor.from_pretrained(model_id)
+        
+        _pipe = transformers_pipeline(
+            "automatic-speech-recognition",
+            model=model,
+            tokenizer=processor.tokenizer,
+            feature_extractor=processor.feature_extractor,
+            max_new_tokens=256,
+            batch_size=16,
+            return_timestamps="word",
+            torch_dtype=torch_dtype,
+            device=device,
+        )
+        print("Model loaded successfully!")
     
-    pipe = transformers_pipeline(
-        "automatic-speech-recognition",
-        model=model,
-        tokenizer=processor.tokenizer,
-        feature_extractor=processor.feature_extractor,
-        max_new_tokens=256,
-        batch_size=16,
-        return_timestamps="word",
-        torch_dtype=torch_dtype,
-        device=device,
-    )
-    
-    return pipe
+    return _pipe
 
 def transcribe_audio_files(input_dir="src", output_dir="dst/speech-recognition", language="english"):
     """指定ディレクトリ内の音声ファイルを文字起こしする"""
@@ -48,24 +50,16 @@ def transcribe_audio_files(input_dir="src", output_dir="dst/speech-recognition",
     # 出力ディレクトリの作成
     os.makedirs(output_dir, exist_ok=True)
     
-    # モデルのロード
-    print("Loading Whisper model...")
-    pipe = load_whisper_model()
+    # 必要に応じてモデルを取得
+    pipe = get_pipe()
     
-    # ディレクトリ内のMP3ファイルを処理
     for file_name in os.listdir(input_dir):
         if file_name.endswith(".wav"):
             full_path = os.path.join(input_dir, file_name)
             print(f"Processing: {full_path}")
             
             try:
-                # librosaで音声ファイルを読み込み
-                audio, sr = librosa.load(full_path, sr=16000)
-                
-                # 音声認識実行
-                result = pipe(audio, generate_kwargs={"language": language})
-                
-                # CSVファイルに結果を保存
+                result = pipe(full_path, generate_kwargs={"language": language}, return_timestamps="word")
                 base_name = os.path.splitext(file_name)[0]
                 output_path = os.path.join(output_dir, f"{base_name}.csv")
                 
@@ -73,7 +67,8 @@ def transcribe_audio_files(input_dir="src", output_dir="dst/speech-recognition",
                     writer = csv.writer(f)
                     writer.writerow(["start", "end", "text"])
                     
-                    for chunk in result["chunks"]:
+                    result_dict = result[0] if isinstance(result, list) else result
+                    for chunk in result_dict["chunks"]:
                         writer.writerow([
                             chunk["timestamp"][0], 
                             chunk["timestamp"][1], 
@@ -82,8 +77,8 @@ def transcribe_audio_files(input_dir="src", output_dir="dst/speech-recognition",
                 
                 print(f"Saved transcription to: {output_path}")
                 
-                # メモリ解放
                 del result
+                gc.collect()
                 
             except Exception as e:
                 print(f"Error processing {file_name}: {e}")
