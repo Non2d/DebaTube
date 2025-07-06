@@ -78,6 +78,11 @@ async def process_speech_recognition(request: JobRequest):
                 )
                 db.add(speech_record)
             db.commit()
+            print(f"Saved {len(result)} speech recognition records to database")
+        except Exception as e:
+            db.rollback()
+            print(f"Database save error: {e}")
+            raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
         finally:
             db.close()
         
@@ -112,6 +117,9 @@ async def process_speaker_diarization(request: JobRequest):
         # DBに保存
         db: Session = SessionLocal()
         try:
+            # テーブル存在確認
+            print(f"SpeakerDiarization table name: {SpeakerDiarization.__tablename__}")
+            
             for item in result:
                 speaker_record = SpeakerDiarization(
                     round_id=request.round_id,
@@ -121,7 +129,19 @@ async def process_speaker_diarization(request: JobRequest):
                     created_at=datetime.now()
                 )
                 db.add(speaker_record)
+                print(f"Added record: {speaker_record.start}-{speaker_record.end} {speaker_record.speaker}")
+            
             db.commit()
+            print(f"Saved {len(result)} speaker diarization records to database")
+            
+            # 確認のためレコード数をチェック
+            count = db.query(SpeakerDiarization).filter(SpeakerDiarization.round_id == request.round_id).count()
+            print(f"Total records for round_id {request.round_id}: {count}")
+            
+        except Exception as e:
+            db.rollback()
+            print(f"Database save error: {e}")
+            raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
         finally:
             db.close()
         

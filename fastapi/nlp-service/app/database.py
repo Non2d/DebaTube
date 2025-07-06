@@ -19,8 +19,8 @@ DEV_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL
 
 DB_URL = PROD_DB_URL if os.getenv("ENV") == "production" else DEV_DB_URL
 
-engine = create_engine(DB_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine(DB_URL, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=True, bind=engine)
 
 def get_db():
     db = SessionLocal()

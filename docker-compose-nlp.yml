@@ -15,10 +15,13 @@ services:
     volumes:
       - nlp_base:/var/lib/mysql
 
-  adminer:
-    image: adminer
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
     ports:
-      - "7792:8080"
+      - "7792:80"
+    environment:
+      PMA_HOST: nlp_db
+      PMA_PORT: 3306
     depends_on:
       - nlp_db
 
