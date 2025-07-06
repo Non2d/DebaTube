@@ -1,31 +1,6 @@
 version: '3.8'
 
 services:
-  nlp_app:
-    build:
-      context: ./fastapi/nlp-service
-      dockerfile: Dockerfile
-    ports:
-      - "7791:8080"
-    depends_on:
-      - nlp_db
-    volumes:
-      - ./fastapi/nlp-service/app:/app
-      - ./storage:/storage
-    env_file:
-      - .env
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
   nlp_db:
     image: mysql:8.0
     env_file:

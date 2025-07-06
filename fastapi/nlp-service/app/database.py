@@ -8,7 +8,7 @@ load_dotenv()
 MYSQL_USER = os.getenv("MYSQL_USER")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
 MYSQL_ROOT_PASSWORD = os.getenv("MYSQL_ROOT_PASSWORD")
-MYSQL_HOST = "nlp_db"
+MYSQL_HOST = "localhost:3307"
 MYSQL_DATABASE = "nlp"
 
 PROD_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
