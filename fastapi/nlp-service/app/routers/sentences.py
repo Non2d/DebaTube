@@ -5,7 +5,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
-from models.sentence import SpeechRecognition, SpeakerDiarization, create_sentences_from_words_and_speakers
+from models.whisper import SpeechRecognition
+from models.pyannote import SpeakerDiarization
+from models.sentence import create_sentences_from_words_and_speakers
 from database import get_db
 
 router = APIRouter()

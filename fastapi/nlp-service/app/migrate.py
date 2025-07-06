@@ -2,23 +2,22 @@ import time
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
-from models.sentence import Base
+from database import Base
 import os
 from dotenv import load_dotenv
+# モデルをインポートしてテーブルを作成
+from models.whisper import SpeechRecognition
+from models.pyannote import SpeakerDiarization
+from models.sentence import Sentence
 
 load_dotenv()
 
 MYSQL_USER = os.getenv("MYSQL_USER")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-MYSQL_ROOT_PASSWORD = os.getenv("MYSQL_ROOT_PASSWORD")
-MYSQL_HOST = "nlp_db"  # docker-compose内のDBサービス名
+MYSQL_HOST = "localhost:3307"
 MYSQL_DATABASE = "nlp"
 
-PROD_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
-DEV_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
-
-DB_URL = PROD_DB_URL if os.getenv("ENV") == "production" else DEV_DB_URL
-
+DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
 engine = create_engine(DB_URL, echo=True)
 Session = sessionmaker(bind=engine)
 
@@ -37,11 +36,18 @@ def wait_for_db_connection(max_retries=5, wait_interval=5):
     return False
 
 def restart_database():
+    # すべてのモデルが確実に登録されるように明示的に参照
+    models = [SpeechRecognition, SpeakerDiarization, Sentence]
+    print(f"Models loaded: {[model.__tablename__ for model in models]}")
+    print(f"Registered tables: {list(Base.metadata.tables.keys())}")
+    
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-
+    
+    print("Database tables created successfully")
+    
 if __name__ == "__main__":
     if wait_for_db_connection():
         restart_database()
-        pass
     else:
         print("Exiting due to NLP database connection failure.")

@@ -6,7 +6,8 @@ from datetime import datetime
 import threading
 from models.whisper import transcribe_audio
 from models.pyannote import diarize_audio
-from models.sentence import SpeechRecognition, SpeakerDiarization
+from models.whisper import SpeechRecognition
+from models.pyannote import SpeakerDiarization
 from database import SessionLocal
 from sqlalchemy.orm import Session
 
@@ -22,17 +23,17 @@ class JobType(Enum):
 
 class Job:
     def __init__(self, job_id: str, job_type: JobType, file_path: str, round_id: int):
-        self.job_id = job_id
-        self.job_type = job_type
-        self.file_path = file_path
-        self.round_id = round_id
-        self.status = JobStatus.PENDING
-        self.created_at = datetime.now()
-        self.started_at = None
-        self.completed_at = None
-        self.error_message = None
-        self.result = None
-        self.progress = 0
+        self.job_id: str = job_id
+        self.job_type: JobType = job_type
+        self.file_path: str = file_path
+        self.round_id: int = round_id
+        self.status: JobStatus = JobStatus.PENDING
+        self.created_at: datetime = datetime.now()
+        self.started_at: Optional[datetime] = None
+        self.completed_at: Optional[datetime] = None
+        self.error_message: Optional[str] = None
+        self.result: Optional[Any] = None
+        self.progress: int = 0
 
 class JobManager:
     def __init__(self):

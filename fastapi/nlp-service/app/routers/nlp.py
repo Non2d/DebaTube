@@ -5,8 +5,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, Any, Dict, List
-from models.nlp_models import nlp_models
-from models.sentence import SpeechRecognition, SpeakerDiarization
+from models.whisper import transcribe_audio
+from models.pyannote import diarize_audio
+from models.whisper import SpeechRecognition
+from models.pyannote import SpeakerDiarization
 from models.job_manager import job_manager, JobType, JobStatus
 from database import SessionLocal
 from sqlalchemy.orm import Session
@@ -15,7 +17,7 @@ from datetime import datetime
 router = APIRouter()
 
 class JobRequest(BaseModel):
-    file_path: str = Field(..., example="/storage/audio.wav")
+    file_path: str = Field(..., example="storage2/audio.wav")
     round_id: int = Field(..., example=1)
     language: str = Field(default="english", example="english")
 
@@ -44,16 +46,6 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str]
     result: Optional[Any]
 
-class JobStatusResponse(BaseModel):
-    job_id: str
-    status: str
-    progress: int
-    created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    error_message: Optional[str]
-    result: Optional[Any]
-
 @router.post("/speech-recognition", response_model=SpeechRecognitionResponse)
 async def process_speech_recognition(request: JobRequest):
     """
@@ -71,7 +63,7 @@ async def process_speech_recognition(request: JobRequest):
             raise HTTPException(status_code=400, detail=f"File not found: {request.file_path}")
         
         # 音声認識実行
-        result = nlp_models.transcribe_audio(request.file_path, request.language)
+        result = transcribe_audio(request.file_path, request.language)
         
         # DBに保存
         db: Session = SessionLocal()
@@ -115,7 +107,7 @@ async def process_speaker_diarization(request: JobRequest):
             raise HTTPException(status_code=400, detail=f"File not found: {request.file_path}")
         
         # 話者分離実行
-        result = nlp_models.diarize_speakers(request.file_path)
+        result = diarize_audio(request.file_path)
         
         # DBに保存
         db: Session = SessionLocal()
@@ -132,6 +124,8 @@ async def process_speaker_diarization(request: JobRequest):
             db.commit()
         finally:
             db.close()
+        
+        print(result)
         
         return SpeakerDiarizationResponse(
             success=True,
