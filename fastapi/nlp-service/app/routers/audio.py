@@ -14,14 +14,12 @@ router = APIRouter()
 @router.post("/update-cookie")
 async def update_cookie(text_content: str = Body(..., media_type="text/plain")):
     """
-    POSTされた平文をstorage/cookie.txtに完全に上書きして反映するAPI
+    POSTされた平文を/storage/cookies.txtに完全に上書きして反映するAPI
     """
     try:
         content = text_content.encode('utf-8')
-        cookie_file_path = "/storage/cookies.txt"
+        cookie_file_path = "storage/cookies.txt"
         
-        
-
         with open(cookie_file_path, "wb") as f:
             f.write(content)
         return {"message": "Cookie file updated successfully."}
@@ -40,6 +38,7 @@ class AudioResponse(BaseModel):
     message: str
     speech_recognition_job_id: Union[str, List[str], None] = None
     speaker_diarization_job_id: Union[str, List[str], None] = None
+    sentence_generation_job_id: Union[str, List[str], None] = None
 
 @router.post("/extract-audio", response_model=AudioResponse)
 async def register_url(request: UrlRequest):
@@ -61,6 +60,7 @@ async def register_url(request: UrlRequest):
             speech_job_ids = []
             speaker_job_ids = []
             
+            sentence_job_ids = []
             if request.start_bg_tasks:
                 for file_path in file_paths:
                     # Speech recognition job
@@ -80,20 +80,30 @@ async def register_url(request: UrlRequest):
                     )
                     job_manager.start_job(speaker_job_id)
                     speaker_job_ids.append(speaker_job_id)
+                
+                # Sentence generation job (will be triggered automatically after speech+diarization complete)
+                sentence_job_id = job_manager.create_job(
+                    JobType.SENTENCE_GENERATION, 
+                    "", 
+                    request.round_id
+                )
+                sentence_job_ids.append(sentence_job_id)
             
             return AudioResponse(
                 success=True,
                 file_path=file_paths,
                 message=f"Successfully extracted {len(file_paths)} audio files from playlist",
                 speech_recognition_job_id=speech_job_ids if speech_job_ids else None,
-                speaker_diarization_job_id=speaker_job_ids if speaker_job_ids else None
+                speaker_diarization_job_id=speaker_job_ids if speaker_job_ids else None,
+                sentence_generation_job_id=sentence_job_ids if sentence_job_ids else None
             )
         else:
             file_path = extract_audio_from_youtube(url_str)
             
             speech_job_id = None
             speaker_job_id = None
-            
+            sentence_job_id = None
+            print()
             if request.start_bg_tasks:
                 # Speech recognition job
                 speech_job_id = job_manager.create_job(
@@ -110,13 +120,21 @@ async def register_url(request: UrlRequest):
                     request.round_id
                 )
                 job_manager.start_job(speaker_job_id)
+                
+                # Sentence generation job (will be triggered automatically after speech+diarization complete)
+                sentence_job_id = job_manager.create_job(
+                    JobType.SENTENCE_GENERATION, 
+                    "", 
+                    request.round_id
+                )
             
             return AudioResponse(
                 success=True,
                 file_path=file_path,
                 message="Successfully extracted audio file",
                 speech_recognition_job_id=speech_job_id,
-                speaker_diarization_job_id=speaker_job_id
+                speaker_diarization_job_id=speaker_job_id,
+                sentence_generation_job_id=sentence_job_id
             )
             
     except Exception as e:

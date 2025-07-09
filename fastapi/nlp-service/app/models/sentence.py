@@ -8,6 +8,7 @@ class Sentence(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     round_id = Column(Integer, nullable=False)
+    audio_filename = Column(String(255), nullable=False)
     start = Column(Float)
     end = Column(Float)
     speaker = Column(String(50), nullable=False)

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 import uuid
 
-def extract_audio_from_youtube(youtube_url: str, output_dir: str = "/storage") -> str:
+def extract_audio_from_youtube(youtube_url: str, output_dir: str = "storage") -> str:
     """
     YouTubeのURLから音声ファイルを抽出して保存する
     
@@ -28,7 +28,7 @@ def extract_audio_from_youtube(youtube_url: str, output_dir: str = "/storage") -
         "yt-dlp",
         "-x",
         "--audio-format", "wav",
-        "--cookies", "/storage/cookies.txt",
+        "--cookies", "storage/cookies.txt",
         "-o", output_template,
         youtube_url
     ]
@@ -52,7 +52,7 @@ def extract_audio_from_youtube(youtube_url: str, output_dir: str = "/storage") -
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to extract audio: {e.stderr}")
 
-def extract_audio_from_playlist(playlist_url: str, output_dir: str = "/storage") -> list[str]:
+def extract_audio_from_playlist(playlist_url: str, output_dir: str = "storage") -> list[str]:
     """
     YouTubeプレイリストのURLから音声ファイルを抽出して保存する
     
@@ -79,7 +79,7 @@ def extract_audio_from_playlist(playlist_url: str, output_dir: str = "/storage")
         "yt-dlp",
         "-x",
         "--audio-format", "wav",
-        "--cookies", "/storage/cookies.txt",
+        "--cookies", "storage/cookies.txt",
         "-o", output_template,
         playlist_url
     ]

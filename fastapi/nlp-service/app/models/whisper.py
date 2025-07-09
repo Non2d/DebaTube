@@ -2,6 +2,7 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 from transformers.pipelines import pipeline as transformers_pipeline
 from sqlalchemy import Column, Integer, Text, DateTime, Float
+from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
 from datetime import datetime
 
@@ -68,13 +69,14 @@ def transcribe_audio(input_path="src/audio.wav", language="english") -> list: # 
 
 class SpeechRecognition(Base):
     __tablename__ = 'speech_recognition'
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    round_id = Column(Integer, nullable=False)
-    start = Column(Float)
-    end = Column(Float)
-    text = Column(Text, nullable=False)
-    created_at = Column(DateTime)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    round_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    audio_filename: Mapped[str] = mapped_column(Text, nullable=False)
+    start: Mapped[float] = mapped_column(Float)
+    end: Mapped[float] = mapped_column(Float)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
 
 if __name__ == "__main__":
     transcribe_audio()

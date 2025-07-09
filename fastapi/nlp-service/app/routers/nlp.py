@@ -17,7 +17,7 @@ from datetime import datetime
 router = APIRouter()
 
 class JobRequest(BaseModel):
-    file_path: str = Field(..., example="storage2/audio.wav")
+    file_path: str = Field(..., example="storage/audio.wav")
     round_id: int = Field(..., example=1)
     language: str = Field(default="english", example="english")
 
@@ -68,9 +68,11 @@ async def process_speech_recognition(request: JobRequest):
         # DBに保存
         db: Session = SessionLocal()
         try:
+            audio_filename = os.path.basename(request.file_path)
             for item in result:
                 speech_record = SpeechRecognition(
                     round_id=request.round_id,
+                    audio_filename=audio_filename,
                     start=item["start"],
                     end=item["end"],
                     text=item["text"],
@@ -120,9 +122,11 @@ async def process_speaker_diarization(request: JobRequest):
             # テーブル存在確認
             print(f"SpeakerDiarization table name: {SpeakerDiarization.__tablename__}")
             
+            audio_filename = os.path.basename(request.file_path)
             for item in result:
                 speaker_record = SpeakerDiarization(
                     round_id=request.round_id,
+                    audio_filename=audio_filename,
                     start=item["start"],
                     end=item["end"],
                     speaker=item["speaker"],
@@ -202,3 +206,35 @@ async def retry_job(job_id: str):
         status="processing",
         message="Job retry started"
     )
+
+@router.post("/api/v1/trigger-sentence-generation/{audio_filename}")
+async def trigger_sentence_generation(audio_filename: str):
+    """手動でsentence生成をトリガー"""
+    try:
+        success, message = job_manager.trigger_sentence_generation_for_audio(audio_filename)
+        
+        if success:
+            return {"status": "success", "message": message}
+        else:
+            # 400 Bad Requestで適切なエラーメッセージを返す
+            raise HTTPException(status_code=400, detail=message)
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/sentence-generation-status/{audio_filename}")
+async def get_sentence_generation_status(audio_filename: str):
+    """
+    特定のオーディオファイルのsentence生成状態を確認
+    
+    Args:
+        audio_filename: オーディオファイル名
+    
+    Returns:
+        dict: 状態情報
+    """
+    try:
+        status = job_manager.check_sentence_generation_readiness(audio_filename)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

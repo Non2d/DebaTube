@@ -36,13 +36,17 @@ def diarize_audio(input_path="src/audio.wav") -> list[dict[str, float | str]]:
         diarization = pipeline(input_path)
         
         response = []
+        print(f"Starting diarization for {input_path}")
         for turn, _, speaker in diarization.itertracks(yield_label=True):
+            print(f"Found speaker: {speaker}, start: {turn.start}, end: {turn.end}")
             response.append({
                 "start": round(turn.start, 2),
                 "end": round(turn.end, 2),
                 "speaker": speaker
             })
         
+        print(f"Diarization completed. Found {len(response)} segments")
+        print(f"Final response: {response}")
         return response
         
     except Exception as e:
@@ -54,6 +58,7 @@ class SpeakerDiarization(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     round_id = Column(Integer, nullable=False)
+    audio_filename = Column(String(255), nullable=False)
     start = Column(Float)
     end = Column(Float)
     speaker = Column(String(50), nullable=False)
