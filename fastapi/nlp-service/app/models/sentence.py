@@ -186,6 +186,10 @@ def create_sentences_from_words_and_speakers(words_data, speaker_data):
         sentence_end_time = sentence_words['end'].iloc[-1]
         sentence_speaker = sentence_words['speaker'].iloc[0]
         
+        # speaker が None の場合はデフォルト値を設定
+        if sentence_speaker is None:
+            sentence_speaker = "UNKNOWN"
+        
         sentences.append({
             'speaker': sentence_speaker,
             'start': sentence_start_time,
