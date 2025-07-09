@@ -65,28 +65,14 @@ async def process_speech_recognition(request: JobRequest):
         # 音声認識実行
         result = transcribe_audio(request.file_path, request.language)
         
-        # DBに保存
-        db: Session = SessionLocal()
+        # DBに保存 - job_managerの関数を使用
+        audio_filename = os.path.basename(request.file_path)
         try:
-            audio_filename = os.path.basename(request.file_path)
-            for item in result:
-                speech_record = SpeechRecognition(
-                    round_id=request.round_id,
-                    audio_filename=audio_filename,
-                    start=item["start"],
-                    end=item["end"],
-                    text=item["text"],
-                    created_at=datetime.now()
-                )
-                db.add(speech_record)
-            db.commit()
+            job_manager._save_speech_recognition_to_db(result, request.round_id, audio_filename)
             print(f"Saved {len(result)} speech recognition records to database")
         except Exception as e:
-            db.rollback()
             print(f"Database save error: {e}")
             raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
-        finally:
-            db.close()
         
         return SpeechRecognitionResponse(
             success=True,
@@ -116,38 +102,14 @@ async def process_speaker_diarization(request: JobRequest):
         # 話者分離実行
         result = diarize_audio(request.file_path)
         
-        # DBに保存
-        db: Session = SessionLocal()
+        # DBに保存 - job_managerの関数を使用
+        audio_filename = os.path.basename(request.file_path)
         try:
-            # テーブル存在確認
-            print(f"SpeakerDiarization table name: {SpeakerDiarization.__tablename__}")
-            
-            audio_filename = os.path.basename(request.file_path)
-            for item in result:
-                speaker_record = SpeakerDiarization(
-                    round_id=request.round_id,
-                    audio_filename=audio_filename,
-                    start=item["start"],
-                    end=item["end"],
-                    speaker=item["speaker"],
-                    created_at=datetime.now()
-                )
-                db.add(speaker_record)
-                print(f"Added record: {speaker_record.start}-{speaker_record.end} {speaker_record.speaker}")
-            
-            db.commit()
+            job_manager._save_speaker_diarization_to_db(result, request.round_id, audio_filename)
             print(f"Saved {len(result)} speaker diarization records to database")
-            
-            # 確認のためレコード数をチェック
-            count = db.query(SpeakerDiarization).filter(SpeakerDiarization.round_id == request.round_id).count()
-            print(f"Total records for round_id {request.round_id}: {count}")
-            
         except Exception as e:
-            db.rollback()
             print(f"Database save error: {e}")
             raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
-        finally:
-            db.close()
         
         print(result)
         

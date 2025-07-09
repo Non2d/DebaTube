@@ -17,7 +17,7 @@ class Sentence(Base):
 
 def assign_speakers_to_words(words, speaker):
     """
-    話者分離データを単語データに紐づける関数。
+    話者分離データを単語データに紐づける関数。TODO: Noneのまま返ってしまうことがある
     """
     words['speaker'] = None
     words = words.sort_values(by='start').reset_index(drop=True)
