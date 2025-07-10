@@ -101,10 +101,20 @@ class JobManager:
             job.status = JobStatus.COMPLETED
             job.completed_at = datetime.now()
             
-            # ジョブ完了ログを出力
+            # ジョブ完了ログを出力と自動sentence generation
             if job.job_type in [JobType.SPEECH_RECOGNITION, JobType.SPEAKER_DIARIZATION]:
                 print(f"Job completed: {job.job_type.value} for {job.audio_filename}")
-                print(f"Manual sentence generation can now be triggered for {job.audio_filename}")
+                
+                # speech recognitionとspeaker diarizationが両方完了したかチェック
+                if self._check_prerequisites_for_sentence_generation(job.audio_filename, job.round_id):
+                    print(f"Prerequisites met. Auto-triggering sentence generation for {job.audio_filename}")
+                    success, message = self.trigger_sentence_generation_for_audio(job.audio_filename)
+                    if success:
+                        print(f"Auto sentence generation started: {message}")
+                    else:
+                        print(f"Auto sentence generation failed: {message}")
+                else:
+                    print(f"Waiting for other prerequisites for {job.audio_filename}")
             
         except Exception as e:
             print(f"Job {job.job_id} failed with error: {str(e)}")
@@ -330,6 +340,50 @@ class JobManager:
                 "error": str(e),
                 "ready_for_generation": False
             }
+    
+    def _check_prerequisites_for_sentence_generation(self, audio_filename: str, round_id: int) -> bool:
+        """
+        sentence generation実行の前提条件をチェック
+        - speech recognitionデータが存在する
+        - speaker diarizationデータが存在する
+        - sentence generationがまだ実行されていない
+        """
+        try:
+            db: Session = SessionLocal()
+            try:
+                # 音声認識データの存在確認
+                speech_count = db.query(SpeechRecognition).filter(
+                    SpeechRecognition.audio_filename == audio_filename
+                ).count()
+                
+                # 話者分離データの存在確認
+                speaker_count = db.query(SpeakerDiarization).filter(
+                    SpeakerDiarization.audio_filename == audio_filename
+                ).count()
+                
+                # 既存のsentenceデータの存在確認
+                sentence_count = db.query(Sentence).filter(
+                    Sentence.audio_filename == audio_filename
+                ).count()
+                
+                # sentence generationジョブの実行中かチェック
+                sentence_job_running = any(
+                    job.audio_filename == audio_filename and 
+                    job.job_type == JobType.SENTENCE_GENERATION and
+                    job.status in [JobStatus.PENDING, JobStatus.PROCESSING]
+                    for job in self.jobs.values()
+                )
+                
+                # 前提条件: speech + speaker データがあり、sentence データが無く、ジョブも実行中でない
+                return (speech_count > 0 and speaker_count > 0 and 
+                       sentence_count == 0 and not sentence_job_running)
+                
+            finally:
+                db.close()
+                
+        except Exception as e:
+            print(f"Error checking prerequisites for {audio_filename}: {str(e)}")
+            return False
     
     def _get_status_message(self, speech_count: int, speaker_count: int, sentence_count: int, sentence_job_exists: bool, sentence_job_status: str) -> str:
         """状態メッセージを生成"""

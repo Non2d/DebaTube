@@ -70,6 +70,16 @@ async def process_speech_recognition(request: JobRequest):
         try:
             job_manager._save_speech_recognition_to_db(result, request.round_id, audio_filename)
             print(f"Saved {len(result)} speech recognition records to database")
+            
+            # 自動sentence generation チェック
+            if job_manager._check_prerequisites_for_sentence_generation(audio_filename, request.round_id):
+                print(f"Prerequisites met. Auto-triggering sentence generation for {audio_filename}")
+                success, message = job_manager.trigger_sentence_generation_for_audio(audio_filename)
+                if success:
+                    print(f"Auto sentence generation started: {message}")
+                else:
+                    print(f"Auto sentence generation failed: {message}")
+                    
         except Exception as e:
             print(f"Database save error: {e}")
             raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
@@ -107,6 +117,16 @@ async def process_speaker_diarization(request: JobRequest):
         try:
             job_manager._save_speaker_diarization_to_db(result, request.round_id, audio_filename)
             print(f"Saved {len(result)} speaker diarization records to database")
+            
+            # 自動sentence generation チェック
+            if job_manager._check_prerequisites_for_sentence_generation(audio_filename, request.round_id):
+                print(f"Prerequisites met. Auto-triggering sentence generation for {audio_filename}")
+                success, message = job_manager.trigger_sentence_generation_for_audio(audio_filename)
+                if success:
+                    print(f"Auto sentence generation started: {message}")
+                else:
+                    print(f"Auto sentence generation failed: {message}")
+                    
         except Exception as e:
             print(f"Database save error: {e}")
             raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")

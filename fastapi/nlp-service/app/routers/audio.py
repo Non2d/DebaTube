@@ -81,13 +81,8 @@ async def register_url(request: UrlRequest):
                     job_manager.start_job(speaker_job_id)
                     speaker_job_ids.append(speaker_job_id)
                 
-                # Sentence generation job (will be triggered automatically after speech+diarization complete)
-                sentence_job_id = job_manager.create_job(
-                    JobType.SENTENCE_GENERATION, 
-                    "", 
-                    request.round_id
-                )
-                sentence_job_ids.append(sentence_job_id)
+                # Sentence generation will be triggered automatically after speech+diarization complete
+                sentence_job_ids = None
             
             return AudioResponse(
                 success=True,
@@ -121,12 +116,8 @@ async def register_url(request: UrlRequest):
                 )
                 job_manager.start_job(speaker_job_id)
                 
-                # Sentence generation job (will be triggered automatically after speech+diarization complete)
-                sentence_job_id = job_manager.create_job(
-                    JobType.SENTENCE_GENERATION, 
-                    "", 
-                    request.round_id
-                )
+                # Sentence generation will be triggered automatically after speech+diarization complete
+                sentence_job_id = None
             
             return AudioResponse(
                 success=True,
