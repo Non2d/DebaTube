@@ -2,9 +2,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Literal
 from models.whisper import transcribe_audio
 from models.pyannote import diarize_audio
 from models.whisper import SpeechRecognition
@@ -45,6 +45,11 @@ class JobStatusResponse(BaseModel):
     completed_at: Optional[datetime]
     error_message: Optional[str]
     result: Optional[Any]
+
+class JobRetryRequest(BaseModel):
+    query_type: Literal["job_id", "audio_filename"] = Field(default="audio_filename", example="audio_filename")
+    job_id: Optional[str] = Field(None, example="abc123")
+    audio_filename: Optional[str] = Field(None, example="audio.wav")
 
 @router.post("/trigger-speech-recognition", response_model=SpeechRecognitionResponse, tags=["Manual Triggers"])
 async def process_speech_recognition(request: JobRequest):
@@ -157,8 +162,7 @@ async def trigger_sentence_generation(request: JobRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/jobs/{job_id}", response_model=JobStatusResponse, tags=["Job Control"])
-async def get_job_status(job_id: str):
+
     """
     ジョブの状態を取得
     
@@ -183,40 +187,92 @@ async def get_job_status(job_id: str):
         result=job.result
     )
 
-@router.post("/jobs/{job_id}/retry", response_model=JobResponse, tags=["Job Control"])
-async def retry_job(job_id: str):
+@router.post("/jobs/retry", tags=["Job Control"])
+async def retry_jobs(request: JobRetryRequest):
     """
-    失敗したジョブをリトライ
+    ジョブをリトライ（job_idまたはaudio_filename）
     
     Args:
-        job_id: ジョブID
+        request: 検索条件を含むリクエスト
     
     Returns:
-        JobResponse: リトライ結果
-    """
-    success = job_manager.retry_job(job_id)
-    if not success:
-        raise HTTPException(status_code=400, detail="Job cannot be retried")
-    
-    return JobResponse(
-        job_id=job_id,
-        status="processing",
-        message="Job retry started"
-    )
-
-@router.get("/jobs-by-audio/{audio_filename}", tags=["Job Control"])
-async def get_jobs_by_audio_filename(audio_filename: str):
-    """
-    音声ファイル名でjob_idを取得
-    
-    Args:
-        audio_filename: オーディオファイル名
-    
-    Returns:
-        dict: job_id一覧
+        JobResponse or dict: リトライ結果
     """
     try:
-        jobs = job_manager.get_jobs_by_audio_filename(audio_filename)
-        return {"audio_filename": audio_filename, "jobs": jobs}
+        if request.audio_filename:
+            jobs = job_manager.get_jobs_by_audio_filename(request.audio_filename)
+            retry_results = []
+            
+            for job_info in jobs:
+                job_id = job_info["job_id"]
+                success = job_manager.retry_job(job_id)
+                retry_results.append({
+                    "job_id": job_id,
+                    "retry_success": success,
+                    "message": "Job retry started" if success else "Job cannot be retried"
+                })
+            
+            return {"audio_filename": request.audio_filename, "retry_results": retry_results}
+        
+        elif request.job_id:
+            success = job_manager.retry_job(request.job_id)
+            if not success:
+                raise HTTPException(status_code=400, detail="Job cannot be retried")
+            
+            return JobResponse(
+                job_id=request.job_id,
+                status="processing",
+                message="Job retry started"
+            )
+        
+        else:
+            raise HTTPException(status_code=400, detail="Either job_id or audio_filename is required")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/jobs", tags=["Job Control"])
+async def query_jobs(
+    job_id: Optional[str] = Query(None, description="ジョブID"),
+    audio_filename: Optional[str] = Query(None, description="音声ファイル名")
+):
+    """
+    ジョブを検索（クエリパラメータ使用）
+    
+    Args:
+        job_id: ジョブID（オプション）
+        audio_filename: 音声ファイル名（オプション）
+    
+    Returns:
+        JobStatusResponse or dict: ジョブ情報
+    """
+    try:
+        if audio_filename:
+            jobs = job_manager.get_jobs_by_audio_filename(audio_filename)
+            return {"audio_filename": audio_filename, "jobs": jobs}
+        
+        elif job_id:
+            job = job_manager.get_job(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+            
+            return JobStatusResponse(
+                job_id=job.job_id,
+                status=job.status.value,
+                progress=job.progress,
+                created_at=job.created_at,
+                started_at=job.started_at,
+                completed_at=job.completed_at,
+                error_message=job.error_message,
+                result=job.result
+            )
+        
+        else:
+            raise HTTPException(status_code=400, detail="Either job_id or audio_filename is required")
+    
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
