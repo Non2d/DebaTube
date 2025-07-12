@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 import uuid
+import shutil
 
 def extract_audio_from_youtube(youtube_url: str, output_dir: str = "storage") -> str:
     """
@@ -103,3 +104,37 @@ def extract_audio_from_playlist(playlist_url: str, output_dir: str = "storage") 
         
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to extract audio from playlist: {e.stderr}")
+
+def save_uploaded_audio(file_content: bytes, original_filename: str, output_dir: str = "storage") -> str:
+    """
+    アップロードされた音声ファイルを保存する
+    
+    Args:
+        file_content: ファイルの内容（バイト）
+        original_filename: 元のファイル名
+        output_dir: 保存先ディレクトリ
+    
+    Returns:
+        str: 保存されたファイルのパス
+    
+    Raises:
+        Exception: ファイル保存に失敗した場合
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # 元のファイルの拡張子を取得
+    file_extension = Path(original_filename).suffix
+    if not file_extension:
+        file_extension = ".wav"  # デフォルト拡張子
+    
+    # ユニークなファイル名を生成
+    file_id = str(uuid.uuid4())
+    file_path = os.path.join(output_dir, f"{file_id}{file_extension}")
+    
+    try:
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+        
+        return file_path
+    except Exception as e:
+        raise Exception(f"Failed to save uploaded audio file: {str(e)}")

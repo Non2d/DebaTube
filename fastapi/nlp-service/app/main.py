@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from routers import audio, nlp
-import uvicorn
 from migrate import restart_database, wait_for_db_connection
 
 @asynccontextmanager
@@ -21,5 +20,4 @@ app.include_router(nlp.router)
 def read_root():
     return {"message": "NLP Service is running"}
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=7791, reload=True)
+# Run by: uvicorn main:app --host 0.0.0.0 --port 7791 --reload

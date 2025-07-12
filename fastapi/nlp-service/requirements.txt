@@ -14,3 +14,4 @@ yt-dlp
 transformers
 pyannote.audio
 ffmpeg-python
+python-multipart
