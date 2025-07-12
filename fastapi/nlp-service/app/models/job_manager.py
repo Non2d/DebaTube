@@ -397,6 +397,24 @@ class JobManager:
             return "Missing speaker diarization data"
         else:
             return "Ready for sentence generation"
+    
+    def get_jobs_by_audio_filename(self, audio_filename: str) -> list:
+        """指定された音声ファイル名に関連するすべてのジョブを取得"""
+        with self.lock:
+            matching_jobs = []
+            for job in self.jobs.values():
+                if job.audio_filename == audio_filename:
+                    matching_jobs.append({
+                        "job_id": job.job_id,
+                        "job_type": job.job_type.value,
+                        "status": job.status.value,
+                        "progress": job.progress,
+                        "created_at": job.created_at,
+                        "started_at": job.started_at,
+                        "completed_at": job.completed_at,
+                        "error_message": job.error_message
+                    })
+            return matching_jobs
 
 # グローバルインスタンス
 job_manager = JobManager()

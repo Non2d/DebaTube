@@ -220,3 +220,20 @@ async def get_sentence_generation_status(audio_filename: str):
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/jobs-by-audio/{audio_filename}")
+async def get_jobs_by_audio_filename(audio_filename: str):
+    """
+    音声ファイル名でjob_idを取得
+    
+    Args:
+        audio_filename: オーディオファイル名
+    
+    Returns:
+        dict: job_id一覧
+    """
+    try:
+        jobs = job_manager.get_jobs_by_audio_filename(audio_filename)
+        return {"audio_filename": audio_filename, "jobs": jobs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
