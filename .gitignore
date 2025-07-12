@@ -1,5 +1,8 @@
 data
+.venv
 .env
+.win_venv
 .vscode
 .DS_Store
 .claude
+storage

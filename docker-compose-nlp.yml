@@ -1,17 +1,6 @@
 version: '3.8'
 
 services:
-  nlp_app:
-    build:
-      context: ./fastapi/nlp-service
-      dockerfile: Dockerfile
-    ports:
-      - "7791:8080"
-    depends_on:
-      - nlp_db
-    volumes:
-      - ./fastapi/nlp-service/app:/app
-
   nlp_db:
     image: mysql:8.0
     env_file:
@@ -26,14 +15,15 @@ services:
     volumes:
       - nlp_base:/var/lib/mysql
 
-  adminer:
-    image: adminer
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
     ports:
-      - "7792:8080"
+      - "7792:80"
+    environment:
+      PMA_HOST: nlp_db
+      PMA_PORT: 3306
     depends_on:
       - nlp_db
-    environment:
-      ADMINER_DESIGN: galkaev
 
 volumes:
   nlp_base:
