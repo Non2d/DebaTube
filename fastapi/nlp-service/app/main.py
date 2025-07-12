@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from routers import sentences, audio, nlp
+from routers import audio, nlp
 import uvicorn
 from migrate import restart_database, wait_for_db_connection
 
@@ -14,13 +14,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NLP Service", version="1.0.0", lifespan=lifespan)
 
-# app.include_router(sentences.router, prefix="/api/v1")
-app.include_router(audio.router, prefix="/api/v1")
-app.include_router(nlp.router, prefix="/api/v1")
+app.include_router(audio.router)
+app.include_router(nlp.router)
 
-@app.get("/")
+@app.get("/", tags=["Other"])
 def read_root():
     return {"message": "NLP Service is running"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7791)
+    uvicorn.run("main:app", host="0.0.0.0", port=7791, reload=True)

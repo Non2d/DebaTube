@@ -46,7 +46,7 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str]
     result: Optional[Any]
 
-@router.post("/speech-recognition", response_model=SpeechRecognitionResponse)
+@router.post("/trigger-speech-recognition", response_model=SpeechRecognitionResponse, tags=["Manual Triggers"])
 async def process_speech_recognition(request: JobRequest):
     """
     音声認識を実行してDBに保存し、結果を返す
@@ -93,7 +93,7 @@ async def process_speech_recognition(request: JobRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process speech recognition: {str(e)}")
 
-@router.post("/speaker-diarization", response_model=SpeakerDiarizationResponse)
+@router.post("/trigger-speaker-diarization", response_model=SpeakerDiarizationResponse, tags=["Manual Triggers"])
 async def process_speaker_diarization(request: JobRequest):
     """
     話者分離を実行してDBに保存し、結果を返す
@@ -142,7 +142,22 @@ async def process_speaker_diarization(request: JobRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process speaker diarization: {str(e)}")
 
-@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+@router.post("/trigger-sentence-generation", tags=["Manual Triggers"])
+async def trigger_sentence_generation(request: JobRequest):
+    """手動でsentence生成をトリガー"""
+    try:
+        success, message = job_manager.trigger_sentence_generation_for_audio(request.file_path)
+        
+        if success:
+            return {"status": "success", "message": message}
+        else:
+            # 400 Bad Requestで適切なエラーメッセージを返す
+            raise HTTPException(status_code=400, detail=message)
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse, tags=["Job Control"])
 async def get_job_status(job_id: str):
     """
     ジョブの状態を取得
@@ -168,7 +183,7 @@ async def get_job_status(job_id: str):
         result=job.result
     )
 
-@router.post("/jobs/{job_id}/retry", response_model=JobResponse)
+@router.post("/jobs/{job_id}/retry", response_model=JobResponse, tags=["Job Control"])
 async def retry_job(job_id: str):
     """
     失敗したジョブをリトライ
@@ -189,39 +204,7 @@ async def retry_job(job_id: str):
         message="Job retry started"
     )
 
-@router.post("/api/v1/trigger-sentence-generation/{audio_filename}")
-async def trigger_sentence_generation(audio_filename: str):
-    """手動でsentence生成をトリガー"""
-    try:
-        success, message = job_manager.trigger_sentence_generation_for_audio(audio_filename)
-        
-        if success:
-            return {"status": "success", "message": message}
-        else:
-            # 400 Bad Requestで適切なエラーメッセージを返す
-            raise HTTPException(status_code=400, detail=message)
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.get("/sentence-generation-status/{audio_filename}")
-async def get_sentence_generation_status(audio_filename: str):
-    """
-    特定のオーディオファイルのsentence生成状態を確認
-    
-    Args:
-        audio_filename: オーディオファイル名
-    
-    Returns:
-        dict: 状態情報
-    """
-    try:
-        status = job_manager.check_sentence_generation_readiness(audio_filename)
-        return status
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-@router.get("/jobs-by-audio/{audio_filename}")
+@router.get("/jobs-by-audio/{audio_filename}", tags=["Job Control"])
 async def get_jobs_by_audio_filename(audio_filename: str):
     """
     音声ファイル名でjob_idを取得

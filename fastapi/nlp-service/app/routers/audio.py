@@ -11,7 +11,7 @@ from models.job_manager import job_manager, JobType
 
 router = APIRouter()
 
-@router.post("/update-cookie")
+@router.post("/update-cookie", tags=["Other"])
 async def update_cookie(text_content: str = Body(..., media_type="text/plain")):
     """
     POSTされた平文を/storage/cookies.txtに完全に上書きして反映するAPI
@@ -39,7 +39,7 @@ class AudioResponse(BaseModel):
     speech_recognition_job_id: Union[str, List[str], None] = None
     speaker_diarization_job_id: Union[str, List[str], None] = None
 
-@router.post("/extract-audio", response_model=AudioResponse)
+@router.post("/extract-audio", response_model=AudioResponse, tags=["Task"])
 async def register_url(request: UrlRequest):
     """
     YouTubeのURLから音声ファイルを抽出して/storage以下に保存する
