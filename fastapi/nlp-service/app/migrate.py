@@ -41,7 +41,7 @@ def restart_database():
     print(f"Models loaded: {[model.__tablename__ for model in models]}")
     print(f"Registered tables: {list(Base.metadata.tables.keys())}")
     
-    Base.metadata.drop_all(bind=engine)
+    # Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     
     print("Database tables created successfully")
@@ -50,4 +50,4 @@ if __name__ == "__main__":
     if wait_for_db_connection():
         restart_database()
     else:
-        print("Exiting due to NLP database connection failure.")
+        print("Exiting due to database connection failure.")

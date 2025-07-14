@@ -51,7 +51,6 @@ class JobRetryRequest(BaseModel):
     job_id: Optional[str] = Field(None, example="abc123")
     audio_filename: Optional[str] = Field(None, example="audio.wav")
 
-# FastAPIのルーターに追加する修正版
 @router.post("/trigger-speech-recognition", response_model=SpeechRecognitionResponse, tags=["Manual Triggers"])
 async def process_speech_recognition(request: JobRequest):
     """
@@ -70,18 +69,6 @@ async def process_speech_recognition(request: JobRequest):
         
         # 音声認識実行
         result = transcribe_audio(request.file_path, request.language)
-        
-        # メモリクリーンアップ（定期的に実行）
-        # 例：10リクエストごとにクリーンアップ
-        if hasattr(process_speech_recognition, 'call_count'):
-            process_speech_recognition.call_count += 1
-        else:
-            process_speech_recognition.call_count = 1
-            
-        if process_speech_recognition.call_count % 10 == 0:
-            cleanup_model()
-            # モデルを再ロード
-            get_model_and_processor()
         
         # DBに保存 - job_managerの関数を使用
         audio_filename = os.path.basename(request.file_path)
@@ -110,6 +97,7 @@ async def process_speech_recognition(request: JobRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process speech recognition: {str(e)}")
+
 @router.post("/trigger-speaker-diarization", response_model=SpeakerDiarizationResponse, tags=["Manual Triggers"])
 async def process_speaker_diarization(request: JobRequest):
     """

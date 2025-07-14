@@ -17,16 +17,15 @@ def get_pipe():
     if _pipeline is None:
         print("Loading Whisper model...")
         model_id = "openai/whisper-large-v3-turbo"
-        device = "cuda:0"
         torch_dtype = torch.float16
         
         model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id, 
             torch_dtype=torch_dtype,
             low_cpu_mem_usage=True, 
-            use_safetensors=True
+            use_safetensors=True,
+            device_map="cuda:0"
         )
-        model.to(device)
         
         processor = AutoProcessor.from_pretrained(model_id)
         
@@ -37,11 +36,9 @@ def get_pipe():
             feature_extractor=processor.feature_extractor,
             max_new_tokens=256,
             chunk_length_s=30,
-            stride_length_s=5,
             batch_size=16,
             return_timestamps="word",
             torch_dtype=torch_dtype,
-            device=device,
         )
         print("Model loaded successfully!")
     
