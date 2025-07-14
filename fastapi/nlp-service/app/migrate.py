@@ -19,7 +19,7 @@ MYSQL_HOST = "localhost:3307"
 MYSQL_DATABASE = "nlp"
 
 DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
-engine = create_engine(DB_URL, echo=True)
+engine = create_engine(DB_URL, echo=False)
 Session = sessionmaker(bind=engine)
 
 def wait_for_db_connection(max_retries=5, wait_interval=5):

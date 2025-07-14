@@ -1,5 +1,6 @@
 import uuid
 import asyncio
+import os
 from typing import Dict, Optional, Any
 from enum import Enum
 from datetime import datetime
@@ -230,26 +231,33 @@ class JobManager:
         """sentence生成とDB保存"""
         db: Session = SessionLocal()
         try:
-            # 音声認識結果を取得
+            # ベースファイル名を取得（拡張子なし）
+            base_filename = os.path.splitext(audio_filename)[0]
+            mp3_filename = f"{base_filename}.mp3"
+            wav_filename = f"{base_filename}.wav"
+            
+            # 音声認識結果を取得（mp3ファイル）
             speech_data = db.query(SpeechRecognition).filter(
-                SpeechRecognition.audio_filename == audio_filename
+                SpeechRecognition.audio_filename == mp3_filename
             ).order_by(SpeechRecognition.start).all()
             
-            # 話者分離結果を取得
+            # 話者分離結果を取得（wavファイル）
             speaker_data = db.query(SpeakerDiarization).filter(
-                SpeakerDiarization.audio_filename == audio_filename
+                SpeakerDiarization.audio_filename == wav_filename
             ).order_by(SpeakerDiarization.start).all()
             
             if not speech_data or not speaker_data:
-                raise Exception(f"Speech recognition or speaker diarization data not found for audio_filename {audio_filename}")
+                raise Exception(f"Speech recognition or speaker diarization data not found for base_filename {base_filename}")
             
             sentences = create_sentences_from_words_and_speakers(speech_data, speaker_data)
-            db.query(Sentence).filter(Sentence.audio_filename == audio_filename).delete()
+            
+            # 既存のsentenceを削除（mp3ファイル名で）
+            db.query(Sentence).filter(Sentence.audio_filename == mp3_filename).delete()
             
             for sentence in sentences:
                 sentence_record = Sentence(
                     round_id=round_id,
-                    audio_filename=audio_filename,
+                    audio_filename=mp3_filename,  # mp3ファイル名で保存
                     start=sentence["start"],
                     end=sentence["end"],
                     speaker=sentence["speaker"],
@@ -259,7 +267,7 @@ class JobManager:
                 db.add(sentence_record)
             
             db.commit()
-            print(f"Successfully generated and saved {len(sentences)} sentences for audio_filename {audio_filename}")
+            print(f"Successfully generated and saved {len(sentences)} sentences for base_filename {base_filename}")
         finally:
             db.close()
     
@@ -269,43 +277,55 @@ class JobManager:
         try:
             db: Session = SessionLocal()
             try:
+                # ベースファイル名を取得（拡張子なし）
+                base_filename = os.path.splitext(audio_filename)[0]
+                mp3_filename = f"{base_filename}.mp3"
+                wav_filename = f"{base_filename}.wav"
+                
+                # speech recognitionデータをチェック（mp3ファイル）
                 speech_count = db.query(SpeechRecognition).filter(
-                    SpeechRecognition.audio_filename == audio_filename
+                    SpeechRecognition.audio_filename == mp3_filename
                 ).count()
+                
+                # speaker diarizationデータをチェック（wavファイル）
                 speaker_count = db.query(SpeakerDiarization).filter(
-                    SpeakerDiarization.audio_filename == audio_filename
+                    SpeakerDiarization.audio_filename == wav_filename
                 ).count()
-                print(f"Data check for {audio_filename}: Speech records: {speech_count}, Speaker records: {speaker_count}")
+                
+                print(f"Data check for {base_filename}: Speech records: {speech_count}, Speaker records: {speaker_count}")
                 
                 if speech_count == 0 or speaker_count == 0:
-                    error_msg = f"Missing data for {audio_filename}. Speech: {speech_count > 0}, Speaker: {speaker_count > 0}"
+                    error_msg = f"Missing data for {base_filename}. Speech: {speech_count > 0}, Speaker: {speaker_count > 0}"
                     print(error_msg)
                     return False, error_msg
 
+                # sentence generationデータをチェック（mp3ファイル名で保存）
                 sentence_count = db.query(Sentence).filter(
-                    Sentence.audio_filename == audio_filename
+                    Sentence.audio_filename == mp3_filename
                 ).count()
                 
                 if sentence_count > 0:
-                    msg = f"Sentences already exist for {audio_filename} ({sentence_count} records)"
+                    msg = f"Sentences already exist for {base_filename} ({sentence_count} records)"
                     print(msg)
                     return False, msg
                 
+                # speech recognitionデータからround_idを取得
                 speech_data = db.query(SpeechRecognition).filter(
-                    SpeechRecognition.audio_filename == audio_filename
+                    SpeechRecognition.audio_filename == mp3_filename
                 ).first()
                 
                 if not speech_data:
                     return False, "Failed to get round_id from speech recognition data"
                 
+                # sentence generationジョブを作成（mp3ファイル名で）
                 sentence_job_id = self.create_job(
                     JobType.SENTENCE_GENERATION, 
-                    audio_filename, 
+                    mp3_filename, 
                     speech_data.round_id
                 )
                 
                 self.start_job(sentence_job_id)
-                success_msg = f"Successfully triggered sentence generation job {sentence_job_id} for {audio_filename}"
+                success_msg = f"Successfully triggered sentence generation job {sentence_job_id} for {base_filename}"
                 print(success_msg)
                 return True, success_msg
                 
@@ -371,17 +391,29 @@ class JobManager:
         try:
             db: Session = SessionLocal()
             try:
+                # ベースファイル名を取得（拡張子なし）
+                base_filename = os.path.splitext(audio_filename)[0]
+                mp3_filename = f"{base_filename}.mp3"
+                wav_filename = f"{base_filename}.wav"
+                
+                # speech recognitionデータをチェック（mp3ファイル）
                 speech_count = db.query(SpeechRecognition).filter(
-                    SpeechRecognition.audio_filename == audio_filename
+                    SpeechRecognition.audio_filename == mp3_filename
                 ).count()
+                
+                # speaker diarizationデータをチェック（wavファイル）
                 speaker_count = db.query(SpeakerDiarization).filter(
-                    SpeakerDiarization.audio_filename == audio_filename
+                    SpeakerDiarization.audio_filename == wav_filename
                 ).count()
+                
+                # sentence generationデータをチェック（mp3ファイル名で保存）
                 sentence_count = db.query(Sentence).filter(
-                    Sentence.audio_filename == audio_filename
+                    Sentence.audio_filename == mp3_filename
                 ).count()
+                
+                # sentence generationジョブの実行状況をチェック
                 sentence_job_running = db.query(Job).filter(
-                    Job.audio_filename == audio_filename,
+                    Job.audio_filename == mp3_filename,
                     Job.job_type == JobType.SENTENCE_GENERATION,
                     Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
                 ).count() > 0
