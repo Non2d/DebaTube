@@ -39,7 +39,7 @@ class UrlRequest(BaseModel):
 
 class AudioResponse(BaseModel):
     success: bool
-    file_path: Union[str, List[str]]
+    filename: Union[str, List[str]]
     message: str
     speech_recognition_job_id: Union[str, List[str], None] = None
     speaker_diarization_job_id: Union[str, List[str], None] = None
@@ -72,25 +72,31 @@ async def upload_audio(
         speaker_job_id = None
         
         if start_bg_tasks:
-            # Speech recognition job
+            base_filename = os.path.splitext(os.path.basename(file_path))[0]
+            
+            # Speech recognition job (use mp3)
+            mp3_filename = f"{base_filename}.mp3"
             speech_job_id = job_manager.create_job(
                 JobType.SPEECH_RECOGNITION, 
-                file_path, 
+                mp3_filename, 
                 round_id
             )
             job_manager.start_job(speech_job_id)
             
-            # Speaker diarization job
+            # Speaker diarization job (use wav) 
+            wav_filename = f"{base_filename}.wav"
             speaker_job_id = job_manager.create_job(
                 JobType.SPEAKER_DIARIZATION, 
-                file_path, 
+                wav_filename, 
                 round_id
             )
             job_manager.start_job(speaker_job_id)
         
+        filename = os.path.splitext(os.path.basename(file_path))[0]
+        
         return AudioResponse(
             success=True,
-            file_path=file_path,
+            filename=filename,
             message="Successfully uploaded and saved audio file",
             speech_recognition_job_id=speech_job_id,
             speaker_diarization_job_id=speaker_job_id
@@ -139,19 +145,23 @@ async def register_url(request: UrlRequest):
             
             if request.start_bg_tasks:
                 for file_path in file_paths:
-                    # Speech recognition job
+                    base_filename = os.path.splitext(os.path.basename(file_path))[0]
+                    
+                    # Speech recognition job (use mp3)
+                    mp3_filename = f"{base_filename}.mp3"
                     speech_job_id = job_manager.create_job(
                         JobType.SPEECH_RECOGNITION, 
-                        file_path, 
+                        mp3_filename, 
                         request.round_id
                     )
                     job_manager.start_job(speech_job_id)
                     speech_job_ids.append(speech_job_id)
                     
-                    # Speaker diarization job
+                    # Speaker diarization job (use wav)
+                    wav_filename = f"{base_filename}.wav"
                     speaker_job_id = job_manager.create_job(
                         JobType.SPEAKER_DIARIZATION, 
-                        file_path, 
+                        wav_filename, 
                         request.round_id
                     )
                     job_manager.start_job(speaker_job_id)
@@ -159,9 +169,11 @@ async def register_url(request: UrlRequest):
                 
                 # Sentence generation will be triggered automatically after speech+diarization complete
             
+            filenames = [os.path.splitext(os.path.basename(fp))[0] for fp in file_paths]
+            
             return AudioResponse(
                 success=True,
-                file_path=file_paths,
+                filename=filenames,
                 message=f"Successfully extracted {len(file_paths)} audio files from playlist",
                 speech_recognition_job_id=speech_job_ids if speech_job_ids else None,
                 speaker_diarization_job_id=speaker_job_ids if speaker_job_ids else None
@@ -173,27 +185,33 @@ async def register_url(request: UrlRequest):
             speaker_job_id = None
             
             if request.start_bg_tasks:
-                # Speech recognition job
+                base_filename = os.path.splitext(os.path.basename(file_path))[0]
+                
+                # Speech recognition job (use mp3)
+                mp3_filename = f"{base_filename}.mp3"
                 speech_job_id = job_manager.create_job(
                     JobType.SPEECH_RECOGNITION, 
-                    file_path, 
+                    mp3_filename, 
                     request.round_id
                 )
                 job_manager.start_job(speech_job_id)
                 
-                # Speaker diarization job
+                # Speaker diarization job (use wav)
+                wav_filename = f"{base_filename}.wav"
                 speaker_job_id = job_manager.create_job(
                     JobType.SPEAKER_DIARIZATION, 
-                    file_path, 
+                    wav_filename, 
                     request.round_id
                 )
                 job_manager.start_job(speaker_job_id)
                 
                 # Sentence generation will be triggered automatically after speech+diarization complete
             
+            filename = os.path.splitext(os.path.basename(file_path))[0]
+            
             return AudioResponse(
                 success=True,
-                file_path=file_path,
+                filename=filename,
                 message="Successfully extracted audio file",
                 speech_recognition_job_id=speech_job_id,
                 speaker_diarization_job_id=speaker_job_id

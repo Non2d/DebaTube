@@ -13,7 +13,6 @@ def get_pipe():
     """パイプラインを取得（必要に応じて再ロード）"""
     global _pipeline
     
-    # モデルが存在しない、または何らかの理由で無効な場合は再ロード
     if _pipeline is None:
         print("Loading Whisper model...")
         model_id = "openai/whisper-large-v3-turbo"
@@ -34,7 +33,7 @@ def get_pipe():
             model=model,
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
-            max_new_tokens=256,
+            max_new_tokens=128,
             chunk_length_s=30,
             batch_size=16,
             return_timestamps="word",
@@ -44,7 +43,7 @@ def get_pipe():
     
     return _pipeline
 
-def transcribe_audio(input_path="src/audio.wav", language="english") -> list: # [{start, end, text}]
+def transcribe_audio(input_path="storage/audio.mp3", language="english") -> list: # [{start, end, text}]
     """音声ファイルを文字起こしする"""
     pipe = get_pipe() # 必要に応じてモデルをロード
     

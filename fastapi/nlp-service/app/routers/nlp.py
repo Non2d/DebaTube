@@ -17,7 +17,7 @@ from datetime import datetime
 router = APIRouter()
 
 class JobRequest(BaseModel):
-    file_path: str = Field(..., example="storage/audio.wav")
+    filename: str = Field(..., example="audio.wav")
     round_id: int = Field(..., example=1)
     language: str = Field(default="english", example="english")
 
@@ -47,9 +47,7 @@ class JobStatusResponse(BaseModel):
     result: Optional[Any]
 
 class JobRetryRequest(BaseModel):
-    query_type: Literal["job_id", "audio_filename"] = Field(default="audio_filename", example="audio_filename")
-    job_id: Optional[str] = Field(None, example="abc123")
-    audio_filename: Optional[str] = Field(None, example="audio.wav")
+    job_id: str = Field(..., example="abc123")
 
 @router.post("/trigger-speech-recognition", response_model=SpeechRecognitionResponse, tags=["Manual Triggers"])
 async def process_speech_recognition(request: JobRequest):
@@ -57,29 +55,31 @@ async def process_speech_recognition(request: JobRequest):
     音声認識を実行してDBに保存し、結果を返す
     
     Args:
-        request: ファイルパスとラウンドIDを含むリクエスト
+        request: ファイル名とラウンドIDを含むリクエスト
     
     Returns:
         SpeechRecognitionResponse: 音声認識結果
     """
     try:
+        # ファイルパスを構築
+        file_path = f"storage/{request.filename}"
+        
         # ファイルの存在確認
-        if not os.path.exists(request.file_path):
-            raise HTTPException(status_code=400, detail=f"File not found: {request.file_path}")
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=400, detail=f"File not found: {request.filename}")
         
         # 音声認識実行
-        result = transcribe_audio(request.file_path, request.language)
+        result = transcribe_audio(file_path, request.language)
         
         # DBに保存 - job_managerの関数を使用
-        audio_filename = os.path.basename(request.file_path)
         try:
-            job_manager._save_speech_recognition_to_db(result, request.round_id, audio_filename)
+            job_manager._save_speech_recognition_to_db(result, request.round_id, request.filename)
             print(f"Saved {len(result)} speech recognition records to database")
             
             # 自動sentence generation チェック
-            if job_manager._check_prerequisites_for_sentence_generation(audio_filename, request.round_id):
-                print(f"Prerequisites met. Auto-triggering sentence generation for {audio_filename}")
-                success, message = job_manager.trigger_sentence_generation_for_audio(audio_filename)
+            if job_manager._check_prerequisites_for_sentence_generation(request.filename, request.round_id):
+                print(f"Prerequisites met. Auto-triggering sentence generation for {request.filename}")
+                success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
                 if success:
                     print(f"Auto sentence generation started: {message}")
                 else:
@@ -104,29 +104,31 @@ async def process_speaker_diarization(request: JobRequest):
     話者分離を実行してDBに保存し、結果を返す
     
     Args:
-        request: ファイルパスとラウンドIDを含むリクエスト
+        request: ファイル名とラウンドIDを含むリクエスト
     
     Returns:
         SpeakerDiarizationResponse: 話者分離結果
     """
     try:
+        # ファイルパスを構築
+        file_path = f"storage/{request.filename}"
+        
         # ファイルの存在確認
-        if not os.path.exists(request.file_path):
-            raise HTTPException(status_code=400, detail=f"File not found: {request.file_path}")
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=400, detail=f"File not found: {request.filename}")
         
         # 話者分離実行
-        result = diarize_audio(request.file_path)
+        result = diarize_audio(file_path)
         
         # DBに保存 - job_managerの関数を使用
-        audio_filename = os.path.basename(request.file_path)
         try:
-            job_manager._save_speaker_diarization_to_db(result, request.round_id, audio_filename)
+            job_manager._save_speaker_diarization_to_db(result, request.round_id, request.filename)
             print(f"Saved {len(result)} speaker diarization records to database")
             
             # 自動sentence generation チェック
-            if job_manager._check_prerequisites_for_sentence_generation(audio_filename, request.round_id):
-                print(f"Prerequisites met. Auto-triggering sentence generation for {audio_filename}")
-                success, message = job_manager.trigger_sentence_generation_for_audio(audio_filename)
+            if job_manager._check_prerequisites_for_sentence_generation(request.filename, request.round_id):
+                print(f"Prerequisites met. Auto-triggering sentence generation for {request.filename}")
+                success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
                 if success:
                     print(f"Auto sentence generation started: {message}")
                 else:
@@ -151,7 +153,7 @@ async def process_speaker_diarization(request: JobRequest):
 async def trigger_sentence_generation(request: JobRequest):
     """手動でsentence生成をトリガー"""
     try:
-        success, message = job_manager.trigger_sentence_generation_for_audio(request.file_path)
+        success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
         
         if success:
             return {"status": "success", "message": message}
@@ -187,46 +189,27 @@ async def trigger_sentence_generation(request: JobRequest):
         result=job.result
     )
 
-@router.post("/jobs/retry", tags=["Job Control"])
-async def retry_jobs(request: JobRetryRequest):
+@router.post("/job/retry", tags=["Job Control"])
+async def retry_job(request: JobRetryRequest):
     """
-    ジョブをリトライ（job_idまたはaudio_filename）
+    ジョブをリトライ（job_idによる指定）
     
     Args:
-        request: 検索条件を含むリクエスト
+        request: job_idを含むリクエスト
     
     Returns:
-        JobResponse or dict: リトライ結果
+        JobResponse: リトライ結果
     """
     try:
-        if request.audio_filename:
-            jobs = job_manager.get_jobs_by_audio_filename(request.audio_filename)
-            retry_results = []
-            
-            for job_info in jobs:
-                job_id = job_info["job_id"]
-                success = job_manager.retry_job(job_id)
-                retry_results.append({
-                    "job_id": job_id,
-                    "retry_success": success,
-                    "message": "Job retry started" if success else "Job cannot be retried"
-                })
-            
-            return {"audio_filename": request.audio_filename, "retry_results": retry_results}
+        success = job_manager.retry_job(request.job_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="Job cannot be retried")
         
-        elif request.job_id:
-            success = job_manager.retry_job(request.job_id)
-            if not success:
-                raise HTTPException(status_code=400, detail="Job cannot be retried")
-            
-            return JobResponse(
-                job_id=request.job_id,
-                status="processing",
-                message="Job retry started"
-            )
-        
-        else:
-            raise HTTPException(status_code=400, detail="Either job_id or audio_filename is required")
+        return JobResponse(
+            job_id=request.job_id,
+            status="processing",
+            message="Job retry started"
+        )
     
     except HTTPException:
         raise
@@ -250,8 +233,15 @@ async def query_jobs(
     """
     try:
         if audio_filename:
-            jobs = job_manager.get_jobs_by_audio_filename(audio_filename)
-            return {"audio_filename": audio_filename, "jobs": jobs}
+            # 拡張子がない場合、mp3とwavの両方を検索
+            if '.' not in audio_filename:
+                mp3_jobs = job_manager.get_jobs_by_audio_filename(f"{audio_filename}.mp3")
+                wav_jobs = job_manager.get_jobs_by_audio_filename(f"{audio_filename}.wav")
+                all_jobs = mp3_jobs + wav_jobs
+                return {"audio_filename": audio_filename, "jobs": all_jobs}
+            else:
+                jobs = job_manager.get_jobs_by_audio_filename(audio_filename)
+                return {"audio_filename": audio_filename, "jobs": jobs}
         
         elif job_id:
             job = job_manager.get_job(job_id)

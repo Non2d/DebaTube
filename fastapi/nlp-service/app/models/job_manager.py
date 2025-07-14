@@ -29,7 +29,6 @@ class Job(Base):
     
     job_id = Column(String(255), primary_key=True)
     job_type = Column(SQLEnum(JobType), nullable=False)
-    file_path = Column(Text)
     round_id = Column(Integer, index=True)
     audio_filename = Column(String(255), nullable=False, index=True)
     status = Column(SQLEnum(JobStatus), nullable=False, default=JobStatus.PENDING)
@@ -42,31 +41,25 @@ class Job(Base):
     progress = Column(Integer, default=0)
     retry_count = Column(Integer, default=0)
     
-    def __init__(self, job_id: str, job_type: JobType, file_path: str, round_id: int):
+    def __init__(self, job_id: str, job_type: JobType, audio_filename: str, round_id: int):
         self.job_id = job_id
         self.job_type = job_type
-        self.file_path = file_path
+        self.audio_filename = audio_filename
         self.round_id = round_id
-        self.audio_filename = self._extract_audio_filename(file_path)
         self.status = JobStatus.PENDING
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
         self.progress = 0
         self.retry_count = 0
-    
-    def _extract_audio_filename(self, file_path: str) -> str:
-        """ファイルパスからオーディオファイル名を抽出"""
-        import os
-        return os.path.basename(file_path) if file_path else ""
 
 class JobManager:
     def __init__(self):
         self.lock = threading.Lock()
     
-    def create_job(self, job_type: JobType, file_path: str, round_id: int) -> str:
+    def create_job(self, job_type: JobType, audio_filename: str, round_id: int) -> str:
         """新しいジョブを作成"""
         job_id = f"{job_type.value}_{str(uuid.uuid4())[:8]}"
-        job = Job(job_id, job_type, file_path, round_id)
+        job = Job(job_id, job_type, audio_filename, round_id)
         
         db: Session = SessionLocal()
         try:
@@ -99,13 +92,15 @@ class JobManager:
             self._update_job_status(job.job_id, JobStatus.PROCESSING, progress=10, started_at=datetime.utcnow())
             
             if job.job_type == JobType.SPEECH_RECOGNITION:
-                result = transcribe_audio(job.file_path)
+                file_path = f"storage/{job.audio_filename}"
+                result = transcribe_audio(file_path)
                 self._update_job_status(job.job_id, progress=80)
                 self._save_speech_recognition_to_db(result, job.round_id, job.audio_filename)
                 self._update_job_status(job.job_id, progress=100)
                 
             elif job.job_type == JobType.SPEAKER_DIARIZATION:
-                result = diarize_audio(job.file_path)
+                file_path = f"storage/{job.audio_filename}"
+                result = diarize_audio(file_path)
                 print(f"SPEAKER_DIARIZATION job result: {result}")
                 self._update_job_status(job.job_id, progress=80)
                 self._save_speaker_diarization_to_db(result, job.round_id, job.audio_filename)
@@ -248,13 +243,9 @@ class JobManager:
             if not speech_data or not speaker_data:
                 raise Exception(f"Speech recognition or speaker diarization data not found for audio_filename {audio_filename}")
             
-            # sentence生成
             sentences = create_sentences_from_words_and_speakers(speech_data, speaker_data)
-            
-            # 既存のsentenceデータを削除
             db.query(Sentence).filter(Sentence.audio_filename == audio_filename).delete()
             
-            # 新しいsentenceデータを保存
             for sentence in sentences:
                 sentence_record = Sentence(
                     round_id=round_id,
@@ -278,24 +269,19 @@ class JobManager:
         try:
             db: Session = SessionLocal()
             try:
-                # 音声認識データの存在確認
                 speech_count = db.query(SpeechRecognition).filter(
                     SpeechRecognition.audio_filename == audio_filename
                 ).count()
-                
-                # 話者分離データの存在確認
                 speaker_count = db.query(SpeakerDiarization).filter(
                     SpeakerDiarization.audio_filename == audio_filename
                 ).count()
-                
                 print(f"Data check for {audio_filename}: Speech records: {speech_count}, Speaker records: {speaker_count}")
                 
                 if speech_count == 0 or speaker_count == 0:
                     error_msg = f"Missing data for {audio_filename}. Speech: {speech_count > 0}, Speaker: {speaker_count > 0}"
                     print(error_msg)
                     return False, error_msg
-                
-                # 既存のsentenceデータをチェック
+
                 sentence_count = db.query(Sentence).filter(
                     Sentence.audio_filename == audio_filename
                 ).count()
@@ -305,7 +291,6 @@ class JobManager:
                     print(msg)
                     return False, msg
                 
-                # round_idを取得
                 speech_data = db.query(SpeechRecognition).filter(
                     SpeechRecognition.audio_filename == audio_filename
                 ).first()
@@ -313,23 +298,11 @@ class JobManager:
                 if not speech_data:
                     return False, "Failed to get round_id from speech recognition data"
                 
-                # sentence生成ジョブを作成
                 sentence_job_id = self.create_job(
                     JobType.SENTENCE_GENERATION, 
-                    "", 
+                    audio_filename, 
                     speech_data.round_id
                 )
-                
-                # ジョブのaudio_filenameを手動で設定
-                db_update: Session = SessionLocal()
-                try:
-                    job = db_update.query(Job).filter(Job.job_id == sentence_job_id).first()
-                    if job:
-                        job.audio_filename = audio_filename
-                        job.updated_at = datetime.utcnow()
-                        db_update.commit()
-                finally:
-                    db_update.close()
                 
                 self.start_job(sentence_job_id)
                 success_msg = f"Successfully triggered sentence generation job {sentence_job_id} for {audio_filename}"
@@ -349,22 +322,15 @@ class JobManager:
         try:
             db: Session = SessionLocal()
             try:
-                # 音声認識データの存在確認
                 speech_count = db.query(SpeechRecognition).filter(
                     SpeechRecognition.audio_filename == audio_filename
                 ).count()
-                
-                # 話者分離データの存在確認
                 speaker_count = db.query(SpeakerDiarization).filter(
                     SpeakerDiarization.audio_filename == audio_filename
                 ).count()
-                
-                # 既存のsentenceデータの存在確認
                 sentence_count = db.query(Sentence).filter(
                     Sentence.audio_filename == audio_filename
                 ).count()
-                
-                # sentence生成ジョブの存在確認
                 sentence_job = db.query(Job).filter(
                     Job.audio_filename == audio_filename,
                     Job.job_type == JobType.SENTENCE_GENERATION
@@ -372,7 +338,6 @@ class JobManager:
                 
                 sentence_job_exists = sentence_job is not None
                 sentence_job_status = sentence_job.status.value if sentence_job else "None"
-                
                 ready_for_generation = speech_count > 0 and speaker_count > 0 and sentence_count == 0 and not sentence_job_exists
                 
                 return {
@@ -406,22 +371,15 @@ class JobManager:
         try:
             db: Session = SessionLocal()
             try:
-                # 音声認識データの存在確認
                 speech_count = db.query(SpeechRecognition).filter(
                     SpeechRecognition.audio_filename == audio_filename
                 ).count()
-                
-                # 話者分離データの存在確認
                 speaker_count = db.query(SpeakerDiarization).filter(
                     SpeakerDiarization.audio_filename == audio_filename
                 ).count()
-                
-                # 既存のsentenceデータの存在確認
                 sentence_count = db.query(Sentence).filter(
                     Sentence.audio_filename == audio_filename
                 ).count()
-                
-                # sentence generationジョブの実行中かチェック
                 sentence_job_running = db.query(Job).filter(
                     Job.audio_filename == audio_filename,
                     Job.job_type == JobType.SENTENCE_GENERATION,

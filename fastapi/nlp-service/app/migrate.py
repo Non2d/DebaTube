@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from models.whisper import SpeechRecognition
 from models.pyannote import SpeakerDiarization
 from models.sentence import Sentence
+from models.job_manager import Job
 
 load_dotenv()
 
@@ -36,8 +37,7 @@ def wait_for_db_connection(max_retries=5, wait_interval=5):
     return False
 
 def restart_database():
-    # すべてのモデルが確実に登録されるように明示的に参照
-    models = [SpeechRecognition, SpeakerDiarization, Sentence]
+    models = [SpeechRecognition, SpeakerDiarization, Sentence, Job]
     print(f"Models loaded: {[model.__tablename__ for model in models]}")
     print(f"Registered tables: {list(Base.metadata.tables.keys())}")
     
