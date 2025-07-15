@@ -33,10 +33,10 @@ class Job(Base):
     round_id = Column(Integer, index=True)
     audio_filename = Column(String(255), nullable=False, index=True)
     status = Column(SQLEnum(JobStatus), nullable=False, default=JobStatus.PENDING)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
     error_message = Column(Text)
     result_head = Column(JSON)
     progress = Column(Integer, default=0)
@@ -48,8 +48,8 @@ class Job(Base):
         self.audio_filename = audio_filename
         self.round_id = round_id
         self.status = JobStatus.PENDING
-        self.created_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.created_at = datetime.now()
+        self.updated_at = datetime.now()
         self.progress = 0
         self.retry_count = 0
 
@@ -59,12 +59,30 @@ class JobManager:
     
     def create_job(self, job_type: JobType, audio_filename: str, round_id: int) -> str:
         """新しいジョブを作成"""
-        job_id = f"{job_type.value}_{str(uuid.uuid4())[:8]}"
-        job = Job(job_id, job_type, audio_filename, round_id)
+        # 決定的なjob_idを生成
+        base_filename = os.path.splitext(audio_filename)[0]
+        job_id = f"{job_type.value}_{base_filename}"
         
         db: Session = SessionLocal()
         try:
-            db.add(job)
+            # 既存のジョブがある場合は更新（upsert）
+            existing_job = db.query(Job).filter(Job.job_id == job_id).first()
+            
+            if existing_job:
+                existing_job.status = JobStatus.PENDING
+                existing_job.error_message = None
+                existing_job.result_head = None
+                existing_job.progress = 0
+                existing_job.retry_count += 1
+                existing_job.started_at = None
+                existing_job.completed_at = None
+                existing_job.updated_at = datetime.now()
+                existing_job.round_id = round_id
+                existing_job.audio_filename = audio_filename
+            else:
+                job = Job(job_id, job_type, audio_filename, round_id)
+                db.add(job)
+                
             db.commit()
             return job_id
         finally:
@@ -90,7 +108,7 @@ class JobManager:
     def _execute_job(self, job: Job):
         """ジョブを実行"""
         try:
-            self._update_job_status(job.job_id, JobStatus.PROCESSING, progress=10, started_at=datetime.utcnow())
+            self._update_job_status(job.job_id, JobStatus.PROCESSING, progress=10, started_at=datetime.now())
             
             if job.job_type == JobType.SPEECH_RECOGNITION:
                 file_path = f"storage/{job.audio_filename}"
@@ -116,7 +134,7 @@ class JobManager:
             result_head = result[:3] if isinstance(result, list) else result
             
             self._update_job_status(job.job_id, JobStatus.COMPLETED, 
-                                  result_head=result_head, completed_at=datetime.utcnow())
+                                  result_head=result_head, completed_at=datetime.now())
             
             # ジョブ完了ログを出力と自動sentence generation
             if job.job_type in [JobType.SPEECH_RECOGNITION, JobType.SPEAKER_DIARIZATION]:
@@ -136,7 +154,7 @@ class JobManager:
         except Exception as e:
             print(f"Job {job.job_id} failed with error: {str(e)}")
             self._update_job_status(job.job_id, JobStatus.FAILED, 
-                                  error_message=str(e), completed_at=datetime.utcnow())
+                                  error_message=str(e), completed_at=datetime.now())
             
             # エラーログを出力
             if job.job_type in [JobType.SPEECH_RECOGNITION, JobType.SPEAKER_DIARIZATION]:
@@ -162,7 +180,7 @@ class JobManager:
                     job.error_message = error_message
                 if result_head is not None:
                     job.result_head = result_head
-                job.updated_at = datetime.utcnow()
+                job.updated_at = datetime.now()
                 db.commit()
         finally:
             db.close()
@@ -206,12 +224,12 @@ class JobManager:
         finally:
             db.close()
     
-    def retry_job(self, job_id: str) -> bool:
-        """ジョブをリトライ"""
+    def trigger_job(self, job_id: str) -> bool:
+        """ジョブをトリガー"""
         db: Session = SessionLocal()
         try:
             job = db.query(Job).filter(Job.job_id == job_id).first()
-            if not job or job.status not in [JobStatus.FAILED, JobStatus.COMPLETED]:
+            if not job or job.status not in [JobStatus.PENDING, JobStatus.FAILED, JobStatus.COMPLETED]:
                 return False
             
             job.status = JobStatus.PENDING
@@ -221,7 +239,7 @@ class JobManager:
             job.retry_count += 1
             job.started_at = None
             job.completed_at = None
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now()
             db.commit()
             
             self.start_job(job_id)

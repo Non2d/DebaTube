@@ -46,145 +46,146 @@ class JobStatusResponse(BaseModel):
     error_message: Optional[str]
     result_head: Optional[Any] #TODO:直接sentences等の元のテーブルを参照する
 
-class JobRetryRequest(BaseModel):
-    job_id: str = Field(..., example="abc123")
+class JobTriggerRequest(BaseModel):
+    job_id: str = Field(..., example="speech_recognition_abc123")
 
-@router.post("/trigger-speech-recognition", response_model=SpeechRecognitionResponse, tags=["Manual Triggers"])
-async def process_speech_recognition(request: JobRequest):
-    """
-    音声認識を実行してDBに保存し、結果を返す
+# @router.post("/trigger-speech-recognition", response_model=SpeechRecognitionResponse, tags=["Manual Triggers"])
+# async def process_speech_recognition(request: JobRequest):
+#     """
+#     音声認識を実行してDBに保存し、結果を返す
     
-    Args:
-        request: ファイル名とラウンドIDを含むリクエスト
+#     Args:
+#         request: ファイル名とラウンドIDを含むリクエスト
     
-    Returns:
-        SpeechRecognitionResponse: 音声認識結果
-    """
-    try:
-        # ファイルパスを構築
-        file_path = f"storage/{request.filename}"
+#     Returns:
+#         SpeechRecognitionResponse: 音声認識結果
+#     """
+#     try:
+#         # ファイルパスを構築
+#         file_path = f"storage/{request.filename}"
         
-        # ファイルの存在確認
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=400, detail=f"File not found: {request.filename}")
+#         # ファイルの存在確認
+#         if not os.path.exists(file_path):
+#             raise HTTPException(status_code=400, detail=f"File not found: {request.filename}")
         
-        # 音声認識実行
-        result = transcribe_audio(file_path, request.language)
+#         # 音声認識実行
+#         result = transcribe_audio(file_path, request.language)
         
-        # DBに保存 - job_managerの関数を使用
-        try:
-            job_manager._save_speech_recognition_to_db(result, request.round_id, request.filename)
-            print(f"Saved {len(result)} speech recognition records to database")
+#         # DBに保存 - job_managerの関数を使用
+#         try:
+#             job_manager._save_speech_recognition_to_db(result, request.round_id, request.filename)
+#             print(f"Saved {len(result)} speech recognition records to database")
             
-            # 自動sentence generation チェック
-            if job_manager._check_prerequisites_for_sentence_generation(request.filename, request.round_id):
-                print(f"Prerequisites met. Auto-triggering sentence generation for {request.filename}")
-                success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
-                if success:
-                    print(f"Auto sentence generation started: {message}")
-                else:
-                    print(f"Auto sentence generation failed: {message}")
+#             # 自動sentence generation チェック
+#             if job_manager._check_prerequisites_for_sentence_generation(request.filename, request.round_id):
+#                 print(f"Prerequisites met. Auto-triggering sentence generation for {request.filename}")
+#                 success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
+#                 if success:
+#                     print(f"Auto sentence generation started: {message}")
+#                 else:
+#                     print(f"Auto sentence generation failed: {message}")
                     
-        except Exception as e:
-            print(f"Database save error: {e}")
-            raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
+#         except Exception as e:
+#             print(f"Database save error: {e}")
+#             raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
         
-        return SpeechRecognitionResponse(
-            success=True,
-            message="Speech recognition completed",
-            data=result
-        )
+#         return SpeechRecognitionResponse(
+#             success=True,
+#             message="Speech recognition completed",
+#             data=result
+#         )
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process speech recognition: {str(e)}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to process speech recognition: {str(e)}")
 
-@router.post("/trigger-speaker-diarization", response_model=SpeakerDiarizationResponse, tags=["Manual Triggers"])
-async def process_speaker_diarization(request: JobRequest):
-    """
-    話者分離を実行してDBに保存し、結果を返す
+# @router.post("/trigger-speaker-diarization", response_model=SpeakerDiarizationResponse, tags=["Manual Triggers"])
+# async def process_speaker_diarization(request: JobRequest):
+#     """
+#     話者分離を実行してDBに保存し、結果を返す
     
-    Args:
-        request: ファイル名とラウンドIDを含むリクエスト
+#     Args:
+#         request: ファイル名とラウンドIDを含むリクエスト
     
-    Returns:
-        SpeakerDiarizationResponse: 話者分離結果
-    """
-    try:
-        # ファイルパスを構築
-        file_path = f"storage/{request.filename}"
+#     Returns:
+#         SpeakerDiarizationResponse: 話者分離結果
+#     """
+#     try:
+#         # ファイルパスを構築
+#         file_path = f"storage/{request.filename}"
         
-        # ファイルの存在確認
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=400, detail=f"File not found: {request.filename}")
+#         # ファイルの存在確認
+#         if not os.path.exists(file_path):
+#             raise HTTPException(status_code=400, detail=f"File not found: {request.filename}")
         
-        # 話者分離実行
-        result = diarize_audio(file_path)
+#         # 話者分離実行
+#         result = diarize_audio(file_path)
         
-        # DBに保存 - job_managerの関数を使用
-        try:
-            job_manager._save_speaker_diarization_to_db(result, request.round_id, request.filename)
-            print(f"Saved {len(result)} speaker diarization records to database")
+#         # DBに保存 - job_managerの関数を使用
+#         try:
+#             job_manager._save_speaker_diarization_to_db(result, request.round_id, request.filename)
+#             print(f"Saved {len(result)} speaker diarization records to database")
             
-            # 自動sentence generation チェック
-            if job_manager._check_prerequisites_for_sentence_generation(request.filename, request.round_id):
-                print(f"Prerequisites met. Auto-triggering sentence generation for {request.filename}")
-                success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
-                if success:
-                    print(f"Auto sentence generation started: {message}")
-                else:
-                    print(f"Auto sentence generation failed: {message}")
+#             # 自動sentence generation チェック
+#             if job_manager._check_prerequisites_for_sentence_generation(request.filename, request.round_id):
+#                 print(f"Prerequisites met. Auto-triggering sentence generation for {request.filename}")
+#                 success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
+#                 if success:
+#                     print(f"Auto sentence generation started: {message}")
+#                 else:
+#                     print(f"Auto sentence generation failed: {message}")
                     
-        except Exception as e:
-            print(f"Database save error: {e}")
-            raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
+#         except Exception as e:
+#             print(f"Database save error: {e}")
+#             raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
         
-        print(result)
+#         print(result)
         
-        return SpeakerDiarizationResponse(
-            success=True,
-            message="Speaker diarization completed",
-            data=result
-        )
+#         return SpeakerDiarizationResponse(
+#             success=True,
+#             message="Speaker diarization completed",
+#             data=result
+#         )
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process speaker diarization: {str(e)}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to process speaker diarization: {str(e)}")
 
-@router.post("/trigger-sentence-generation", tags=["Manual Triggers"])
-async def trigger_sentence_generation(request: JobRequest):
-    """手動でsentence生成をトリガー"""
-    try:
-        success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
+# @router.post("/trigger-sentence-generation", tags=["Manual Triggers"])
+# async def trigger_sentence_generation(request: JobRequest):
+#     """手動でsentence生成をトリガー"""
+#     try:
+#         success, message = job_manager.trigger_sentence_generation_for_audio(request.filename)
         
-        if success:
-            return {"status": "success", "message": message}
-        else:
-            # 400 Bad Requestで適切なエラーメッセージを返す
-            raise HTTPException(status_code=400, detail=message)
+#         if success:
+#             return {"status": "success", "message": message}
+#         else:
+#             # 400 Bad Requestで適切なエラーメッセージを返す
+#             raise HTTPException(status_code=400, detail=message)
             
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.post("/job/retry", tags=["Job Control"])
-async def retry_job(request: JobRetryRequest):
+@router.post("/job/trigger", tags=["Job Control"])
+async def trigger_job(request: JobTriggerRequest):
     """
-    ジョブをリトライ（job_idによる指定）
+    ジョブをトリガー（job_idによる指定）
     
     Args:
         request: job_idを含むリクエスト
     
     Returns:
-        JobResponse: リトライ結果
+        JobResponse: トリガー結果
     """
     try:
-        success = job_manager.retry_job(request.job_id)
-        if not success:
-            raise HTTPException(status_code=400, detail="Job cannot be retried")
-        
-        return JobResponse(
-            job_id=request.job_id,
-            status="processing",
-            message="Job retry started"
-        )
+        # 既存のジョブを再トリガー
+        success = job_manager.trigger_job(request.job_id)
+        if success:
+            return JobResponse(
+                job_id=request.job_id,
+                status="processing",
+                message="Job triggered successfully"
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Job cannot be triggered")
     
     except HTTPException:
         raise
