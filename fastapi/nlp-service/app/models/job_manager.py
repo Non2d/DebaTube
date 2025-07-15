@@ -38,7 +38,7 @@ class Job(Base):
     completed_at = Column(DateTime)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     error_message = Column(Text)
-    result_data = Column(JSON)
+    result_head = Column(JSON)
     progress = Column(Integer, default=0)
     retry_count = Column(Integer, default=0)
     
@@ -108,12 +108,15 @@ class JobManager:
                 self._update_job_status(job.job_id, progress=100)
             
             elif job.job_type == JobType.SENTENCE_GENERATION:
-                self._generate_and_save_sentences(job.round_id, job.audio_filename)
+                sentences = self._generate_and_save_sentences(job.round_id, job.audio_filename)
                 self._update_job_status(job.job_id, progress=100)
-                result = {"message": "Sentences generated successfully"}
+                result = sentences
+            
+            # 結果データを頭3つに制限
+            result_head = result[:3] if isinstance(result, list) else result
             
             self._update_job_status(job.job_id, JobStatus.COMPLETED, 
-                                  result_data=result, completed_at=datetime.utcnow())
+                                  result_head=result_head, completed_at=datetime.utcnow())
             
             # ジョブ完了ログを出力と自動sentence generation
             if job.job_type in [JobType.SPEECH_RECOGNITION, JobType.SPEAKER_DIARIZATION]:
@@ -141,7 +144,7 @@ class JobManager:
     
     def _update_job_status(self, job_id: str, status: JobStatus = None, progress: int = None, 
                           started_at: datetime = None, completed_at: datetime = None,
-                          error_message: str = None, result_data: Any = None):
+                          error_message: str = None, result_head: Any = None):
         """ジョブのステータスを更新"""
         db: Session = SessionLocal()
         try:
@@ -157,8 +160,8 @@ class JobManager:
                     job.completed_at = completed_at
                 if error_message is not None:
                     job.error_message = error_message
-                if result_data is not None:
-                    job.result_data = result_data
+                if result_head is not None:
+                    job.result_head = result_head
                 job.updated_at = datetime.utcnow()
                 db.commit()
         finally:
@@ -208,12 +211,12 @@ class JobManager:
         db: Session = SessionLocal()
         try:
             job = db.query(Job).filter(Job.job_id == job_id).first()
-            if not job or job.status not in [JobStatus.FAILED]:
+            if not job or job.status not in [JobStatus.FAILED, JobStatus.COMPLETED]:
                 return False
             
             job.status = JobStatus.PENDING
             job.error_message = None
-            job.result_data = None
+            job.result_head = None
             job.progress = 0
             job.retry_count += 1
             job.started_at = None
@@ -268,6 +271,7 @@ class JobManager:
             
             db.commit()
             print(f"Successfully generated and saved {len(sentences)} sentences for base_filename {base_filename}")
+            return sentences
         finally:
             db.close()
     

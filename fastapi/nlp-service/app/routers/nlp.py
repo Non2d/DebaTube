@@ -44,7 +44,7 @@ class JobStatusResponse(BaseModel):
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     error_message: Optional[str]
-    result: Optional[Any]
+    result_head: Optional[Any] #TODO:直接sentences等の元のテーブルを参照する
 
 class JobRetryRequest(BaseModel):
     job_id: str = Field(..., example="abc123")
@@ -164,31 +164,6 @@ async def trigger_sentence_generation(request: JobRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
-    """
-    ジョブの状態を取得
-    
-    Args:
-        job_id: ジョブID
-    
-    Returns:
-        JobStatusResponse: ジョブの詳細状態
-    """
-    job = job_manager.get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    return JobStatusResponse(
-        job_id=job.job_id,
-        status=job.status.value,
-        progress=job.progress,
-        created_at=job.created_at,
-        started_at=job.started_at,
-        completed_at=job.completed_at,
-        error_message=job.error_message,
-        result=job.result
-    )
-
 @router.post("/job/retry", tags=["Job Control"])
 async def retry_job(request: JobRetryRequest):
     """
@@ -256,7 +231,7 @@ async def query_jobs(
                 started_at=job.started_at,
                 completed_at=job.completed_at,
                 error_message=job.error_message,
-                result=job.result
+                result_head=job.result_head
             )
         
         else:
