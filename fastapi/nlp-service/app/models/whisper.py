@@ -13,20 +13,18 @@ def get_pipe():
     """パイプラインを取得（必要に応じて再ロード）"""
     global _pipeline
     
-    # モデルが存在しない、または何らかの理由で無効な場合は再ロード
     if _pipeline is None:
         print("Loading Whisper model...")
         model_id = "openai/whisper-large-v3-turbo"
-        device = "cuda:0"
         torch_dtype = torch.float16
         
         model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id, 
             torch_dtype=torch_dtype,
             low_cpu_mem_usage=True, 
-            use_safetensors=True
+            use_safetensors=True,
+            device_map="cuda:0"
         )
-        model.to(device)
         
         processor = AutoProcessor.from_pretrained(model_id)
         
@@ -35,17 +33,17 @@ def get_pipe():
             model=model,
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
-            max_new_tokens=256,
+            max_new_tokens=128,
+            chunk_length_s=30,
             batch_size=16,
             return_timestamps="word",
             torch_dtype=torch_dtype,
-            device=device,
         )
         print("Model loaded successfully!")
     
     return _pipeline
 
-def transcribe_audio(input_path="src/audio.wav", language="english") -> list: # [{start, end, text}]
+def transcribe_audio(input_path="storage/audio.mp3", language="english") -> list: # [{start, end, text}]
     """音声ファイルを文字起こしする"""
     pipe = get_pipe() # 必要に応じてモデルをロード
     
@@ -77,6 +75,3 @@ class SpeechRecognition(Base):
     end: Mapped[float] = mapped_column(Float)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime)
-
-if __name__ == "__main__":
-    transcribe_audio()

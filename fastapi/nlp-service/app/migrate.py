@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from models.whisper import SpeechRecognition
 from models.pyannote import SpeakerDiarization
 from models.sentence import Sentence
+from models.job_manager import Job
 
 load_dotenv()
 
@@ -18,7 +19,7 @@ MYSQL_HOST = "localhost:3307"
 MYSQL_DATABASE = "nlp"
 
 DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
-engine = create_engine(DB_URL, echo=True)
+engine = create_engine(DB_URL, echo=False)
 Session = sessionmaker(bind=engine)
 
 def wait_for_db_connection(max_retries=5, wait_interval=5):
@@ -36,12 +37,11 @@ def wait_for_db_connection(max_retries=5, wait_interval=5):
     return False
 
 def restart_database():
-    # すべてのモデルが確実に登録されるように明示的に参照
-    models = [SpeechRecognition, SpeakerDiarization, Sentence]
+    models = [SpeechRecognition, SpeakerDiarization, Sentence, Job]
     print(f"Models loaded: {[model.__tablename__ for model in models]}")
     print(f"Registered tables: {list(Base.metadata.tables.keys())}")
     
-    Base.metadata.drop_all(bind=engine)
+    # Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     
     print("Database tables created successfully")
@@ -50,4 +50,4 @@ if __name__ == "__main__":
     if wait_for_db_connection():
         restart_database()
     else:
-        print("Exiting due to NLP database connection failure.")
+        print("Exiting due to database connection failure.")
