@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, defer
 from sqlalchemy.future import select
@@ -159,6 +159,7 @@ class PoiResponse(BaseModel):
     class Config:
         orm_mode = True
 class RoundResponse(BaseModel):
+    id: int
     video_id: Optional[str]
     title: Optional[str]
     description: Optional[str]
@@ -173,19 +174,6 @@ class RoundResponse(BaseModel):
 
     class Config:
         orm_mode = True
-
-# class ArgumentUnitResponseAcc(BaseModel):
-#     start: float
-#     end: float
-#     text: str
-
-# class RoundResponseAcc(BaseModel):
-#     title: str
-#     motion: str
-#     speeches: List[List[ArgumentUnitResponseAcc]]
-
-#     class Config:
-#         orm_mode = True
 
 def remove_invalid_characters(text):
     # 無効な文字（絵文字や特殊文字）を削除する正規表現
@@ -499,8 +487,7 @@ async def get_video_metadata(video_id: str):
 
 @router.post("/rounds", response_model=RoundResponse)
 async def create_round(round_create: RoundCreate, db: AsyncSession = Depends(get_db)): # Roundレコードを作成
-    if len(round_create.speeches) not in [6, 8]:
-        raise HTTPException(status_code=400, detail="The number of speeches must be 6 or 8.")
+    # Removed speeches count validation to allow empty speeches for initial round creation
     
     logger.info(f"round_create.title: {round_create.motion}, is empty?: {round_create.motion == ''}")
     
@@ -679,8 +666,7 @@ async def create_motion(round_digest: DigestRequest):
 
 @router.post("/batch-round")
 async def create_batch_round(round_create: RoundBatchCreate, db: AsyncSession = Depends(get_db)):
-    if len(round_create.speeches) not in [6, 8]:
-        raise HTTPException(status_code=400, detail="The number of speeches must be 6 or 8.")
+    # Removed speeches count validation to allow flexible speech counts
     
     logger.info(f"round_create.title: {round_create.title}, is empty?: {round_create.title == ''}")
     
@@ -815,3 +801,4 @@ async def get_operation_logs(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     logs = result.scalars().all()
     return logs
+
