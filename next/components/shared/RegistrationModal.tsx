@@ -14,12 +14,11 @@ interface RegistrationModalProps {
 
 export default function RegistrationModal({ isOpen, onClose, onSuccess }: RegistrationModalProps) {
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-  const NLP_API_URL = process.env.NEXT_PUBLIC_NLP_API_URL;
-  
+
   const [input, setInput] = useState({
     youtubeUrl: '',
     audioFile: null as File | null,
-    memo: ''
+    title: ''
   });
   const [videoInfo, setVideoInfo] = useState({ id: '', title: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +32,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
   // YouTube動画情報を取得
   const fetchVideoTitle = async (videoId: string) => {
     if (!videoId || !YOUTUBE_API_KEY) return '';
-    
+
     try {
       const res = await fetch(
         `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`
@@ -48,7 +47,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
   // YouTube URL変更時の処理
   const handleYoutubeUrlChange = async (url: string) => {
     setInput(prev => ({ ...prev, youtubeUrl: url }));
-    
+
     const videoId = extractVideoId(url);
     if (videoId) {
       const title = await fetchVideoTitle(videoId);
@@ -62,14 +61,15 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setInput(prev => ({ ...prev, audioFile: file }));
+      const fileBaseName = file.name.replace(/\.[^/.]+$/, '');
+      setInput(prev => ({ ...prev, audioFile: file, title: fileBaseName }));
     }
   };
 
   // 送信処理
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // バリデーション
     if (!input.youtubeUrl && !input.audioFile) {
       toast.error('YouTube URLまたは音声ファイルを選択してください');
@@ -84,11 +84,8 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          motion: input.memo || "Processing...",
-          video_id: videoInfo.id || "processing",
-          poi_segment_ids: [],
-          speeches: [],
-          tag: "processing"
+          title: input.title || videoInfo.title,
+          video_id: videoInfo.id,
         }),
       });
 
@@ -98,17 +95,17 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
 
       const roundData = await roundRes.json();
       console.log('Round response:', roundData); // デバッグ用
-      
+
       // roundIdの取得（レスポンス構造に応じて調整）
       const roundId = roundData.id || roundData.round_id || roundData.data?.id;
-      
+
       if (!roundId) {
         throw new Error('Round ID not found in response');
       }
 
       // 2. 音声処理APIを呼び出し
       let processRes;
-      
+
       if (input.youtubeUrl && videoInfo.id) {
         // YouTube URLの場合
         processRes = await fetch('/api/nlp/extract-audio', {
@@ -139,12 +136,12 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
       }
 
       toast.success('登録が完了しました！');
-      
+
       // リセットして閉じる
       resetForm();
       onSuccess?.();
       onClose();
-      
+
     } catch (error: any) {
       console.error('Error:', error);
       toast.error(error.message || 'エラーが発生しました');
@@ -155,7 +152,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
 
   // フォームリセット
   const resetForm = () => {
-    setInput({ youtubeUrl: '', audioFile: null, memo: '' });
+    setInput({ youtubeUrl: '', audioFile: null, title: '' });
     setVideoInfo({ id: '', title: '' });
   };
 
@@ -169,10 +166,10 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold">新規ラウンド登録</h2>
+          <h2 className="text-2xl font-bold">Register new round</h2>
           <button
             onClick={handleClose}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -184,6 +181,21 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
 
         {/* フォーム */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* タイトル */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              タイトル
+            </label>
+            <textarea
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              rows={1}
+              placeholder="タイトルを入力..."
+              value={input.title || videoInfo.title}
+              onChange={(e) => setInput(prev => ({ ...prev, title: e.target.value }))}
+              disabled={isSubmitting}
+            />
+          </div>
+
           {/* YouTube URL入力 */}
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -197,11 +209,10 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
               onChange={(e) => handleYoutubeUrlChange(e.target.value)}
               disabled={isSubmitting}
             />
-            
+
             {/* サムネイルプレビュー */}
             {videoInfo.id && (
               <div className="mt-3 space-y-2">
-                <p className="text-sm text-gray-600">{videoInfo.title}</p>
                 <Image
                   src={`https://img.youtube.com/vi/${videoInfo.id}/mqdefault.jpg`}
                   alt={videoInfo.title}
@@ -211,16 +222,6 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
                 />
               </div>
             )}
-          </div>
-
-          {/* OR区切り */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-2 text-gray-500">または</span>
-            </div>
           </div>
 
           {/* ファイルアップロード */}
@@ -254,21 +255,6 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
                 </div>
               )}
             </label>
-          </div>
-
-          {/* メモ */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              メモ（任意）
-            </label>
-            <textarea
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              rows={3}
-              placeholder="メモを入力..."
-              value={input.memo}
-              onChange={(e) => setInput(prev => ({ ...prev, memo: e.target.value }))}
-              disabled={isSubmitting}
-            />
           </div>
 
           {/* ボタン */}

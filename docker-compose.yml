@@ -45,7 +45,7 @@ services:
       MYSQL_DATABASE: "debate"
       TZ: "Asia/Tokyo"
     volumes:
-      - mysql_dsv:/var/lib/mysql
+      - mysql_ct2025-2:/var/lib/mysql
     networks:
       - docker_network
 
@@ -59,7 +59,7 @@ services:
 
 volumes:
   node_modules:
-  mysql_dsv:
+  mysql_ct2025-2:
 
 networks:
   docker_network:
