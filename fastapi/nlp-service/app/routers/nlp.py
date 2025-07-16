@@ -10,21 +10,6 @@ from datetime import datetime
 
 router = APIRouter()
 
-class JobRequest(BaseModel):
-    filename: str = Field(..., example="audio.wav")
-    round_id: int = Field(..., example=1)
-    language: str = Field(default="english", example="english")
-
-class SpeechRecognitionResponse(BaseModel):
-    success: bool
-    message: str
-    data: List[Dict[str, Any]]
-    
-class SpeakerDiarizationResponse(BaseModel):
-    success: bool
-    message: str
-    data: List[Dict[str, Any]]
-
 class JobResponse(BaseModel):
     job_id: str
     status: str
@@ -70,6 +55,9 @@ async def trigger_job(request: JobTriggerRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+class JobCreateRequest(BaseModel):
+    job_id: str = Field(..., example="abc123")
 
 @router.get("/jobs", tags=["Job Control"])
 async def query_jobs(

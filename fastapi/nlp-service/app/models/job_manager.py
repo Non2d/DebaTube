@@ -12,6 +12,7 @@ from models.pyannote import diarize_audio
 from models.whisper import SpeechRecognition
 from models.pyannote import SpeakerDiarization
 from models.sentence import create_sentences_from_words_and_speakers, Sentence
+from models.speech import group_speeches_from_words_and_speakers
 from database import SessionLocal, Base
 
 class JobStatus(Enum):
@@ -23,6 +24,7 @@ class JobStatus(Enum):
 class JobType(Enum):
     SPEECH_RECOGNITION = "speech_recognition"
     SPEAKER_DIARIZATION = "speaker_diarization"
+    GROUPING_SPEECH = "grouping_speech"
     SENTENCE_GENERATION = "sentence_generation"
 
 class Job(Base):
@@ -124,6 +126,11 @@ class JobManager:
                 self._update_job_status(job.job_id, progress=80)
                 self._save_speaker_diarization_to_db(result, job.round_id, job.audio_filename)
                 self._update_job_status(job.job_id, progress=100)
+
+            elif job.job_type == JobType.GROUPING_SPEECH:
+                speeches = self._grouping_and_save_speeches(job.round_id, job.audio_filename)
+                self._update_job_status(job.job_id, progress=100)
+                result = speeches
             
             elif job.job_type == JobType.SENTENCE_GENERATION:
                 sentences = self._generate_and_save_sentences(job.round_id, job.audio_filename)
@@ -247,6 +254,51 @@ class JobManager:
         finally:
             db.close()
     
+    def _grouping_and_save_speeches(self, round_id: int, audio_filename: str):
+        """speeches分割とDB保存"""
+        db: Session = SessionLocal()
+        try:
+            # ベースファイル名を取得（拡張子なし）
+            base_filename = os.path.splitext(audio_filename)[0]
+            mp3_filename = f"{base_filename}.mp3"
+            wav_filename = f"{base_filename}.wav"
+            
+            # 音声認識結果を取得（mp3ファイル）
+            speech_data = db.query(SpeechRecognition).filter(
+                SpeechRecognition.audio_filename == mp3_filename
+            ).order_by(SpeechRecognition.start).all()
+            
+            # 話者分離結果を取得（wavファイル）
+            speaker_data = db.query(SpeakerDiarization).filter(
+                SpeakerDiarization.audio_filename == wav_filename
+            ).order_by(SpeakerDiarization.start).all()
+            
+            if not speech_data or not speaker_data:
+                raise Exception(f"Speech recognition or speaker diarization data not found for base_filename {base_filename}")
+            
+            speeches = group_speeches_from_words_and_speakers(speech_data, speaker_data)
+            
+            # 既存のsentenceを削除（mp3ファイル名で）
+            # db.query(Sentence).filter(Sentence.audio_filename == mp3_filename).delete()
+            
+            # for speech in speeches:
+            #     sentence_record = Sentence(
+            #         round_id=round_id,
+            #         audio_filename=mp3_filename,  # mp3ファイル名で保存
+            #         start=sentence["start"],
+            #         end=sentence["end"],
+            #         speaker=sentence["speaker"],
+            #         text=sentence["text"],
+            #         created_at=datetime.now()
+            #     )
+            #     db.add(sentence_record)
+            
+            db.commit()
+            print(f"Successfully generated and saved {len(speeches)} sentences for base_filename {base_filename}")
+            return speeches
+        finally:
+            db.close()
+
     
     def _generate_and_save_sentences(self, round_id: int, audio_filename: str):
         """sentence生成とDB保存"""
