@@ -25,9 +25,18 @@ def assign_speakers_to_words(words, speaker):
     speaker_count = len(speaker)
 
     for i, word_row in words.iterrows():
-        while speaker_index < speaker_count and speaker.loc[speaker_index, 'end'] < word_row['start']:
+        # None値チェックを追加
+        if word_row['start'] is None or word_row['end'] is None:
+            continue
+            
+        while (speaker_index < speaker_count and 
+               speaker.loc[speaker_index, 'end'] is not None and
+               speaker.loc[speaker_index, 'end'] < word_row['start']):
             speaker_index += 1
-        if speaker_index < speaker_count and speaker.loc[speaker_index, 'start'] <= word_row['end']:
+            
+        if (speaker_index < speaker_count and 
+            speaker.loc[speaker_index, 'start'] is not None and
+            speaker.loc[speaker_index, 'start'] <= word_row['end']):
             words.at[i, 'speaker'] = speaker.loc[speaker_index, 'speaker']
 
     speaker_column = words.pop('speaker')
@@ -69,6 +78,10 @@ def group_speeches_from_words_and_speakers(words_data, speaker_data):
     current_words = []
     
     for _, word_row in words_with_speakers.iterrows():
+        # None値チェックを追加
+        if word_row['start'] is None or word_row['end'] is None:
+            continue
+            
         word_speaker = word_row['speaker'] if word_row['speaker'] is not None else "UNKNOWN"
         
         if current_speaker != word_speaker:

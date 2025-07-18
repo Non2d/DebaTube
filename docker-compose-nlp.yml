@@ -13,7 +13,7 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - nlp_base:/var/lib/mysql
+      - nlp_base01:/var/lib/mysql
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
@@ -26,4 +26,4 @@ services:
       - nlp_db
 
 volumes:
-  nlp_base:
+  nlp_base01:

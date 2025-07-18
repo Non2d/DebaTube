@@ -115,6 +115,12 @@ class JobManager:
             if job.job_type == JobType.SPEECH_RECOGNITION:
                 file_path = f"storage/{job.audio_filename}"
                 result = transcribe_audio(file_path)
+                print(f"SPEECH_RECOGNITION job result: {len(result) if result else 0} items")
+                
+                # 空の結果はエラーとして扱う
+                if not result:
+                    raise Exception("Speech recognition returned empty result")
+                    
                 self._update_job_status(job.job_id, progress=80)
                 self._save_speech_recognition_to_db(result, job.round_id, job.audio_filename)
                 self._update_job_status(job.job_id, progress=100)
@@ -149,12 +155,21 @@ class JobManager:
                 
                 # speech recognitionとspeaker diarizationが両方完了したかチェック
                 if self._check_prerequisites_for_sentence_generation(job.audio_filename, job.round_id):
-                    print(f"Prerequisites met. Auto-triggering sentence generation for {job.audio_filename}")
+                    print(f"Prerequisites met. Auto-triggering sentence generation and grouping speech for {job.audio_filename}")
+                    
+                    # sentence generationを実行
                     success, message = self.trigger_sentence_generation_for_audio(job.audio_filename)
                     if success:
                         print(f"Auto sentence generation started: {message}")
                     else:
                         print(f"Auto sentence generation failed: {message}")
+                    
+                    # grouping speechを実行
+                    success_speech, message_speech = self.trigger_grouping_speech_for_audio(job.audio_filename)
+                    if success_speech:
+                        print(f"Auto grouping speech started: {message_speech}")
+                    else:
+                        print(f"Auto grouping speech failed: {message_speech}")
                 else:
                     print(f"Waiting for other prerequisites for {job.audio_filename}")
             
@@ -304,12 +319,9 @@ class JobManager:
         """sentence生成とDB保存"""
         db: Session = SessionLocal()
         try:
-            # ベースファイル名を取得（拡張子なし）
             base_filename = os.path.splitext(audio_filename)[0]
             mp3_filename = f"{base_filename}.mp3"
             wav_filename = f"{base_filename}.wav"
-            
-            # 音声認識結果を取得（mp3ファイル）
             speech_data = db.query(SpeechRecognition).filter(
                 SpeechRecognition.audio_filename == mp3_filename
             ).order_by(SpeechRecognition.start).all()
@@ -383,6 +395,28 @@ class JobManager:
                     print(msg)
                     return False, msg
                 
+                # 既存のsentence generationジョブをチェック
+                existing_job = db.query(Job).filter(
+                    Job.audio_filename == mp3_filename,
+                    Job.job_type == JobType.SENTENCE_GENERATION
+                ).first()
+                
+                if existing_job:
+                    if existing_job.status == JobStatus.PENDING:
+                        # PENDINGの場合は実行
+                        self.start_job(existing_job.job_id)
+                        success_msg = f"Started existing PENDING sentence generation job {existing_job.job_id} for {base_filename}"
+                        print(success_msg)
+                        return True, success_msg
+                    elif existing_job.status == JobStatus.PROCESSING:
+                        msg = f"Sentence generation job already running for {base_filename}"
+                        print(msg)
+                        return False, msg
+                    elif existing_job.status == JobStatus.COMPLETED:
+                        msg = f"Sentence generation job already completed for {base_filename}"
+                        print(msg)
+                        return False, msg
+                
                 # speech recognitionデータからround_idを取得
                 speech_data = db.query(SpeechRecognition).filter(
                     SpeechRecognition.audio_filename == mp3_filename
@@ -408,6 +442,83 @@ class JobManager:
                 
         except Exception as e:
             error_msg = f"Error triggering sentence generation for {audio_filename}: {str(e)}"
+            print(error_msg)
+            return False, error_msg
+
+    def trigger_grouping_speech_for_audio(self, audio_filename: str) -> tuple[bool, str]:
+        """特定のオーディオファイルに対して手動でgrouping speech生成をトリガー"""
+        try:
+            db: Session = SessionLocal()
+            try:
+                # ベースファイル名を取得（拡張子なし）
+                base_filename = os.path.splitext(audio_filename)[0]
+                mp3_filename = f"{base_filename}.mp3"
+                wav_filename = f"{base_filename}.wav"
+                
+                # speech recognitionデータをチェック（mp3ファイル）
+                speech_count = db.query(SpeechRecognition).filter(
+                    SpeechRecognition.audio_filename == mp3_filename
+                ).count()
+                
+                # speaker diarizationデータをチェック（wavファイル）
+                speaker_count = db.query(SpeakerDiarization).filter(
+                    SpeakerDiarization.audio_filename == wav_filename
+                ).count()
+                
+                print(f"Data check for {base_filename}: Speech records: {speech_count}, Speaker records: {speaker_count}")
+                
+                if speech_count == 0 or speaker_count == 0:
+                    error_msg = f"Missing data for {base_filename}. Speech: {speech_count > 0}, Speaker: {speaker_count > 0}"
+                    print(error_msg)
+                    return False, error_msg
+
+                # 既存のgrouping speechジョブをチェック
+                existing_job = db.query(Job).filter(
+                    Job.audio_filename == mp3_filename,
+                    Job.job_type == JobType.GROUPING_SPEECH
+                ).first()
+                
+                if existing_job:
+                    if existing_job.status == JobStatus.PENDING:
+                        # PENDINGの場合は実行
+                        self.start_job(existing_job.job_id)
+                        success_msg = f"Started existing PENDING grouping speech job {existing_job.job_id} for {base_filename}"
+                        print(success_msg)
+                        return True, success_msg
+                    elif existing_job.status == JobStatus.PROCESSING:
+                        msg = f"Grouping speech job already running for {base_filename}"
+                        print(msg)
+                        return False, msg
+                    elif existing_job.status == JobStatus.COMPLETED:
+                        msg = f"Grouping speech job already completed for {base_filename}"
+                        print(msg)
+                        return False, msg
+
+                # speech recognitionデータからround_idを取得
+                speech_data = db.query(SpeechRecognition).filter(
+                    SpeechRecognition.audio_filename == mp3_filename
+                ).first()
+                
+                if not speech_data:
+                    return False, "Failed to get round_id from speech recognition data"
+                
+                # grouping speechジョブを作成（mp3ファイル名で）
+                grouping_job_id = self.create_job(
+                    JobType.GROUPING_SPEECH, 
+                    mp3_filename, 
+                    speech_data.round_id
+                )
+                
+                self.start_job(grouping_job_id)
+                success_msg = f"Successfully triggered grouping speech job {grouping_job_id} for {base_filename}"
+                print(success_msg)
+                return True, success_msg
+                
+            finally:
+                db.close()
+                
+        except Exception as e:
+            error_msg = f"Error triggering grouping speech for {audio_filename}: {str(e)}"
             print(error_msg)
             return False, error_msg
     
@@ -458,8 +569,8 @@ class JobManager:
     def _check_prerequisites_for_sentence_generation(self, audio_filename: str, round_id: int) -> bool:
         """
         sentence generation実行の前提条件をチェック
-        - speech recognitionデータが存在する
-        - speaker diarizationデータが存在する
+        - speech recognitionジョブが完了している
+        - speaker diarizationジョブが完了している
         - sentence generationがまだ実行されていない
         """
         try:
@@ -470,15 +581,19 @@ class JobManager:
                 mp3_filename = f"{base_filename}.mp3"
                 wav_filename = f"{base_filename}.wav"
                 
-                # speech recognitionデータをチェック（mp3ファイル）
-                speech_count = db.query(SpeechRecognition).filter(
-                    SpeechRecognition.audio_filename == mp3_filename
-                ).count()
+                # speech recognitionジョブが完了しているかチェック
+                speech_job_completed = db.query(Job).filter(
+                    Job.audio_filename == mp3_filename,
+                    Job.job_type == JobType.SPEECH_RECOGNITION,
+                    Job.status == JobStatus.COMPLETED
+                ).count() > 0
                 
-                # speaker diarizationデータをチェック（wavファイル）
-                speaker_count = db.query(SpeakerDiarization).filter(
-                    SpeakerDiarization.audio_filename == wav_filename
-                ).count()
+                # speaker diarizationジョブが完了しているかチェック
+                speaker_job_completed = db.query(Job).filter(
+                    Job.audio_filename == wav_filename,
+                    Job.job_type == JobType.SPEAKER_DIARIZATION,
+                    Job.status == JobStatus.COMPLETED
+                ).count() > 0
                 
                 # sentence generationデータをチェック（mp3ファイル名で保存）
                 sentence_count = db.query(Sentence).filter(
@@ -492,9 +607,18 @@ class JobManager:
                     Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
                 ).count() > 0
                 
-                # 前提条件: speech + speaker データがあり、sentence データが無く、ジョブも実行中でない
-                return (speech_count > 0 and speaker_count > 0 and 
-                       sentence_count == 0 and not sentence_job_running)
+                # grouping speechジョブの実行状況をチェック
+                grouping_job_running = db.query(Job).filter(
+                    Job.audio_filename == mp3_filename,
+                    Job.job_type == JobType.GROUPING_SPEECH,
+                    Job.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
+                ).count() > 0
+                
+                print(f"Prerequisites check for {base_filename}: speech_job_completed={speech_job_completed}, speaker_job_completed={speaker_job_completed}, sentence_count={sentence_count}, sentence_job_running={sentence_job_running}, grouping_job_running={grouping_job_running}")
+                
+                # 前提条件: 両方のジョブが完了しており、sentence データが無い
+                # ジョブが実行中でも、PENDINGの場合は実行する必要がある
+                return (speech_job_completed and speaker_job_completed and sentence_count == 0)
                 
             finally:
                 db.close()

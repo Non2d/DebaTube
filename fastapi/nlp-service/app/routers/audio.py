@@ -9,30 +9,13 @@ from models.job_manager import job_manager, JobType
 
 router = APIRouter()
 
-@router.get("/audio_files", tags=["Audio Tasks"])
-async def get_audio_files():
-    """
-    /storage以下にある音声ファイル名を取得する
-    """
-    try:
-        audio_extensions = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.aac"]
-        audio_files = []
-        
-        for extension in audio_extensions:
-            files = glob.glob(f"storage/{extension}")
-            # ファイル名のみを取得（パスを除く）
-            audio_files.extend([os.path.basename(file) for file in files])
-        
-        return {"files": sorted(audio_files)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get audio files: {str(e)}")
-
 class AudioResponse(BaseModel):
     success: bool
     filename: str
     message: str
     speech_recognition_job_id: str
     speaker_diarization_job_id: str
+    group_speech_job_id: str
     sentence_generation_job_id: str
 
 @router.post("/process-audio", response_model=AudioResponse, tags=["Audio Tasks"])
@@ -43,7 +26,7 @@ async def process_audio(
     start_bg_tasks: bool = Form(default=False)
 ):
     """
-    音声ファイルのアップロードまたはYouTubeのURL(例：https://www.youtube.com/watch?v=xVmShH0-9xY)から音声を処理する統合エンドポイント
+    音声ファイルのアップロードまたはYouTubeのURL(例：https://www.youtube.com/watch?v=vSUTLRj7s7s)から音声を処理する統合エンドポイント
     
     Args:
         file: アップロードされる音声ファイル（オプション）
@@ -81,6 +64,11 @@ async def process_audio(
             wav_filename, 
             round_id
         )
+        speech_group_job_id = job_manager.create_job(
+            JobType.GROUPING_SPEECH,
+            mp3_filename,
+            round_id
+        )
         sentence_job_id = job_manager.create_job(
             JobType.SENTENCE_GENERATION, 
             mp3_filename, 
@@ -99,6 +87,7 @@ async def process_audio(
             message=message,
             speech_recognition_job_id=speech_job_id,
             speaker_diarization_job_id=speaker_job_id,
+            group_speech_job_id=speech_group_job_id,
             sentence_generation_job_id=sentence_job_id
         )
         
@@ -110,6 +99,24 @@ async def process_audio(
             detail=f"Failed to process audio: {str(e)}"
         )
 
+@router.get("/audio_files", tags=["Audio Tasks"])
+async def get_audio_files():
+    """
+    /storage以下にある音声ファイル名を取得する
+    """
+    try:
+        audio_extensions = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.aac"]
+        audio_files = []
+        
+        for extension in audio_extensions:
+            files = glob.glob(f"storage/{extension}")
+            # ファイル名のみを取得（パスを除く）
+            audio_files.extend([os.path.basename(file) for file in files])
+        
+        return {"files": sorted(audio_files)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get audio files: {str(e)}")
+    
 @router.post("/update-cookie", tags=["Audio Tasks"])
 async def update_cookie(text_content: str = Body(..., media_type="text/plain")):
     """
