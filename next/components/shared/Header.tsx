@@ -17,7 +17,6 @@ export default function Header() {
   const borderColor = isDark ? 'border-gray-700' : 'border-gray-200';
   const btnBg = isDark ? 'bg-gray-800' : 'bg-gray-100';
   const btnHover = isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200';
-  const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
 
   return (
     <nav className={`fixed top-0 w-full ${navBg} backdrop-blur-md z-50 border-b ${borderColor}`}>
@@ -33,30 +32,13 @@ export default function Header() {
             <a href="/" className="hover:text-blue-600 transition-colors">Explore</a>
             <a href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</a>
             <a href="/record" className="hover:text-blue-600 transition-colors">Record</a>
-            <button
+            {/* <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg ${btnBg} ${btnHover} transition-colors`}
               aria-label="Toggle theme"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
-
-          <div className="md:hidden flex items-center space-x-2">
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg ${btnBg}`}
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-lg ${btnBg}`}
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
