@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Mic, Square, Download, Play, Pause } from 'lucide-react';
 import Header from '../../components/shared/Header';
+import RecordButton from './components/RecordButton';
+import TimerDisplay from './components/TimerDisplay';
+import AudioPlayer from './components/AudioPlayer';
 
 export default function RecordPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -13,7 +15,6 @@ export default function RecordPage() {
   const [duration, setDuration] = useState(0);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startRecording = async () => {
@@ -60,64 +61,20 @@ export default function RecordPage() {
     }
   };
 
-  const playAudio = () => {
-    if (audioBlob && audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        if (!audioRef.current.src) {
-          const url = URL.createObjectURL(audioBlob);
-          audioRef.current.src = url;
-          
-          audioRef.current.onloadedmetadata = () => {
-            const audioDuration = audioRef.current?.duration;
-            console.log('Duration loaded:', audioDuration);
-            if (audioDuration && isFinite(audioDuration)) {
-              setDuration(audioDuration);
-            } else {
-              // durationが取得できない場合は録音時間を使用
-              setDuration(recordingDuration);
-            }
-          };
-          
-          audioRef.current.ontimeupdate = () => {
-            setCurrentTime(audioRef.current?.currentTime || 0);
-          };
-          
-          audioRef.current.onended = () => {
-            setIsPlaying(false);
-            setCurrentTime(0);
-          };
-          
-          audioRef.current.oncanplaythrough = () => {
-            const audioDuration = audioRef.current?.duration;
-            console.log('Can play through, duration:', audioDuration);
-            if (audioDuration && isFinite(audioDuration)) {
-              setDuration(audioDuration);
-            } else {
-              // durationが取得できない場合は録音時間を使用
-              setDuration(recordingDuration);
-            }
-          };
-          
-          audioRef.current.load();
-        }
-        
-        audioRef.current.play();
-        setIsPlaying(true);
-      }
-    }
+  const handlePlayPause = () => {
+    setIsPlaying(!isPlaying);
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (audioRef.current) {
-      const newTime = parseFloat(e.target.value);
-      const maxTime = duration || recordingDuration;
-      const seekTime = Math.min(newTime, maxTime);
-      audioRef.current.currentTime = seekTime;
-      setCurrentTime(seekTime);
-    }
+  const handleSeek = (time: number) => {
+    setCurrentTime(time);
+  };
+
+  const handleTimeUpdate = (time: number) => {
+    setCurrentTime(time);
+  };
+
+  const handleDurationChange = (newDuration: number) => {
+    setDuration(newDuration);
   };
 
   const downloadAudio = () => {
@@ -133,14 +90,6 @@ export default function RecordPage() {
     }
   };
 
-  const formatTime = (seconds: number) => {
-    if (!seconds || !isFinite(seconds)) {
-      return '00:00';
-    }
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <>
@@ -157,88 +106,32 @@ export default function RecordPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl p-8 border">
-            {/* 録音時間表示 */}
-            <div className="text-center mb-8">
-              <div className="text-3xl font-mono font-bold text-gray-900">
-                {formatTime(recordingDuration)}
-              </div>
-              {isRecording && (
-                <div className="mt-2 flex justify-center items-center">
-                  <div className="animate-pulse bg-red-500 rounded-full w-3 h-3 mr-2"></div>
-                  <span className="text-red-500 font-medium">録音中</span>
-                </div>
-              )}
-            </div>
+            <TimerDisplay 
+              recordingDuration={recordingDuration}
+              isRecording={isRecording}
+            />
 
-            {/* 録音ボタン */}
-            <div className="flex justify-center mb-8">
-              {!isRecording ? (
-                <button
-                  onClick={startRecording}
-                  className="bg-red-500 hover:bg-red-600 text-white rounded-full p-6 transition-colors duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <Mic size={48} />
-                </button>
-              ) : (
-                <button
-                  onClick={stopRecording}
-                  className="bg-gray-500 hover:bg-gray-600 text-white rounded-full p-6 transition-colors duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <Square size={48} />
-                </button>
-              )}
-            </div>
+            <RecordButton
+              isRecording={isRecording}
+              onStartRecording={startRecording}
+              onStopRecording={stopRecording}
+            />
 
-            {/* 録音後のコントロール */}
             {audioBlob && (
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                  録音完了 (録音時間: {formatTime(recordingDuration)})
-                </h3>
-                
-                {/* 音声プレーヤー */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2 text-sm text-gray-600">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration || recordingDuration)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max={duration || recordingDuration}
-                    value={currentTime || 0}
-                    onChange={handleSeek}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    style={{
-                      background: '#d1d5db',
-                      outline: 'none',
-                      WebkitAppearance: 'none',
-                      appearance: 'none',
-                    }}
-                  />
-                </div>
-                
-                <div className="flex justify-center space-x-4">
-                  <button
-                    onClick={playAudio}
-                    className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-colors duration-200"
-                  >
-                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                    <span>{isPlaying ? '一時停止' : '再生'}</span>
-                  </button>
-                  <button
-                    onClick={downloadAudio}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-colors duration-200"
-                  >
-                    <Download size={20} />
-                    <span>ダウンロード</span>
-                  </button>
-                </div>
-              </div>
+              <AudioPlayer
+                audioBlob={audioBlob}
+                recordingDuration={recordingDuration}
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration}
+                onPlayPause={handlePlayPause}
+                onSeek={handleSeek}
+                onDownload={downloadAudio}
+                onTimeUpdate={handleTimeUpdate}
+                onDurationChange={handleDurationChange}
+              />
             )}
           </div>
-
-          <audio ref={audioRef} className="hidden" />
         </div>
       </div>
     </>
