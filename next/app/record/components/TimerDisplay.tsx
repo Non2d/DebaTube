@@ -1,6 +1,7 @@
 interface TimerDisplayProps {
   recordingDuration: number;
   isRecording: boolean;
+  maxDuration?: number;
 }
 
 const formatTime = (seconds: number) => {
@@ -15,16 +16,28 @@ const formatTime = (seconds: number) => {
 export default function TimerDisplay({
   recordingDuration,
   isRecording,
+  maxDuration,
 }: TimerDisplayProps) {
+  const isOverTime = maxDuration && recordingDuration > maxDuration;
+  const remainingTime = maxDuration ? maxDuration - recordingDuration : 0;
+
   return (
     <div className="text-center mb-8">
-      <div className="text-3xl font-mono font-bold text-gray-900">
+      <div className={`text-8xl font-mono font-bold ${
+        isOverTime ? 'text-red-600' : 'text-gray-900'
+      }`}>
         {formatTime(recordingDuration)}
       </div>
       {isRecording && (
-        <div className="mt-2 flex justify-center items-center">
-          <div className="animate-pulse bg-red-500 rounded-full w-3 h-3 mr-2"></div>
-          <span className="text-red-500 font-medium">録音中</span>
+        <div className="mt-4 flex justify-center items-center">
+          <div className={`animate-pulse rounded-full w-4 h-4 mr-3 ${
+            isOverTime ? 'bg-red-600' : 'bg-red-500'
+          }`}></div>
+          <span className={`text-xl font-medium ${
+            isOverTime ? 'text-red-600' : 'text-red-500'
+          }`}>
+            {isOverTime ? '時間超過中' : '録音中'}
+          </span>
         </div>
       )}
     </div>
