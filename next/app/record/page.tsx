@@ -29,7 +29,7 @@ export default function RecordPage() {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const currentDurationRef = useRef<number>(0);
+  const durationRef = useRef<number>(0);
 
   const startRecording = async () => {
     try {
@@ -47,13 +47,11 @@ export default function RecordPage() {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        const finalDuration = currentDurationRef.current;
-        console.log('録音停止時のfinalDuration:', finalDuration);
         setSpeechRecordings(prev => ({
           ...prev,
           [currentSpeechIndex]: {
             blob,
-            duration: finalDuration
+            duration: durationRef.current
           }
         }));
         stream.getTracks().forEach(track => track.stop());
@@ -62,12 +60,12 @@ export default function RecordPage() {
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingDuration(0);
-      currentDurationRef.current = 0;
+      durationRef.current = 0;
       
       intervalRef.current = setInterval(() => {
         setRecordingDuration(prev => {
           const newDuration = prev + 1;
-          currentDurationRef.current = newDuration;
+          durationRef.current = newDuration;
           return newDuration;
         });
       }, 1000);
@@ -79,9 +77,6 @@ export default function RecordPage() {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      const finalDuration = recordingDuration;
-      console.log('停止時の最終録音時間:', finalDuration);
-      
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       
@@ -89,7 +84,6 @@ export default function RecordPage() {
         clearInterval(intervalRef.current);
       }
 
-      // 録音完了後、次のスピーチに自動移動
       setTimeout(() => {
         if (currentSpeechIndex < DEBATE_SPEECHES.length - 1) {
           setCurrentSpeechIndex(currentSpeechIndex + 1);
