@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Play, Pause, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
-import AudioPlayer from './components/AudioPlayer';
+import RecordingCard from './components/RecordingCard';
 
 const DEBATE_SPEECHES = [
   { name: 'Proposition 1st', duration: 7 * 60, team: 'proposition' },
@@ -95,8 +95,13 @@ export default function RecordPage() {
     }
   };
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+  const handlePlayPause = (index: number) => {
+    if (currentPlayingSpeech === index) {
+      setIsPlaying(!isPlaying);
+    } else {
+      setCurrentPlayingSpeech(index);
+      setIsPlaying(true);
+    }
   };
 
   const handleSeek = (time: number) => {
@@ -162,15 +167,13 @@ export default function RecordPage() {
                 disabled={currentSpeechIndex === 0}
                 className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15,18 9,12 15,6"></polyline>
-                </svg>
-                <span className="font-medium">前へ</span>
+                <ChevronLeft size={16} />
+                <span className="font-medium">Prev</span>
               </button>
               
               <div className="text-center px-8">
                 <h2 className={`text-2xl font-bold ${
-                  currentSpeech.team === 'proposition' ? 'text-blue-600' : 'text-red-600'
+                  currentSpeech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
                 }`}>
                   {currentSpeech.name}
                 </h2>
@@ -181,10 +184,8 @@ export default function RecordPage() {
                 disabled={currentSpeechIndex === DEBATE_SPEECHES.length - 1}
                 className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
               >
-                <span className="font-medium">次へ</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9,18 15,12 9,6"></polyline>
-                </svg>
+                <span className="font-medium">Next</span>
+                <ChevronRight size={16} />
               </button>
             </div>
 
@@ -207,65 +208,18 @@ export default function RecordPage() {
                 const recording = speechRecordings[index];
 
                 return (
-                  <div key={index} className={`rounded-lg p-4 ${recording ? 'bg-gray-50' : 'bg-gray-100 border-2 border-dashed border-gray-300'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h4 className={`font-medium text-sm ${
-                          speech.team === 'proposition' ? 'text-blue-600' : 'text-red-600'
-                        }`}>
-                          {speech.name}
-                        </h4>
-                      </div>
-                      {recording && (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => {
-                              if (currentPlayingSpeech === index) {
-                                handlePlayPause();
-                              } else {
-                                setCurrentPlayingSpeech(index);
-                                setIsPlaying(true);
-                              }
-                            }}
-                            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                            title={currentPlayingSpeech === index && isPlaying ? '停止' : '再生'}
-                          >
-                            {currentPlayingSpeech === index && isPlaying ? (
-                              <Pause size={12} />
-                            ) : (
-                              <Play size={12} />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => downloadAudio(index)}
-                            className="p-2 bg-green-500 text-white rounded hover:bg-green-600"
-                            title="ダウンロード"
-                          >
-                            <Download size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {recording ? (
-                      <AudioPlayer
-                        audioBlob={recording.blob}
-                        recordingDuration={recording.duration}
-                        isPlaying={currentPlayingSpeech === index ? isPlaying : false}
-                        onPlayPause={() => {
-                          if (currentPlayingSpeech === index) {
-                            handlePlayPause();
-                          } else {
-                            setCurrentPlayingSpeech(index);
-                            setIsPlaying(true);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="text-gray-400 text-sm text-center py-4">
-                        録音なし
-                      </div>
-                    )}
-                  </div>
+                  <RecordingCard
+                    key={index}
+                    speech={speech}
+                    index={index}
+                    recording={recording}
+                    currentPlayingSpeech={currentPlayingSpeech}
+                    isPlaying={isPlaying}
+                    isCurrentSpeech={index === currentSpeechIndex}
+                    onPlayPause={handlePlayPause}
+                    onDownload={downloadAudio}
+                    onClick={goToSpeech}
+                  />
                 );
               })}
             </div>
