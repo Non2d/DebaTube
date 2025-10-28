@@ -75,7 +75,7 @@ const PreviewPanel = ({
             💡 セルをクリック → エディタの該当箇所にジャンプ
           </div>
           {clickedCell !== null && cellData[clickedCell] && (
-            <div className="mt-4 p-3 border border-gray-300 rounded-lg bg-gray-50">
+            <div key={`clicked-cell-${clickedCell}-${Date.now()}`} className="mt-4 p-3 border border-gray-300 rounded-lg bg-gray-50">
               <div className="text-sm font-semibold text-gray-700 mb-2">
                 クリックされたセル:
               </div>
