@@ -15,8 +15,8 @@ const DEBATE_SPEECHES = [
   { name: 'Opposition 2nd', duration: 7 * 60, team: 'opposition' },
   { name: 'Proposition Whip', duration: 7 * 60, team: 'proposition' },
   { name: 'Opposition Whip', duration: 7 * 60, team: 'opposition' },
-  { name: 'Opposition Reply', duration: 4 * 60, team: 'opposition' },
-  { name: 'Proposition Reply', duration: 4 * 60, team: 'proposition' }
+  { name: 'Proposition Reply', duration: 4 * 60, team: 'proposition' },
+  { name: 'Opposition Reply', duration: 4 * 60, team: 'opposition' }
 ] as const;
 
 interface GraphData {
