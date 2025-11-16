@@ -28,6 +28,10 @@ class TranscriptRequest(BaseModel):
     duration: float
     words: List[WordInfo]
 
+class BatchTranscriptRequest(BaseModel):
+    """Batch transcription input - key-value pairs of speech transcriptions"""
+    transcripts: Dict[str, Dict[str, Any]]  # e.g., {"Proposition_1st": {...}, "Opposition_1st": {...}}
+
 # OpenAI client初期化
 client = OpenAI()
 async_client = AsyncOpenAI()
@@ -149,6 +153,145 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
         logger.error(f"Error during batch transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch transcription failed: {str(e)}")
 
+async def process_single_speech_to_adu(
+    speech_key: str,
+    transcript_data: Dict[str, Any],
+    timestamp: str
+) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str]]:
+    """
+    Process a single speech transcript to ADU conversion asynchronously
+    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message)
+    """
+    try:
+        # Extract text and word data from transcript
+        transcript_text = transcript_data.get("text", "")
+        words_data_raw = transcript_data.get("words", [])
+
+        # Round timestamps to 0.1 second precision
+        words_data = [
+            {
+                **word,
+                "start": round(word.get("start", 0), 1),
+                "end": round(word.get("end", 0), 1)
+            }
+            for word in words_data_raw
+        ]
+
+        GEMINI_MODEL = "gemini-2.5-pro"
+
+        # Prepare prompt for Gemini - using async API
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=f"""
+Please segment the following debate speech into Argument Discourse Units.
+Each ADU represents a single argument or discourse unit with a specific role below:
+
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+
+Speech transcription:
+{transcript_text}
+
+Word-level timestamps:
+{json.dumps(words_data, indent=2)}
+
+Return the result as JSON in the following format:
+{{
+  "adus": [
+    {{
+      "id": 1,
+      "start_word_index": 0,
+      "end_word_index": 5,
+      "text": "The actual ADU text",
+      "role": "independent_rebuttal/point_of_main_argument/etc",
+      "start_time": 0.0,
+      "end_time": 2.5,
+    }}
+  ]
+}}
+
+Focus on semantic units of argumentation. Be precise with word indices and timestamps.
+"""
+        )
+
+        # Extract response text for CSV parsing
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        # Convert response object to dict for JSON serialization
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
+        # Save response to log file
+        log_filename = f"adu_conversion_{speech_key}_{timestamp}.json"
+        log_path = os.path.join(LOGS_DIR, log_filename)
+
+        log_data = {
+            "timestamp": timestamp,
+            "speech_key": speech_key,
+            "input_transcript": transcript_data,
+            "gemini_response": response_text,
+            "raw_response": raw_response_dict,
+            "model": GEMINI_MODEL
+        }
+
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
+        logger.info(f"ADU conversion log saved to {log_path}")
+
+        # Convert ADU response to CSV format
+        csv_filename = f"{speech_key}_{timestamp}.csv"
+        csv_path = os.path.join(ADUS_DIR, csv_filename)
+
+        try:
+            # Parse Gemini response as JSON
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            adu_json = json.loads(cleaned_response)
+            adus_list = adu_json.get("adus", [])
+
+            # Write to CSV
+            if adus_list:
+                fieldnames = ["id", "start_word_index", "end_word_index", "text", "role", "start_time", "end_time", "confidence"]
+
+                with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
+                    writer.writeheader()
+
+                    for adu in adus_list:
+                        row = {field: adu.get(field, "") for field in fieldnames}
+                        writer.writerow(row)
+
+                logger.info(f"ADU CSV saved to {csv_path}")
+            else:
+                logger.warning(f"No ADUs found in Gemini response for {speech_key}")
+                csv_path = None
+
+        except json.JSONDecodeError as json_error:
+            logger.error(f"Error parsing Gemini response as JSON for {speech_key}: {str(json_error)}")
+            csv_path = None
+        except Exception as csv_error:
+            logger.error(f"Error saving CSV file for {speech_key}: {str(csv_error)}")
+            csv_path = None
+
+        return (speech_key, log_path, csv_path, raw_response_dict, response_text, None)
+
+    except Exception as e:
+        error_msg = f"Error processing {speech_key}: {str(e)}"
+        logger.error(error_msg)
+        return (speech_key, None, None, None, None, error_msg)
+
 @router.post("/transcript-to-adu")
 async def transcript_to_adu(transcript: TranscriptRequest):
     """
@@ -161,7 +304,15 @@ async def transcript_to_adu(transcript: TranscriptRequest):
     try:
         # Extract text and word data from transcript
         transcript_text = transcript.text
-        words_data = [word.model_dump() for word in transcript.words]
+        # Round timestamps to 0.1 second precision
+        words_data = [
+            {
+                **word.model_dump(),
+                "start": round(word.start, 1),
+                "end": round(word.end, 1)
+            }
+            for word in transcript.words
+        ]
         GEMINI_MODEL = "gemini-2.5-pro"
 
         # Prepare prompt for Gemini
@@ -217,10 +368,17 @@ Focus on semantic units of argumentation. Be precise with word indices and times
         # Extract response text
         response_text = response.text if hasattr(response, 'text') else str(response)
 
+        # Convert response object to dict for JSON serialization
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
         log_data = {
             "timestamp": timestamp,
             "input_transcript": transcript.model_dump(),
             "gemini_response": response_text,
+            "raw_response": raw_response_dict,
             "model": GEMINI_MODEL
         }
 
@@ -279,6 +437,7 @@ Focus on semantic units of argumentation. Be precise with word indices and times
         return {
             "status": "success",
             "adu_response": response_text,
+            "raw_response": raw_response_dict,
             "log_saved_to": log_path,
             "csv_saved_to": csv_path,
             "adus_dir": ADUS_DIR,
@@ -295,104 +454,82 @@ Focus on semantic units of argumentation. Be precise with word indices and times
         logger.error(f"Error during ADU conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")
 
-# @router.post("/transcript-to-adu-batch")
-# async def transcript_to_adu_batch(file: UploadFile = File(...)):
-#     """
-#     batch_transcription JSONファイルをADUに変換するエンドポイント
-#     - ファイル形式: batch_transcription_*.json
-#     - 複数のスピーチの文字起こしを一度に処理
-#     - 各スピーチをADUに変換し、結果をまとめてログに保存
-#     """
-#     try:
-#         # JSONファイルを読み込む
-#         content = await file.read()
-#         batch_transcript = json.loads(content.decode('utf-8'))
+@router.post("/transcript-to-adu-batch")
+async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
+    """
+    Convert multiple speech transcriptions to ADUs in parallel using Gemini API
+    - Input: JSON object with speech keys and their transcription data
+    - Output: Separate CSV files for each speech with speech key in filename
+    - Processing: Asynchronous parallel processing with Gemini API
+    """
+    start_time = time.time()
+    print(f"[/transcript-to-adu-batch] 処理開始")
 
-#         # 変換結果を格納
-#         adu_results: Dict[str, Any] = {}
-#         GEMINI_MODEL = "gemini-2.5-pro"
+    try:
+        transcripts = batch_request.transcripts
+        if not transcripts:
+            raise HTTPException(status_code=400, detail="No transcripts provided")
 
-#         # 各スピーチに対してADU変換を実行
-#         for speech_key, transcript_data in batch_transcript.items():
-#             try:
-#                 # 文字起こしテキストを準備
-#                 transcript_text = json.dumps(transcript_data, ensure_ascii=False, indent=2)
+        # Generate a shared timestamp for this batch
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
 
-#                 # Gemini APIを呼び出し
-#                 response = client_gemini.models.generate_content(
-#                     model=GEMINI_MODEL,
-#                     contents=f"""
-# 以下の議論のスピーチ "{speech_key}" の文字起こし結果をArgument Discourse Units (ADU)に変換してください。
-# 各ADUは論証の単位であり、claim、premise、rebuttal などの役割を持ちます。
+        # Create tasks for parallel processing
+        tasks = [
+            process_single_speech_to_adu(speech_key, transcript_data, timestamp)
+            for speech_key, transcript_data in transcripts.items()
+        ]
 
-# 文字起こし結果：
-# {transcript_text}
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks)
 
-# JSON形式で以下の構造で出力してください：
-# {{
-#   "speech_key": "{speech_key}",
-#   "adus": [
-#     {{
-#       "id": 1,
-#       "text": "ADUのテキスト",
-#       "role": "claim/premise/rebuttal/etc",
-#       "start_time": 0.0,
-#       "end_time": 1.5
-#     }}
-#   ],
-#   "summary": "このスピーチの要約"
-# }}
-# """
-#                 )
+        # Collect results
+        successful_speeches = []
+        failed_speeches = []
+        csv_files = []
+        all_responses = {}
+        all_raw_responses = {}
 
-#                 response_text = response.text if hasattr(response, 'text') else str(response)
-#                 adu_results[speech_key] = {
-#                     "input_transcript": transcript_data,
-#                     "gemini_response": response_text
-#                 }
+        for speech_key, log_path, csv_path, raw_response, response_text, error_msg in results:
+            if error_msg:
+                failed_speeches.append({
+                    "speech_key": speech_key,
+                    "error": error_msg
+                })
+            else:
+                successful_speeches.append({
+                    "speech_key": speech_key,
+                    "log_path": log_path,
+                    "csv_path": csv_path,
+                    "csv_exists": os.path.exists(csv_path) if csv_path else False
+                })
+                if csv_path:
+                    csv_files.append(csv_path)
+                if response_text:
+                    all_responses[speech_key] = response_text
+                if raw_response:
+                    all_raw_responses[speech_key] = raw_response
 
-#                 logger.info(f"ADU conversion completed for {speech_key}")
+        elapsed_time = time.time() - start_time
+        print(f"[/transcript-to-adu-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
 
-#             except Exception as speech_error:
-#                 logger.error(f"Error processing {speech_key}: {str(speech_error)}")
-#                 adu_results[speech_key] = {
-#                     "input_transcript": transcript_data,
-#                     "error": str(speech_error)
-#                 }
-#                 continue
+        return {
+            "status": "success" if not failed_speeches else "partial_success",
+            "total_speeches": len(transcripts),
+            "successful_count": len(successful_speeches),
+            "failed_count": len(failed_speeches),
+            "successful_speeches": successful_speeches,
+            "failed_speeches": failed_speeches,
+            "adu_responses": all_responses,
+            "raw_responses": all_raw_responses,
+            "csv_files": csv_files,
+            "adus_dir": ADUS_DIR,
+            "logs_dir": LOGS_DIR,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
 
-#         # ログファイルに保存
-#         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
-#         log_filename = f"adu_batch_conversion_{timestamp}.json"
-#         log_path = os.path.join(LOGS_DIR, log_filename)
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/transcript-to-adu-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during batch ADU conversion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Batch ADU conversion failed: {str(e)}")
 
-#         log_data = {
-#             "timestamp": timestamp,
-#             "input_filename": file.filename,
-#             "model": GEMINI_MODEL,
-#             "speeches_processed": len(adu_results),
-#             "adu_results": adu_results
-#         }
-
-#         try:
-#             with open(log_path, "w", encoding="utf-8") as f:
-#                 json.dump(log_data, f, ensure_ascii=False, indent=2)
-#             print(f"ADU batch conversion log saved to: {log_path}")
-#             logger.info(f"ADU batch conversion log saved to {log_path}")
-#         except Exception as save_error:
-#             print(f"Error saving log file to {log_path}: {str(save_error)}")
-#             logger.error(f"Error saving log file: {str(save_error)}")
-
-#         # 結果を返す
-#         return {
-#             "status": "success",
-#             "speeches_processed": len(adu_results),
-#             "adu_results": adu_results,
-#             "saved_to": log_path,
-#             "logs_dir": LOGS_DIR,
-#             "file_exists": os.path.exists(log_path)
-#         }
-
-#     except Exception as e:
-#         logger.error(f"Error during batch ADU conversion: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"Batch ADU conversion failed: {str(e)}")
