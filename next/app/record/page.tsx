@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
+import RebuttalGraph from './components/RebuttalGraph';
 
 const DEBATE_SPEECHES = [
   { name: 'Proposition 1st', duration: 7 * 60, team: 'proposition' },
@@ -18,19 +19,26 @@ const DEBATE_SPEECHES = [
   { name: 'Proposition Reply', duration: 4 * 60, team: 'proposition' }
 ] as const;
 
+interface GraphData {
+  speeches: { [key: string]: any[] };
+  rebuttals: [number, number][];
+}
+
 export default function RecordPage() {
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [speechRecordings, setSpeechRecordings] = useState<{[key: number]: {blob: Blob, duration: number} | null}>({});
+  const [speechRecordings, setSpeechRecordings] = useState<{[key: number]: {blob: Blob, duration: number, timestamp: string} | null}>({});
   const [currentPlayingSpeech, setCurrentPlayingSpeech] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const durationRef = useRef<number>(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const startRecording = async () => {
     try {
@@ -52,7 +60,8 @@ export default function RecordPage() {
           ...prev,
           [currentSpeechIndex]: {
             blob,
-            duration: durationRef.current
+            duration: durationRef.current,
+            timestamp: new Date().toISOString()
           }
         }));
         stream.getTracks().forEach(track => track.stop());
@@ -122,7 +131,12 @@ export default function RecordPage() {
       const url = URL.createObjectURL(speechRecording.blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${DEBATE_SPEECHES[speechIndex].name.replace(/ /g, '_')}-${new Date().toISOString().split('T')[0]}.webm`;
+      // タイムスタンプを YYYY-MM-DD_HHmmss 形式に変換
+      const date = new Date(speechRecording.timestamp);
+      const dateStr = date.toISOString().split('T')[0];
+      const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '');
+      const timestamp = `${dateStr}_${timeStr}`;
+      a.download = `${DEBATE_SPEECHES[speechIndex].name.replace(/ /g, '_')}-${timestamp}.webm`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -152,6 +166,31 @@ export default function RecordPage() {
     setCurrentPlayingSpeech(null);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string) as GraphData;
+        // バリデーション
+        if (json.speeches && json.rebuttals && Array.isArray(json.rebuttals)) {
+          setGraphData(json);
+        } else {
+          alert('Invalid JSON format. Please ensure it contains "speeches" and "rebuttals" properties.');
+        }
+      } catch (error) {
+        alert('Failed to parse JSON file: ' + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    reader.readAsText(file);
+
+    // ファイル入力をリセット
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const currentSpeech = DEBATE_SPEECHES[currentSpeechIndex];
 
@@ -224,6 +263,45 @@ export default function RecordPage() {
               })}
             </div>
           </div>
+
+          {/* JSON Upload Section */}
+          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">反論グラフの読み込み</h3>
+                <p className="text-sm text-gray-600">JSONファイルをアップロードして反論構造を表示します</p>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Upload size={16} />
+                <span>JSONファイルをアップロード</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+            {graphData && (
+              <div className="mt-2 text-sm text-green-700">
+                ✓ JSONファイルを読み込みました
+              </div>
+            )}
+          </div>
+
+          {/* Rebuttal Graph Section */}
+          {graphData && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">反論構造の可視化</h2>
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                <RebuttalGraph data={graphData} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

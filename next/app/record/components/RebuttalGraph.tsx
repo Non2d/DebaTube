@@ -1,0 +1,189 @@
+"use client";
+
+import React, { useEffect, useRef } from 'react';
+import ReactFlow, { useNodesState, useEdgesState } from 'reactflow';
+import { govNode, oppNode, backgroundNode, GovEdge, OppEdge } from './CustomGraphComponents';
+import { isGovernmentFromSpeechId } from '../../../components/lib/constants';
+
+import 'reactflow/dist/style.css';
+
+const nodeTypes = { "govNode": govNode, "oppNode": oppNode, "backgroundNode": backgroundNode };
+const edgeTypes = { "govEdge": GovEdge, "oppEdge": OppEdge };
+
+interface Rebuttal {
+  src: number;
+  tgt: number;
+}
+
+interface GraphDataJson {
+  speeches: { [key: string]: any[] };
+  rebuttals: [number, number][];
+}
+
+interface RebuttalGraphProps {
+  data: GraphDataJson;
+}
+
+const nodeTypeMap: { [key: number]: string } = {};
+
+const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  useEffect(() => {
+    try {
+      // JSONのspeeches形式をexplore形式に変換
+      const speechKeys = Object.keys(data.speeches);
+      const convertedSpeeches = speechKeys.map((key) => ({
+        argument_units: (data.speeches[key] || []).map((segment: any, idx: number) => ({
+          sequence_id: segment.id !== undefined ? segment.id : idx,
+          start: segment.start || 0,
+        })),
+      }));
+
+      // ノードの初期化
+      const newNodes = [];
+      let nodeY = 0;
+      const originY = 0;
+      const originX = 100;
+      const xposOpp = 300;
+
+      // Opposition側のスピーチインデックスを特定
+      const speechLength = convertedSpeeches.length;
+      const oppIndices: number[] = [];
+      for (let i = 0; i < speechLength; i++) {
+        if (!isGovernmentFromSpeechId(i, speechLength)) {
+          oppIndices.push(i);
+        }
+      }
+      const secondLastOppIndex = oppIndices.length >= 2 ? oppIndices[oppIndices.length - 2] : -1;
+
+      for (let i = 0; i < convertedSpeeches.length; i++) {
+        const isGovernment = isGovernmentFromSpeechId(i, speechLength);
+        let startNodeY = nodeY;
+
+        const argumentUnits = convertedSpeeches[i].argument_units;
+        for (let j = 0; j < argumentUnits.length; j++) {
+          const argumentUnit = argumentUnits[j];
+          const nodeType = isGovernment ? "govNode" : "oppNode";
+
+          nodeTypeMap[argumentUnit.sequence_id] = nodeType;
+
+          newNodes.push({
+            id: "adu-" + argumentUnit.sequence_id.toString(),
+            type: nodeType,
+            position: { x: originX + xposOpp * +!isGovernment, y: nodeY },
+            data: {
+              sequence_id: argumentUnit.sequence_id,
+              label: argumentUnit.sequence_id.toString(),
+              time: argumentUnit.start,
+              isBackground: false,
+            },
+          });
+          nodeY += 8;
+        }
+
+        const endNodeY = nodeY;
+        newNodes.unshift({
+          id: "speech-" + i.toString(),
+          type: "backgroundNode",
+          position: { x: originX + xposOpp * +!isGovernment, y: startNodeY },
+          data: { height: endNodeY - startNodeY, isGovernment: isGovernment, isBackground: true },
+        });
+
+        // Opposition側の最後から2番目のスピーチの後に間隔を入れる
+        if (i === secondLastOppIndex) {
+          nodeY += 20;
+        }
+      }
+
+      setNodes(newNodes);
+
+      // エッジの初期化
+      const newEdges = [];
+      let isTfBase = true;
+
+      // 同じチーム内での反論を除外
+      const filteredRebuttals = data.rebuttals.filter(([src, tgt]) => {
+        const srcNodeType = nodeTypeMap[src];
+        const tgtNodeType = nodeTypeMap[tgt];
+        // 異なるチーム間の反論のみを保持
+        return srcNodeType !== tgtNodeType;
+      });
+
+      const rebuttalCandidates = filteredRebuttals.map(([src, tgt]) => ({ src, tgt }));
+      const rebuttalDict: { [key: string]: number } = {};
+
+      for (let i = 0; i < rebuttalCandidates.length; i++) {
+        const rebuttal = rebuttalCandidates[i];
+        const rebKey = JSON.stringify({ src: rebuttal.src, tgt: rebuttal.tgt });
+        if (rebuttalDict[rebKey] === undefined) {
+          rebuttalDict[rebKey] = 1;
+        } else {
+          rebuttalDict[rebKey]++;
+          isTfBase = false;
+        }
+      }
+
+      const repeatedRebuttals: Rebuttal[] = Object.keys(rebuttalDict)
+        .filter((key) => rebuttalDict[key] >= 1)
+        .map((key) => JSON.parse(key) as Rebuttal);
+
+      const rebuttalsToUse = isTfBase ? rebuttalCandidates : repeatedRebuttals;
+
+      for (let i = 0; i < rebuttalsToUse.length; i++) {
+        const rebuttal = rebuttalsToUse[i];
+        const srcSequenceId = rebuttal.src;
+        const tgtSequenceId = rebuttal.tgt;
+
+        const srcNodeType = nodeTypeMap[srcSequenceId];
+
+        if (srcNodeType === "govNode") {
+          newEdges.push({
+            id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+            source: "adu-" + srcSequenceId.toString(),
+            target: "adu-" + tgtSequenceId.toString(),
+            type: "govEdge",
+          });
+        } else {
+          newEdges.push({
+            id: `edge-${srcSequenceId}-${tgtSequenceId}`,
+            source: "adu-" + srcSequenceId.toString(),
+            target: "adu-" + tgtSequenceId.toString(),
+            type: "oppEdge",
+          });
+        }
+      }
+
+      setEdges(newEdges);
+    } catch (error) {
+      console.error("Error converting graph data:", error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const proOptions = { hideAttribution: true };
+
+  return (
+    <div style={{ cursor: "default", width: "100%", height: "100%" }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodesDraggable={false}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        panOnScroll={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        panOnDrag={false}
+        zoomOnDoubleClick={false}
+        fitView
+        proOptions={proOptions}
+      />
+    </div>
+  );
+};
+
+export default RebuttalGraph;
