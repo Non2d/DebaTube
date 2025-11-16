@@ -62,11 +62,48 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
 
       // JSONのspeeches形式をexplore形式に変換
       const speechKeys = Object.keys(data.speeches).sort((a, b) => getSpeechOrder(a) - getSpeechOrder(b));
+
+      // IDがローカル（各スピーチで1から始まる）かグローバル（通し番号）かを判定
+      const allIds = new Set<number>();
+      let hasDuplicateIds = false;
+      speechKeys.forEach((key) => {
+        (data.speeches[key] || []).forEach((segment: any) => {
+          const id = segment.id;
+          if (id !== undefined) {
+            if (allIds.has(id)) {
+              hasDuplicateIds = true;
+            }
+            allIds.add(id);
+          }
+        });
+      });
+
+      // IDが重複している = ローカルID形式
+      const isLocalIdFormat = hasDuplicateIds;
+
+      // ローカルIDの場合、グローバルIDへのマッピングを作成
+      const localIdToGlobalId: { [speechKey: string]: { [localId: number]: number } } = {};
+      let globalIdCounter = 1;
+
+      if (isLocalIdFormat) {
+        speechKeys.forEach((key) => {
+          localIdToGlobalId[key] = {};
+          (data.speeches[key] || []).forEach((segment: any, idx: number) => {
+            const localId = segment.id !== undefined ? segment.id : idx + 1;
+            localIdToGlobalId[key][localId] = globalIdCounter++;
+          });
+        });
+      }
+
       const convertedSpeeches = speechKeys.map((key) => ({
-        argument_units: (data.speeches[key] || []).map((segment: any, idx: number) => ({
-          sequence_id: segment.id !== undefined ? segment.id : idx,
-          start: segment.start || 0,
-        })),
+        argument_units: (data.speeches[key] || []).map((segment: any, idx: number) => {
+          const id = segment.id !== undefined ? segment.id : idx + 1;
+          const globalId = isLocalIdFormat ? localIdToGlobalId[key][id] : id;
+          return {
+            sequence_id: globalId,
+            start: segment.start || 0,
+          };
+        }),
       }));
 
       // ノードの初期化
