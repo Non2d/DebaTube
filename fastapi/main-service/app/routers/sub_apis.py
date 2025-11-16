@@ -6,22 +6,33 @@ from fastapi.responses import FileResponse
 from log_config import logger
 from pydantic import BaseModel
 from typing import List, Dict, Any
-import os, json, csv, re
+import os, json, csv, time
 from datetime import datetime
+from google import genai
 
 router = APIRouter()
 
 # Import shared directories
-from .audio2adu import ADUS_DIR
-from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS
+from .audio2adu import ADUS_DIR, LOGS_DIR
+from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences
 
-# ===== Pydantic Models for Sentence Grouping =====
+# Initialize Gemini client
+client_gemini = genai.Client()
+
+# ===== Pydantic Models =====
 
 class WordInfo(BaseModel):
     """Word-level timing information"""
     word: str
     start: float
     end: float
+
+class TranscriptRequest(BaseModel):
+    """Transcription input from Whisper API with verbose_json format"""
+    text: str
+    language: str
+    duration: float
+    words: List[WordInfo]
 
 class SentenceGroupRequest(BaseModel):
     """Request for grouping words into sentences"""
@@ -39,6 +50,8 @@ class SentenceInfo(BaseModel):
 class SentenceGroupResponse(BaseModel):
     """Response containing grouped sentences"""
     sentences: List[SentenceInfo]
+
+# ===== Endpoints =====
 
 @router.post("/group-sentences", response_model=SentenceGroupResponse)
 async def group_sentences(request: SentenceGroupRequest):
@@ -408,3 +421,170 @@ async def unified_csv_to_md(request: UnifiedCSVToMDRequest):
         print(f"[/unified-csv-to-md] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during CSV to MD conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=f"CSV to MD conversion failed: {str(e)}")
+
+@router.post("/transcript-to-adu")
+async def transcript_to_adu(transcript: TranscriptRequest):
+    """
+    Convert a single speech transcription to Argument Discourse Units (ADUs)
+    - Input: Transcription JSON from Whisper API (verbose_json format)
+    - Output: ADU segmentation with roles and timestamps
+    """
+    start_time = time.time()
+    print(f"[/transcript-to-adu] 処理開始")
+    try:
+        # Extract text and word data from transcript
+        transcript_text = transcript.text
+        # Round timestamps to 0.1 second precision
+        words_data = [
+            {
+                **word.model_dump(),
+                "start": round(word.start, 1),
+                "end": round(word.end, 1)
+            }
+            for word in transcript.words
+        ]
+
+        # Group words into sentences to reduce token usage
+        sentences_data = group_words_into_sentences(transcript_text, words_data)
+
+        GEMINI_MODEL = "gemini-2.5-pro"
+
+        # Prepare prompt for Gemini with sentence-level data
+        response = client_gemini.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=f"""
+Please segment the following debate speech into Argument Discourse Units.
+Each ADU represents a single argument or discourse unit with a specific role below:
+
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+
+Speech transcription:
+{transcript_text}
+
+Sentence-level timestamps (for reference):
+{json.dumps(sentences_data, indent=2)}
+
+Return the result as JSON in the following format:
+{{
+  "adus": [
+    {{
+      "id": 1,
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
+      "text": "The actual ADU text",
+      "role": "independent_rebuttal/point_of_main_argument/etc",
+      "start_time": 0.0,
+      "end_time": 2.5,
+    }}
+  ]
+}}
+
+Note: Use start_sentence_index and end_sentence_index instead of word indices.
+Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
+"""
+        )
+
+        # Save response to log file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
+        log_filename = f"adu_conversion_{timestamp}.json"
+        log_path = os.path.join(LOGS_DIR, log_filename)
+
+        # Extract response text
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        # Convert response object to dict for JSON serialization
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
+        log_data = {
+            "timestamp": timestamp,
+            "input_transcript": transcript.model_dump(),
+            "gemini_response": response_text,
+            "raw_response": raw_response_dict,
+            "model": GEMINI_MODEL
+        }
+
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                json.dump(log_data, f, ensure_ascii=False, indent=2)
+            print(f"ADU conversion log saved to: {log_path}")
+            logger.info(f"ADU conversion log saved to {log_path}")
+        except Exception as save_error:
+            print(f"Error saving log file to {log_path}: {str(save_error)}")
+            logger.error(f"Error saving log file: {str(save_error)}")
+
+        # Convert ADU response to CSV format
+        csv_filename = f"adu_conversion_{timestamp}.csv"
+        csv_path = os.path.join(ADUS_DIR, csv_filename)
+
+        try:
+            # Parse Gemini response as JSON
+            # Remove markdown code block formatting (```json ... ```)
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            adu_json = json.loads(cleaned_response)
+            adus_list = adu_json.get("adus", [])
+
+            # Write to CSV
+            if adus_list:
+                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
+
+                with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
+                    writer.writeheader()
+
+                    for adu in adus_list:
+                        # Ensure all required fields exist, use empty string as default
+                        row = {field: adu.get(field, "") for field in fieldnames}
+                        writer.writerow(row)
+
+                print(f"ADU CSV saved to: {csv_path}")
+                logger.info(f"ADU CSV saved to {csv_path}")
+            else:
+                print(f"No ADUs found in Gemini response")
+                logger.warning(f"No ADUs found in Gemini response")
+
+        except json.JSONDecodeError as json_error:
+            print(f"Error parsing Gemini response as JSON: {str(json_error)}")
+            logger.error(f"Error parsing Gemini response as JSON: {str(json_error)}")
+            csv_path = None
+        except Exception as csv_error:
+            print(f"Error saving CSV file to {csv_path}: {str(csv_error)}")
+            logger.error(f"Error saving CSV file: {str(csv_error)}")
+            csv_path = None
+
+        # Return results
+        elapsed_time = time.time() - start_time
+        print(f"[/transcript-to-adu] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "adu_response": response_text,
+            "raw_response": raw_response_dict,
+            "log_saved_to": log_path,
+            "csv_saved_to": csv_path,
+            "adus_dir": ADUS_DIR,
+            "files_exist": {
+                "log": os.path.exists(log_path),
+                "csv": os.path.exists(csv_path) if csv_path else False
+            },
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/transcript-to-adu] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during ADU conversion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")

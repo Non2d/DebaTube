@@ -3,6 +3,7 @@ Shared utility functions for routers
 """
 import json
 import csv
+import re
 from typing import Dict, List, Any, Optional
 
 NA_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Opposition_3rd", "Proposition_3rd"]
@@ -42,6 +43,65 @@ def clean_gemini_markdown_response(response_text: str) -> str:
 
     # Strip whitespace and newlines
     return cleaned_response.strip()
+
+
+def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Group word-level timestamps into sentence-level data to reduce token usage.
+    Sentences are split by punctuation marks (. ? !)
+
+    Args:
+        text: Full transcript text with punctuation
+        words_data: List of word-level timestamp data
+
+    Returns:
+        List of sentence objects with text, start_time, end_time, start_word_index, end_word_index
+    """
+    if not words_data:
+        return []
+
+    # Split text into sentences using common punctuation, preserving the punctuation
+    sentence_pattern = r'([.!?]+)'
+    parts = re.split(sentence_pattern, text)
+
+    # Combine text parts with their punctuation
+    sentence_texts = []
+    for i in range(0, len(parts) - 1, 2):
+        if parts[i].strip():
+            sentence_with_punct = parts[i].strip()
+            if i + 1 < len(parts):
+                sentence_with_punct += parts[i + 1]
+            sentence_texts.append(sentence_with_punct)
+
+    # Handle last part if it doesn't end with punctuation
+    if len(parts) % 2 == 1 and parts[-1].strip():
+        sentence_texts.append(parts[-1].strip())
+
+    sentences = []
+    current_word_idx = 0
+
+    for sentence_text in sentence_texts:
+        sentence_words = sentence_text.split()
+        expected_word_count = len(sentence_words)
+        end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
+
+        if current_word_idx >= len(words_data):
+            break
+
+        start_time = words_data[current_word_idx].get("start", 0)
+        end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
+
+        sentences.append({
+            "text": sentence_text,
+            "start_time": round(start_time, 1),
+            "end_time": round(end_time, 1),
+            "start_word_index": current_word_idx,
+            "end_word_index": end_word_idx - 1
+        })
+
+        current_word_idx = end_word_idx
+
+    return sentences
 
 
 def parse_gemini_adu_response(response_text: str) -> Optional[List[Dict[str, Any]]]:

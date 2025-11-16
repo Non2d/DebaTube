@@ -9,76 +9,18 @@ import asyncio
 import time
 
 from google import genai
-from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS
+from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS, group_words_into_sentences
 
 router = APIRouter()
 
 # ===== Pydantic Models =====
 
-class WordInfo(BaseModel):
-    """Word-level timing information from Whisper"""
-    word: str
-    start: float
-    end: float
-
-class TranscriptRequest(BaseModel):
-    """Transcription input from Whisper API with verbose_json format"""
-    text: str
-    language: str
-    duration: float
-    words: List[WordInfo]
-
 class BatchTranscriptRequest(RootModel[Dict[str, Dict[str, Any]]]):
     """
     Batch transcription input - key-value pairs of speech transcriptions
     Directly accepts the output from /audio-to-transcript-batch without wrapper
-
-    Example:
-    {
-        "Proposition_1st": {
-            "date_transcribed": "2025-11-16",
-            "duration": 443.99,
-            "language": "english",
-            "text": "Our goal is not only to protect...",
-            "words": [{"word": "Our", "start": 0.0, "end": 0.2}, ...]
-        },
-        "Opposition_1st": {
-            "date_transcribed": "2025-11-16",
-            "duration": 420.5,
-            "language": "english",
-            "text": "Thank you chair...",
-            "words": [...]
-        }
-    }
     """
     root: Dict[str, Dict[str, Any]]
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "Proposition_1st": {
-                    "date_transcribed": "2025-11-16",
-                    "duration": 443.99,
-                    "language": "english",
-                    "text": "Our goal is not only to protect the nation...",
-                    "words": [
-                        {"word": "Our", "start": 0.0, "end": 0.2},
-                        {"word": "goal", "start": 0.2, "end": 0.5}
-                    ]
-                },
-                "Opposition_1st": {
-                    "date_transcribed": "2025-11-16",
-                    "duration": 420.5,
-                    "language": "english",
-                    "text": "Thank you chair and members of the audience...",
-                    "words": [
-                        {"word": "Thank", "start": 0.0, "end": 0.3},
-                        {"word": "you", "start": 0.3, "end": 0.5}
-                    ]
-                }
-            }
-        }
-    }
 
 class RebuttalStructureRequest(BaseModel):
     """Request for identifying rebuttal structure from unified CSV"""
@@ -108,70 +50,141 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 ADUS_DIR = os.path.join(TRANSCRIPTION_DIR, "adus")  # ADU保存ディレクトリ
 os.makedirs(ADUS_DIR, exist_ok=True)
 
-def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+async def regroup_single_speech_to_adu(
+    speech_key: str,
+    transcript_data: Dict[str, Any],
+    timestamp: str
+) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str]]:
     """
-    Group word-level timestamps into sentence-level data to reduce token usage.
-    Sentences are split by punctuation marks (. ? !)
-
-    Args:
-        text: Full transcript text with punctuation
-        words_data: List of word-level timestamp data
-
-    Returns:
-        List of sentence objects with text, start_time, end_time, start_word_index, end_word_index
+    Process a single speech transcript to ADU conversion asynchronously
+    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message)
     """
-    if not words_data:
-        return []
+    try:
+        transcript_text = transcript_data.get("text", "")
+        words_data_raw = transcript_data.get("words", [])
 
-    # Split text into sentences using common punctuation, preserving the punctuation
-    import re
-    sentence_pattern = r'([.!?]+)'
-    parts = re.split(sentence_pattern, text)
+        words_data = [
+            {
+                **word,
+                "start": round(word.get("start", 0), 1),
+                "end": round(word.get("end", 0), 1)
+            }
+            for word in words_data_raw
+        ]
 
-    # Combine text parts with their punctuation
-    sentence_texts = []
-    for i in range(0, len(parts) - 1, 2):
-        if parts[i].strip():
-            # Combine sentence text with its punctuation
-            sentence_with_punct = parts[i].strip()
-            if i + 1 < len(parts):
-                sentence_with_punct += parts[i + 1]
-            sentence_texts.append(sentence_with_punct)
+        sentences_data = group_words_into_sentences(transcript_text, words_data)
 
-    # Handle last part if it doesn't end with punctuation
-    if len(parts) % 2 == 1 and parts[-1].strip():
-        sentence_texts.append(parts[-1].strip())
+        GEMINI_MODEL = "gemini-2.5-pro"
 
-    sentences = []
-    current_word_idx = 0
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=f"""
+Please segment the following debate speech into Argument Discourse Units.
+Each ADU represents a single argument or discourse unit with a specific role below:
 
-    for sentence_text in sentence_texts:
-        # Count words in this sentence (approximate by splitting on whitespace)
-        sentence_words = sentence_text.split()
-        expected_word_count = len(sentence_words)
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
 
-        # Find the end index for this sentence
-        end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+5. Treat any POI as a single independent ADU.
+6. Treat a response to a POI as a single ADU.
 
-        # Skip if no words in range
-        if current_word_idx >= len(words_data):
-            break
+Speech transcription:
+{transcript_text}
 
-        # Get start and end times from the word data
-        start_time = words_data[current_word_idx].get("start", 0)
-        end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
+Sentence-level timestamps (for reference):
+{json.dumps(sentences_data, indent=2)}
 
-        sentences.append({
-            "text": sentence_text,
-            "start_time": round(start_time, 1),
-            "end_time": round(end_time, 1),
-            "start_word_index": current_word_idx,
-            "end_word_index": end_word_idx - 1
-        })
+Return the result as JSON in the following format:
+{{
+  "adus": [
+    {{
+      "id": 1,
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
+      "text": "The actual ADU text",
+      "role": "independent_rebuttal/point_of_main_argument/etc",
+      "start_time": 0.0,
+      "end_time": 2.5,
+    }}
+  ]
+}}
 
-        current_word_idx = end_word_idx
+Note: Use start_sentence_index and end_sentence_index instead of word indices.
+Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
+"""
+        )
 
-    return sentences
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
+        log_filename = f"adu_conversion_{speech_key}_{timestamp}.json"
+        log_path = os.path.join(LOGS_DIR, log_filename)
+
+        log_data = {
+            "timestamp": timestamp,
+            "speech_key": speech_key,
+            "input_transcript": transcript_data,
+            "gemini_response": response_text,
+            "raw_response": raw_response_dict,
+            "model": GEMINI_MODEL
+        }
+
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
+        logger.info(f"ADU conversion log saved to {log_path}")
+
+        csv_filename = f"{speech_key}_{timestamp}.csv"
+        csv_path = os.path.join(ADUS_DIR, csv_filename)
+
+        try:
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            adu_json = json.loads(cleaned_response)
+            adus_list = adu_json.get("adus", [])
+
+            if adus_list:
+                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
+
+                with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
+                    writer.writeheader()
+
+                    for adu in adus_list:
+                        row = {field: adu.get(field, "") for field in fieldnames}
+                        writer.writerow(row)
+
+                logger.info(f"ADU CSV saved to {csv_path}")
+            else:
+                logger.warning(f"No ADUs found in Gemini response for {speech_key}")
+                csv_path = None
+
+        except json.JSONDecodeError as json_error:
+            logger.error(f"Error parsing Gemini response as JSON for {speech_key}: {str(json_error)}")
+            csv_path = None
+        except Exception as csv_error:
+            logger.error(f"Error saving CSV file for {speech_key}: {str(csv_error)}")
+            csv_path = None
+
+        return (speech_key, log_path, csv_path, raw_response_dict, response_text, None)
+
+    except Exception as e:
+        error_msg = f"Error processing {speech_key}: {str(e)}"
+        logger.error(error_msg)
+        return (speech_key, None, None, None, None, error_msg)
 
 async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[Dict[str, Any]]]:
     """
@@ -277,319 +290,6 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
         print(f"[/audio-to-transcript-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during batch transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch transcription failed: {str(e)}")
-
-async def regroup_single_speech_to_adu(
-    speech_key: str,
-    transcript_data: Dict[str, Any],
-    timestamp: str
-) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str]]:
-    """
-    Process a single speech transcript to ADU conversion asynchronously
-    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message)
-    """
-    try:
-        # Extract text and word data from transcript
-        transcript_text = transcript_data.get("text", "")
-        words_data_raw = transcript_data.get("words", [])
-
-        # Round timestamps to 0.1 second precision
-        words_data = [
-            {
-                **word,
-                "start": round(word.get("start", 0), 1),
-                "end": round(word.get("end", 0), 1)
-            }
-            for word in words_data_raw
-        ]
-
-        # Group words into sentences to reduce token usage
-        sentences_data = group_words_into_sentences(transcript_text, words_data)
-
-        GEMINI_MODEL = "gemini-2.5-pro"
-
-        # Prepare prompt for Gemini - using async API with sentence-level data
-        response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=f"""
-Please segment the following debate speech into Argument Discourse Units.
-Each ADU represents a single argument or discourse unit with a specific role below:
-
-ADU Role Definitions:
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
-
-Segmentation Guidelines:
-1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-5. Treat any POI as a single independent ADU.
-6. Treat a response to a POI as a single ADU.
-
-Speech transcription:
-{transcript_text}
-
-Sentence-level timestamps (for reference):
-{json.dumps(sentences_data, indent=2)}
-
-Return the result as JSON in the following format:
-{{
-  "adus": [
-    {{
-      "id": 1,
-      "start_sentence_index": 0,
-      "end_sentence_index": 2,
-      "text": "The actual ADU text",
-      "role": "independent_rebuttal/point_of_main_argument/etc",
-      "start_time": 0.0,
-      "end_time": 2.5,
-    }}
-  ]
-}}
-
-Note: Use start_sentence_index and end_sentence_index instead of word indices.
-Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
-"""
-        )
-
-        # Extract response text for CSV parsing
-        response_text = response.text if hasattr(response, 'text') else str(response)
-
-        # Convert response object to dict for JSON serialization
-        try:
-            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
-        except:
-            raw_response_dict = str(response)
-
-        # Save response to log file
-        log_filename = f"adu_conversion_{speech_key}_{timestamp}.json"
-        log_path = os.path.join(LOGS_DIR, log_filename)
-
-        log_data = {
-            "timestamp": timestamp,
-            "speech_key": speech_key,
-            "input_transcript": transcript_data,
-            "gemini_response": response_text,
-            "raw_response": raw_response_dict,
-            "model": GEMINI_MODEL
-        }
-
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(log_data, f, ensure_ascii=False, indent=2)
-        logger.info(f"ADU conversion log saved to {log_path}")
-
-        # Convert ADU response to CSV format
-        csv_filename = f"{speech_key}_{timestamp}.csv"
-        csv_path = os.path.join(ADUS_DIR, csv_filename)
-
-        try:
-            # Parse Gemini response as JSON
-            cleaned_response = clean_gemini_markdown_response(response_text)
-            adu_json = json.loads(cleaned_response)
-            adus_list = adu_json.get("adus", [])
-
-            # Write to CSV
-            if adus_list:
-                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
-
-                with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
-                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
-                    writer.writeheader()
-
-                    for adu in adus_list:
-                        row = {field: adu.get(field, "") for field in fieldnames}
-                        writer.writerow(row)
-
-                logger.info(f"ADU CSV saved to {csv_path}")
-            else:
-                logger.warning(f"No ADUs found in Gemini response for {speech_key}")
-                csv_path = None
-
-        except json.JSONDecodeError as json_error:
-            logger.error(f"Error parsing Gemini response as JSON for {speech_key}: {str(json_error)}")
-            csv_path = None
-        except Exception as csv_error:
-            logger.error(f"Error saving CSV file for {speech_key}: {str(csv_error)}")
-            csv_path = None
-
-        return (speech_key, log_path, csv_path, raw_response_dict, response_text, None)
-
-    except Exception as e:
-        error_msg = f"Error processing {speech_key}: {str(e)}"
-        logger.error(error_msg)
-        return (speech_key, None, None, None, None, error_msg)
-
-@router.post("/transcript-to-adu")
-async def transcript_to_adu(transcript: TranscriptRequest):
-    """
-    Convert a single speech transcription to Argument Discourse Units (ADUs)
-    - Input: Transcription JSON from Whisper API (verbose_json format)
-    - Output: ADU segmentation with roles and timestamps
-    """
-    start_time = time.time()
-    print(f"[/transcript-to-adu] 処理開始")
-    try:
-        # Extract text and word data from transcript
-        transcript_text = transcript.text
-        # Round timestamps to 0.1 second precision
-        words_data = [
-            {
-                **word.model_dump(),
-                "start": round(word.start, 1),
-                "end": round(word.end, 1)
-            }
-            for word in transcript.words
-        ]
-
-        # Group words into sentences to reduce token usage
-        sentences_data = group_words_into_sentences(transcript_text, words_data)
-
-        GEMINI_MODEL = "gemini-2.5-pro"
-
-        # Prepare prompt for Gemini with sentence-level data
-        response = client_gemini.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=f"""
-Please segment the following debate speech into Argument Discourse Units.
-Each ADU represents a single argument or discourse unit with a specific role below:
-
-ADU Role Definitions:
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-
-Segmentation Guidelines:
-1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-
-Speech transcription:
-{transcript_text}
-
-Sentence-level timestamps (for reference):
-{json.dumps(sentences_data, indent=2)}
-
-Return the result as JSON in the following format:
-{{
-  "adus": [
-    {{
-      "id": 1,
-      "start_sentence_index": 0,
-      "end_sentence_index": 2,
-      "text": "The actual ADU text",
-      "role": "independent_rebuttal/point_of_main_argument/etc",
-      "start_time": 0.0,
-      "end_time": 2.5,
-    }}
-  ]
-}}
-
-Note: Use start_sentence_index and end_sentence_index instead of word indices.
-Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
-"""
-        )
-
-        # Save response to log file
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
-        log_filename = f"adu_conversion_{timestamp}.json"
-        log_path = os.path.join(LOGS_DIR, log_filename)
-
-        # Extract response text
-        response_text = response.text if hasattr(response, 'text') else str(response)
-
-        # Convert response object to dict for JSON serialization
-        try:
-            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
-        except:
-            raw_response_dict = str(response)
-
-        log_data = {
-            "timestamp": timestamp,
-            "input_transcript": transcript.model_dump(),
-            "gemini_response": response_text,
-            "raw_response": raw_response_dict,
-            "model": GEMINI_MODEL
-        }
-
-        try:
-            with open(log_path, "w", encoding="utf-8") as f:
-                json.dump(log_data, f, ensure_ascii=False, indent=2)
-            print(f"ADU conversion log saved to: {log_path}")
-            logger.info(f"ADU conversion log saved to {log_path}")
-        except Exception as save_error:
-            print(f"Error saving log file to {log_path}: {str(save_error)}")
-            logger.error(f"Error saving log file: {str(save_error)}")
-
-        # Convert ADU response to CSV format
-        csv_filename = f"adu_conversion_{timestamp}.csv"
-        csv_path = os.path.join(ADUS_DIR, csv_filename)
-
-        try:
-            # Parse Gemini response as JSON
-            # Remove markdown code block formatting (```json ... ```)
-            cleaned_response = clean_gemini_markdown_response(response_text)
-            adu_json = json.loads(cleaned_response)
-            adus_list = adu_json.get("adus", [])
-
-            # Write to CSV
-            if adus_list:
-                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
-
-                with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
-                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
-                    writer.writeheader()
-
-                    for adu in adus_list:
-                        # Ensure all required fields exist, use empty string as default
-                        row = {field: adu.get(field, "") for field in fieldnames}
-                        writer.writerow(row)
-
-                print(f"ADU CSV saved to: {csv_path}")
-                logger.info(f"ADU CSV saved to {csv_path}")
-            else:
-                print(f"No ADUs found in Gemini response")
-                logger.warning(f"No ADUs found in Gemini response")
-
-        except json.JSONDecodeError as json_error:
-            print(f"Error parsing Gemini response as JSON: {str(json_error)}")
-            logger.error(f"Error parsing Gemini response as JSON: {str(json_error)}")
-            csv_path = None
-        except Exception as csv_error:
-            print(f"Error saving CSV file to {csv_path}: {str(csv_error)}")
-            logger.error(f"Error saving CSV file: {str(csv_error)}")
-            csv_path = None
-
-        # Return results
-        elapsed_time = time.time() - start_time
-        print(f"[/transcript-to-adu] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
-
-        return {
-            "status": "success",
-            "adu_response": response_text,
-            "raw_response": raw_response_dict,
-            "log_saved_to": log_path,
-            "csv_saved_to": csv_path,
-            "adus_dir": ADUS_DIR,
-            "files_exist": {
-                "log": os.path.exists(log_path),
-                "csv": os.path.exists(csv_path) if csv_path else False
-            },
-            "processing_time_seconds": round(elapsed_time, 2)
-        }
-
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        print(f"[/transcript-to-adu] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
-        logger.error(f"Error during ADU conversion: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")
 
 @router.post("/transcript-to-adu-batch")
 async def transcript_to_adu_batch(
@@ -808,9 +508,12 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest):
 
         # Prepare prompt for Gemini
         prompt = f"""## Instruction
-The following text is a transcript from a parliamentary competitive debate. From this script, please extract the rebuttal pairs in the format [[rebutting_statement_id, rebutted_statement_id]]. Please note, the output must be only the list of ID pairs. No other text or explanation should be included. Also, please adhere to the following conditions:
-Definition of Rebuttal: A rebuttal is defined as a statement that clearly references the content of an opponent's argument and then proceeds to negate, weaken, or challenge it. Explicit quoting like "They said..." is not required, as long as the connection is clear from the topic or context.)
-Target: A rebuttal can only target a statement made previously by the opposing team.
+The following text is a transcript from a parliamentary competitive debate. From this transcript, extract all explicit rebuttal pairs.
+
+## Rebuttal Condition
+- A rebuttal must reference the content of an argument made by the opposing team. Expressions like “They said …” are commonly used but not strictly required. The link can also be clear from context or topic.
+- A rebuttal must negate, weaken, or challenge the opposing argument. Statements that are too vague or generic can neither serve as rebuttals nor be treated as valid rebuttal targets.
+- A rebuttal can only target a statement made previously by the opposing team, and thus Proposition 1st must not rebut at all.
 
 ## Transcript
 {transcript}
