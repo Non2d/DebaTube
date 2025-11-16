@@ -153,7 +153,7 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
         logger.error(f"Error during batch transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch transcription failed: {str(e)}")
 
-async def process_single_speech_to_adu(
+async def regroup_single_speech_to_adu(
     speech_key: str,
     transcript_data: Dict[str, Any],
     timestamp: str
@@ -475,7 +475,7 @@ async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
 
         # Create tasks for parallel processing
         tasks = [
-            process_single_speech_to_adu(speech_key, transcript_data, timestamp)
+            regroup_single_speech_to_adu(speech_key, transcript_data, timestamp)
             for speech_key, transcript_data in transcripts.items()
         ]
 
