@@ -48,6 +48,71 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 ADUS_DIR = os.path.join(TRANSCRIPTION_DIR, "adus")  # ADU保存ディレクトリ
 os.makedirs(ADUS_DIR, exist_ok=True)
 
+def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Group word-level timestamps into sentence-level data to reduce token usage.
+    Sentences are split by punctuation marks (. ? !)
+
+    Args:
+        text: Full transcript text with punctuation
+        words_data: List of word-level timestamp data
+
+    Returns:
+        List of sentence objects with text, start_time, end_time, start_word_index, end_word_index
+    """
+    if not words_data:
+        return []
+
+    # Split text into sentences using common punctuation, preserving the punctuation
+    import re
+    sentence_pattern = r'([.!?]+)'
+    parts = re.split(sentence_pattern, text)
+
+    # Combine text parts with their punctuation
+    sentence_texts = []
+    for i in range(0, len(parts) - 1, 2):
+        if parts[i].strip():
+            # Combine sentence text with its punctuation
+            sentence_with_punct = parts[i].strip()
+            if i + 1 < len(parts):
+                sentence_with_punct += parts[i + 1]
+            sentence_texts.append(sentence_with_punct)
+
+    # Handle last part if it doesn't end with punctuation
+    if len(parts) % 2 == 1 and parts[-1].strip():
+        sentence_texts.append(parts[-1].strip())
+
+    sentences = []
+    current_word_idx = 0
+
+    for sentence_text in sentence_texts:
+        # Count words in this sentence (approximate by splitting on whitespace)
+        sentence_words = sentence_text.split()
+        expected_word_count = len(sentence_words)
+
+        # Find the end index for this sentence
+        end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
+
+        # Skip if no words in range
+        if current_word_idx >= len(words_data):
+            break
+
+        # Get start and end times from the word data
+        start_time = words_data[current_word_idx].get("start", 0)
+        end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
+
+        sentences.append({
+            "text": sentence_text,
+            "start_time": round(start_time, 1),
+            "end_time": round(end_time, 1),
+            "start_word_index": current_word_idx,
+            "end_word_index": end_word_idx - 1
+        })
+
+        current_word_idx = end_word_idx
+
+    return sentences
+
 async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[Dict[str, Any]]]:
     """
     1つのファイルを文字起こしする
@@ -177,9 +242,12 @@ async def regroup_single_speech_to_adu(
             for word in words_data_raw
         ]
 
+        # Group words into sentences to reduce token usage
+        sentences_data = group_words_into_sentences(transcript_text, words_data)
+
         GEMINI_MODEL = "gemini-2.5-pro"
 
-        # Prepare prompt for Gemini - using async API
+        # Prepare prompt for Gemini - using async API with sentence-level data
         response = await asyncio.to_thread(
             client_gemini.models.generate_content,
             model=GEMINI_MODEL,
@@ -193,26 +261,29 @@ ADU Role Definitions:
 - independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
 - point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
 - point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
 
 Segmentation Guidelines:
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
 2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
 3. Rebuttals are always independent ADUs regardless of length
 4. Group sentences discussing the same specific argumentative point into one ADU
+5. Treat any POI as a single independent ADU.
+6. Treat a response to a POI as a single ADU.
 
 Speech transcription:
 {transcript_text}
 
-Word-level timestamps:
-{json.dumps(words_data, indent=2)}
+Sentence-level timestamps (for reference):
+{json.dumps(sentences_data, indent=2)}
 
 Return the result as JSON in the following format:
 {{
   "adus": [
     {{
       "id": 1,
-      "start_word_index": 0,
-      "end_word_index": 5,
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
       "text": "The actual ADU text",
       "role": "independent_rebuttal/point_of_main_argument/etc",
       "start_time": 0.0,
@@ -221,7 +292,8 @@ Return the result as JSON in the following format:
   ]
 }}
 
-Focus on semantic units of argumentation. Be precise with word indices and timestamps.
+Note: Use start_sentence_index and end_sentence_index instead of word indices.
+Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
 """
         )
 
@@ -263,7 +335,7 @@ Focus on semantic units of argumentation. Be precise with word indices and times
 
             # Write to CSV
             if adus_list:
-                fieldnames = ["id", "start_word_index", "end_word_index", "text", "role", "start_time", "end_time", "confidence"]
+                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
 
                 with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
@@ -313,9 +385,13 @@ async def transcript_to_adu(transcript: TranscriptRequest):
             }
             for word in transcript.words
         ]
+
+        # Group words into sentences to reduce token usage
+        sentences_data = group_words_into_sentences(transcript_text, words_data)
+
         GEMINI_MODEL = "gemini-2.5-pro"
 
-        # Prepare prompt for Gemini
+        # Prepare prompt for Gemini with sentence-level data
         response = client_gemini.models.generate_content(
             model=GEMINI_MODEL,
             contents=f"""
@@ -338,16 +414,16 @@ Segmentation Guidelines:
 Speech transcription:
 {transcript_text}
 
-Word-level timestamps:
-{json.dumps(words_data, indent=2)}
+Sentence-level timestamps (for reference):
+{json.dumps(sentences_data, indent=2)}
 
 Return the result as JSON in the following format:
 {{
   "adus": [
     {{
       "id": 1,
-      "start_word_index": 0,
-      "end_word_index": 5,
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
       "text": "The actual ADU text",
       "role": "independent_rebuttal/point_of_main_argument/etc",
       "start_time": 0.0,
@@ -356,7 +432,8 @@ Return the result as JSON in the following format:
   ]
 }}
 
-Focus on semantic units of argumentation. Be precise with word indices and timestamps.
+Note: Use start_sentence_index and end_sentence_index instead of word indices.
+Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
 """
         )
 
@@ -404,7 +481,7 @@ Focus on semantic units of argumentation. Be precise with word indices and times
 
             # Write to CSV
             if adus_list:
-                fieldnames = ["id", "start_word_index", "end_word_index", "text", "role", "start_time", "end_time", "confidence"]
+                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
 
                 with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")

@@ -4,7 +4,9 @@ Utility/Sub APIs - Less essential endpoints for manual verification and debuggin
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from log_config import logger
-import os, json, csv
+from pydantic import BaseModel
+from typing import List, Dict, Any
+import os, json, csv, re
 from datetime import datetime
 
 router = APIRouter()
@@ -12,6 +14,103 @@ router = APIRouter()
 # Import shared directories
 from .audio2adu import ADUS_DIR
 from .utils import clean_gemini_markdown_response
+
+# ===== Pydantic Models for Sentence Grouping =====
+
+class WordInfo(BaseModel):
+    """Word-level timing information"""
+    word: str
+    start: float
+    end: float
+
+class SentenceGroupRequest(BaseModel):
+    """Request for grouping words into sentences"""
+    text: str
+    words: List[WordInfo]
+
+class SentenceInfo(BaseModel):
+    """Sentence-level timing information"""
+    text: str
+    start_time: float
+    end_time: float
+    start_word_index: int
+    end_word_index: int
+
+class SentenceGroupResponse(BaseModel):
+    """Response containing grouped sentences"""
+    sentences: List[SentenceInfo]
+
+@router.post("/group-sentences", response_model=SentenceGroupResponse)
+async def group_sentences(request: SentenceGroupRequest):
+    """
+    Group word-level timestamps into sentence-level data.
+    Sentences are split by punctuation marks (. ? !)
+
+    Args:
+        request: Contains full text with punctuation and word-level timestamp data
+
+    Returns:
+        SentenceGroupResponse: List of sentences with timing information
+    """
+    try:
+        text = request.text
+        words_data = [word.model_dump() for word in request.words]
+
+        if not words_data:
+            return SentenceGroupResponse(sentences=[])
+
+        # Split text into sentences using common punctuation, preserving the punctuation
+        sentence_pattern = r'([.!?]+)'
+        parts = re.split(sentence_pattern, text)
+
+        # Combine text parts with their punctuation
+        sentence_texts = []
+        for i in range(0, len(parts) - 1, 2):
+            if parts[i].strip():
+                # Combine sentence text with its punctuation
+                sentence_with_punct = parts[i].strip()
+                if i + 1 < len(parts):
+                    sentence_with_punct += parts[i + 1]
+                sentence_texts.append(sentence_with_punct)
+
+        # Handle last part if it doesn't end with punctuation
+        if len(parts) % 2 == 1 and parts[-1].strip():
+            sentence_texts.append(parts[-1].strip())
+
+        sentences = []
+        current_word_idx = 0
+
+        for sentence_text in sentence_texts:
+            # Count words in this sentence (approximate by splitting on whitespace)
+            sentence_words = sentence_text.split()
+            expected_word_count = len(sentence_words)
+
+            # Find the end index for this sentence
+            end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
+
+            # Skip if no words in range
+            if current_word_idx >= len(words_data):
+                break
+
+            # Get start and end times from the word data
+            start_time = words_data[current_word_idx].get("start", 0)
+            end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
+
+            sentences.append(SentenceInfo(
+                text=sentence_text,
+                start_time=round(start_time, 1),
+                end_time=round(end_time, 1),
+                start_word_index=current_word_idx,
+                end_word_index=end_word_idx - 1
+            ))
+
+            current_word_idx = end_word_idx
+
+        return SentenceGroupResponse(sentences=sentences)
+
+    except Exception as e:
+        logger.error(f"Error processing sentences: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing sentences: {str(e)}")
 
 @router.post("/adu-jsonlog-to-csv")
 async def adu_json_to_csv(file: UploadFile = File(...)):
@@ -72,7 +171,7 @@ async def adu_json_to_csv(file: UploadFile = File(...)):
         csv_path = os.path.join(ADUS_DIR, csv_filename)
 
         # Define CSV columns
-        fieldnames = ["id", "start_word_index", "end_word_index", "text", "role", "start_time", "end_time", "confidence"]
+        fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
 
         # Write CSV
         with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
