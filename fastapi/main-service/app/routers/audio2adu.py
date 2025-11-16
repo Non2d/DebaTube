@@ -1,16 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
 from log_config import logger
 from openai import OpenAI
-import os, json, tempfile
+import os, json, tempfile, re
 from datetime import datetime
-import re
+
+from google import genai
 
 router = APIRouter()
 
 # OpenAI client初期化
 client = OpenAI()
+client_gemini = genai.Client()
 
 # 文字起こし結果の保存先ディレクトリ
 # Docker内の /app/transcriptions に保存
@@ -22,8 +23,8 @@ os.makedirs(TRANSCRIPTION_DIR, exist_ok=True)
 # デバッグ用
 print(f"Transcription directory: {TRANSCRIPTION_DIR}")
 
-# @router.post("/audio-to-text")
-# async def audio_to_text(file: UploadFile = File(...)):
+# @router.post("/audio-to-transcript")
+# async def audio_to_transcript(file: UploadFile = File(...)):
 #     """
 #     音声ファイルを文字起こしするエンドポイント
 #     - webmなどの音声ファイルを受け取る
@@ -78,8 +79,8 @@ print(f"Transcription directory: {TRANSCRIPTION_DIR}")
 #         logger.error(f"Error during transcription: {str(e)}")
 #         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
-@router.post("/audio-to-text-batch")
-async def audio_to_text_batch(files: List[UploadFile] = File(...)):
+@router.post("/audio-to-transcript-batch")
+async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
     """
     複数の音声ファイルを一度に文字起こしするエンドポイント
     - ファイル名形式: "Proposition_1st-2025-11-16_140426.webm"
@@ -159,4 +160,15 @@ async def audio_to_text_batch(files: List[UploadFile] = File(...)):
         logger.error(f"Error during batch transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch transcription failed: {str(e)}")
 
+@router.post("/transcript-to-adu")
+async def transcript_to_adu(transcript: Dict[str, Any]):
+    response = client_gemini.models.generate_content(
+        model="gemini-2.5-flash",
+        contents="Explain hou WI works in a few words."
+    )
 
+    print("Gemini Response:", response)
+    return {
+        "status": "success",
+        "gemini_response": response
+    }
