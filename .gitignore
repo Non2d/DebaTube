@@ -6,3 +6,4 @@ data
 .DS_Store
 .claude
 storage
+fastapi/main-service/app/transcriptions/*
