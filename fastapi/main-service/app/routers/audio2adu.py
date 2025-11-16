@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 from log_config import logger
 from openai import OpenAI, AsyncOpenAI
 import os, json, tempfile, re, csv
@@ -9,7 +9,7 @@ import asyncio
 import time
 
 from google import genai
-from .utils import clean_gemini_markdown_response
+from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS
 
 router = APIRouter()
 
@@ -28,9 +28,69 @@ class TranscriptRequest(BaseModel):
     duration: float
     words: List[WordInfo]
 
-class BatchTranscriptRequest(BaseModel):
-    """Batch transcription input - key-value pairs of speech transcriptions"""
-    transcripts: Dict[str, Dict[str, Any]]  # e.g., {"Proposition_1st": {...}, "Opposition_1st": {...}}
+class BatchTranscriptRequest(RootModel[Dict[str, Dict[str, Any]]]):
+    """
+    Batch transcription input - key-value pairs of speech transcriptions
+    Directly accepts the output from /audio-to-transcript-batch without wrapper
+
+    Example:
+    {
+        "Proposition_1st": {
+            "date_transcribed": "2025-11-16",
+            "duration": 443.99,
+            "language": "english",
+            "text": "Our goal is not only to protect...",
+            "words": [{"word": "Our", "start": 0.0, "end": 0.2}, ...]
+        },
+        "Opposition_1st": {
+            "date_transcribed": "2025-11-16",
+            "duration": 420.5,
+            "language": "english",
+            "text": "Thank you chair...",
+            "words": [...]
+        }
+    }
+    """
+    root: Dict[str, Dict[str, Any]]
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "Proposition_1st": {
+                    "date_transcribed": "2025-11-16",
+                    "duration": 443.99,
+                    "language": "english",
+                    "text": "Our goal is not only to protect the nation...",
+                    "words": [
+                        {"word": "Our", "start": 0.0, "end": 0.2},
+                        {"word": "goal", "start": 0.2, "end": 0.5}
+                    ]
+                },
+                "Opposition_1st": {
+                    "date_transcribed": "2025-11-16",
+                    "duration": 420.5,
+                    "language": "english",
+                    "text": "Thank you chair and members of the audience...",
+                    "words": [
+                        {"word": "Thank", "start": 0.0, "end": 0.3},
+                        {"word": "you", "start": 0.3, "end": 0.5}
+                    ]
+                }
+            }
+        }
+    }
+
+class RebuttalStructureRequest(BaseModel):
+    """Request for identifying rebuttal structure from unified CSV"""
+    unified_csv_path: str  # Path to unified CSV file with full ADU data
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "unified_csv_path": "/path/to/unified_adus_NA_timestamp.csv"
+            }
+        }
+    }
 
 # OpenAI client初期化
 client = OpenAI()
@@ -532,20 +592,36 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
         raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")
 
 @router.post("/transcript-to-adu-batch")
-async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
+async def transcript_to_adu_batch(
+    batch_request: BatchTranscriptRequest,
+    debate_format: str = "NA"
+):
     """
     Convert multiple speech transcriptions to ADUs in parallel using Gemini API
     - Input: JSON object with speech keys and their transcription data
-    - Output: Separate CSV files for each speech with speech key in filename
+    - Output: Individual CSV files for each speech + one unified CSV with all ADUs in debate order
     - Processing: Asynchronous parallel processing with Gemini API
+
+    Parameters:
+    - batch_request: Dictionary of speech transcriptions (from /audio-to-transcript-batch)
+    - debate_format: Debate format to determine speech order ("NA", "ASIAN", or "BP"). Default: "NA"
     """
     start_time = time.time()
-    print(f"[/transcript-to-adu-batch] 処理開始")
+    print(f"[/transcript-to-adu-batch] 処理開始 - Debate format: {debate_format}")
 
     try:
-        transcripts = batch_request.transcripts
+        transcripts = batch_request.root
         if not transcripts:
             raise HTTPException(status_code=400, detail="No transcripts provided")
+
+        # Validate debate format
+        if debate_format not in DEBATE_FORMATS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid debate_format. Must be one of: {', '.join(DEBATE_FORMATS.keys())}"
+            )
+
+        speech_order = DEBATE_FORMATS[debate_format]
 
         # Generate a shared timestamp for this batch
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
@@ -565,6 +641,7 @@ async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
         csv_files = []
         all_responses = {}
         all_raw_responses = {}
+        adus_by_speech = {}
 
         for speech_key, log_path, csv_path, raw_response, response_text, error_msg in results:
             if error_msg:
@@ -583,8 +660,47 @@ async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
                     csv_files.append(csv_path)
                 if response_text:
                     all_responses[speech_key] = response_text
+                    # Parse ADUs for unified CSV
+                    try:
+                        cleaned_response = clean_gemini_markdown_response(response_text)
+                        adu_json = json.loads(cleaned_response)
+                        adus_by_speech[speech_key] = adu_json.get("adus", [])
+                    except (json.JSONDecodeError, Exception) as parse_error:
+                        logger.warning(f"Failed to parse ADUs for {speech_key}: {str(parse_error)}")
                 if raw_response:
                     all_raw_responses[speech_key] = raw_response
+
+        # Create unified CSV with all ADUs in debate order
+        unified_csv_path = None
+        unified_md_path = None
+        total_adus_written = 0
+        if adus_by_speech:
+            unified_csv_filename = f"unified_adus_{debate_format}_{timestamp}.csv"
+            unified_csv_path = os.path.join(ADUS_DIR, unified_csv_filename)
+            try:
+                total_adus_written = merge_adus_to_unified_csv(
+                    adus_by_speech=adus_by_speech,
+                    output_path=unified_csv_path,
+                    speech_order=speech_order
+                )
+                logger.info(f"Unified CSV created: {unified_csv_path} ({total_adus_written} ADUs)")
+
+                # Generate Markdown from unified CSV
+                unified_md_filename = f"unified_adus_{debate_format}_{timestamp}.md"
+                unified_md_path = os.path.join(ADUS_DIR, unified_md_filename)
+                try:
+                    total_adus_in_md = unified_csv_to_markdown(
+                        csv_path=unified_csv_path,
+                        output_path=unified_md_path
+                    )
+                    logger.info(f"Unified MD created: {unified_md_path} ({total_adus_in_md} ADUs)")
+                except Exception as md_error:
+                    logger.error(f"Failed to create unified MD: {str(md_error)}")
+                    unified_md_path = None
+
+            except Exception as merge_error:
+                logger.error(f"Failed to create unified CSV: {str(merge_error)}")
+                unified_csv_path = None
 
         elapsed_time = time.time() - start_time
         print(f"[/transcript-to-adu-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
@@ -598,7 +714,14 @@ async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
             "failed_speeches": failed_speeches,
             "adu_responses": all_responses,
             "raw_responses": all_raw_responses,
-            "csv_files": csv_files,
+            "individual_csv_files": csv_files,
+            "unified_csv_path": unified_csv_path,
+            "unified_csv_exists": os.path.exists(unified_csv_path) if unified_csv_path else False,
+            "unified_md_path": unified_md_path,
+            "unified_md_exists": os.path.exists(unified_md_path) if unified_md_path else False,
+            "total_adus_in_unified_csv": total_adus_written,
+            "debate_format": debate_format,
+            "speech_order": speech_order,
             "adus_dir": ADUS_DIR,
             "logs_dir": LOGS_DIR,
             "processing_time_seconds": round(elapsed_time, 2)
@@ -610,3 +733,180 @@ async def transcript_to_adu_batch(batch_request: BatchTranscriptRequest):
         logger.error(f"Error during batch ADU conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch ADU conversion failed: {str(e)}")
 
+@router.post("/identify-rebuttal-structure")
+async def identify_rebuttal_structure(request: RebuttalStructureRequest):
+    """
+    注意：csvとmdが同じディレクトリにあることを前提としています。
+    Identify rebuttal structure from unified CSV file
+    - Input: Path to unified CSV file with ADU data
+    - Output: {speeches: {...}, rebuttals: [[rebutting_id, rebutted_id], ...]}
+    - Uses Gemini API to analyze rebuttal relationships
+    - Saves result as JSON file
+    """
+    start_time = time.time()
+    print(f"[/identify-rebuttal-structure] 処理開始")
+
+    try:
+        csv_path = request.unified_csv_path
+
+        # Convert relative path to absolute path based on APP_DIR
+        if not os.path.isabs(csv_path):
+            # If path starts with 'app/', resolve from parent of APP_DIR
+            if csv_path.startswith('app/'):
+                csv_path = os.path.join(os.path.dirname(APP_DIR), csv_path)
+            else:
+                # Otherwise, resolve from current working directory
+                csv_path = os.path.abspath(csv_path)
+
+        # Validate CSV file exists
+        if not os.path.exists(csv_path):
+            raise HTTPException(status_code=404, detail=f"CSV file not found: {csv_path}")
+
+        GEMINI_MODEL = "gemini-2.5-pro"
+
+        # Read CSV file to get full ADU data and build markdown for Gemini
+        speeches_data = {}
+        markdown_lines = []
+        current_speech = None
+
+        with open(csv_path, "r", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+
+            for row in reader:
+                speech_key = row.get("speech_key", "")
+                adu_id = int(row.get("id", 0))
+                text = row.get("text", "")
+                role = row.get("role", "")
+                start_time = float(row.get("start_time", 0))
+
+                # Build speeches data structure
+                if speech_key not in speeches_data:
+                    speeches_data[speech_key] = []
+
+                # Format: {id, type, text, start}
+                adu_data = {
+                    "id": adu_id,
+                    "type": role,  # role -> type
+                    "text": text,
+                    "start": start_time  # start_time -> start
+                }
+                speeches_data[speech_key].append(adu_data)
+
+                # Build markdown for Gemini
+                if speech_key != current_speech:
+                    if current_speech is not None:
+                        markdown_lines.append("")  # Blank line between speeches
+                    markdown_lines.append(f"## {speech_key}")
+                    markdown_lines.append("")
+                    current_speech = speech_key
+
+                markdown_lines.append(f"id:{adu_id}, {text}")
+                markdown_lines.append("")
+
+        transcript = "\n".join(markdown_lines)
+        logger.info(f"Loaded {sum(len(v) for v in speeches_data.values())} ADUs from CSV")
+
+        # Prepare prompt for Gemini
+        prompt = f"""## Instruction
+The following text is a transcript from a parliamentary competitive debate. From this script, please extract the rebuttal pairs in the format [[rebutting_statement_id, rebutted_statement_id]]. Please note, the output must be only the list of ID pairs. No other text or explanation should be included. Also, please adhere to the following conditions:
+Definition of Rebuttal: A rebuttal is defined as a statement that clearly references the content of an opponent's argument and then proceeds to negate, weaken, or challenge it. Explicit quoting like "They said..." is not required, as long as the connection is clear from the topic or context.)
+Target: A rebuttal can only target a statement made previously by the opposing team.
+
+## Transcript
+{transcript}
+
+## Output Format
+Return ONLY a JSON array of pairs in this exact format.
+Example: [[5, 2], [7, 3], [12, 8]]
+
+Do not include any other text, explanation, or formatting."""
+
+        # Call Gemini API
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=prompt
+        )
+
+        # Extract response text
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        # Parse the response to extract rebuttal pairs
+        try:
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            rebuttal_pairs = json.loads(cleaned_response)
+
+            if not isinstance(rebuttal_pairs, list):
+                raise ValueError("Response is not a list")
+
+            # Validate format
+            for pair in rebuttal_pairs:
+                if not isinstance(pair, list) or len(pair) != 2:
+                    raise ValueError(f"Invalid pair format: {pair}")
+
+        except (json.JSONDecodeError, ValueError) as parse_error:
+            logger.error(f"Error parsing rebuttal pairs: {str(parse_error)}")
+            logger.error(f"Raw response: {response_text}")
+            rebuttal_pairs = []
+
+        # Build result in requested format
+        result = {
+            "speeches": speeches_data,
+            "rebuttals": rebuttal_pairs
+        }
+
+        # Save result as JSON file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
+        result_filename = f"rebuttal_graph_{timestamp}.json"
+        result_path = os.path.join(ADUS_DIR, result_filename)
+
+        with open(result_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        logger.info(f"Rebuttal graph saved to {result_path}")
+
+        # Save log
+        log_filename = f"rebuttal_structure_{timestamp}.json"
+        log_path = os.path.join(LOGS_DIR, log_filename)
+
+        # Convert response object to dict for JSON serialization
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
+        log_data = {
+            "timestamp": timestamp,
+            "csv_path": csv_path,
+            "input_transcript_length": len(transcript),
+            "gemini_response": response_text,
+            "raw_response": raw_response_dict,
+            "model": GEMINI_MODEL
+        }
+
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(log_data, f, ensure_ascii=False, indent=2)
+        logger.info(f"Rebuttal structure log saved to {log_path}")
+
+        elapsed_time = time.time() - start_time
+        print(f"[/identify-rebuttal-structure] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "speeches": speeches_data,
+            "rebuttals": rebuttal_pairs,
+            "total_speeches": len(speeches_data),
+            "total_adus": sum(len(v) for v in speeches_data.values()),
+            "total_rebuttal_pairs": len(rebuttal_pairs),
+            "result_saved_to": result_path,
+            "result_exists": os.path.exists(result_path),
+            "log_saved_to": log_path,
+            "log_exists": os.path.exists(log_path),
+            "model": GEMINI_MODEL,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/identify-rebuttal-structure] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during rebuttal structure identification: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Rebuttal structure identification failed: {str(e)}")

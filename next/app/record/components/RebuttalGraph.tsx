@@ -32,8 +32,36 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
 
   useEffect(() => {
     try {
+      // キー名を討論順序にソートする関数
+      const getSpeechOrder = (key: string): number => {
+        // Prop1, Prop2, etc. または Proposition_1st, Proposition_2nd, etc.
+        const propMatch = key.match(/^Prop(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
+        // Opp1, Opp2, etc. または Opposition_1st, Opposition_2nd, etc.
+        const oppMatch = key.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
+
+        const ordinalToNumber = (ordinal: string): number => {
+          const map: {[key: string]: number} = {
+            '1st': 1, '2nd': 2, '3rd': 3, '4th': 4,
+            '1': 1, '2': 2, '3': 3, '4': 4
+          };
+          return map[ordinal.toLowerCase()] || 0;
+        };
+
+        if (propMatch) {
+          const num = ordinalToNumber(propMatch[1]);
+          // Prop 1st -> 0, Prop 2nd -> 2, Prop 3rd/4th -> 4 or 6
+          return (num - 1) * 2;
+        } else if (oppMatch) {
+          const num = ordinalToNumber(oppMatch[1]);
+          // Opp 1st -> 1, Opp 2nd -> 3, Opp 3rd/4th -> 5 or 7
+          return (num - 1) * 2 + 1;
+        }
+
+        return 999; // unknown format
+      };
+
       // JSONのspeeches形式をexplore形式に変換
-      const speechKeys = Object.keys(data.speeches);
+      const speechKeys = Object.keys(data.speeches).sort((a, b) => getSpeechOrder(a) - getSpeechOrder(b));
       const convertedSpeeches = speechKeys.map((key) => ({
         argument_units: (data.speeches[key] || []).map((segment: any, idx: number) => ({
           sequence_id: segment.id !== undefined ? segment.id : idx,

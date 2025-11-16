@@ -13,7 +13,7 @@ router = APIRouter()
 
 # Import shared directories
 from .audio2adu import ADUS_DIR
-from .utils import clean_gemini_markdown_response
+from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS
 
 # ===== Pydantic Models for Sentence Grouping =====
 
@@ -199,3 +199,212 @@ async def adu_json_to_csv(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Error converting JSON to CSV: {str(e)}")
         raise HTTPException(status_code=500, detail=f"JSON to CSV conversion failed: {str(e)}")
+
+# ===== Pydantic Models for CSV Merging =====
+
+class MergeADUsRequest(BaseModel):
+    """Request for merging existing ADU CSV files"""
+    csv_directory: str  # Directory containing individual ADU CSV files
+    debate_format: str = "NA"  # Debate format ("NA", "ASIAN", or "BP")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "csv_directory": "/app/transcriptions/adus",
+                "debate_format": "NA"
+            }
+        }
+    }
+
+@router.post("/merge-aducsvs-to-unifiedcsv")
+async def merge_adus_to_csv(request: MergeADUsRequest):
+    """
+    Manually merge existing ADU CSV files into a single unified CSV
+    - Automatically finds all CSV files for speeches in the debate format
+    - Merges them in the order specified by debate_format
+    - Outputs: unified_{Proposition_1st_timestamp}.csv
+
+    Use this endpoint when you already have individual ADU CSV files and want to combine them
+    """
+    start_time = datetime.now().timestamp()
+    print(f"[/merge-aducsvs-to-unifiedcsv] 処理開始 - Debate format: {request.debate_format}")
+
+    try:
+        # Validate debate format
+        if request.debate_format not in DEBATE_FORMATS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid debate_format. Must be one of: {', '.join(DEBATE_FORMATS.keys())}"
+            )
+
+        speech_order = DEBATE_FORMATS[request.debate_format]
+
+        # Verify directory exists
+        if not os.path.exists(request.csv_directory):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Directory not found: {request.csv_directory}"
+            )
+
+        # Read CSV files for each speech in the debate format
+        adus_by_speech = {}
+        missing_speeches = []
+        proposition_1st_timestamp = None
+
+        for speech_key in speech_order:
+            # Find CSV file matching the speech_key pattern
+            csv_files = [
+                f for f in os.listdir(request.csv_directory)
+                if f.startswith(speech_key + "_") and f.endswith(".csv") and not f.startswith("unified_")
+            ]
+
+            if not csv_files:
+                missing_speeches.append(speech_key)
+                logger.warning(f"No CSV file found for {speech_key} in {request.csv_directory}")
+                continue
+
+            # Use the most recent file if multiple matches
+            csv_file = sorted(csv_files)[-1]
+            csv_path = os.path.join(request.csv_directory, csv_file)
+
+            # Extract timestamp from Proposition_1st filename
+            if speech_key == "Proposition_1st" and proposition_1st_timestamp is None:
+                # Extract timestamp from filename like "Proposition_1st_20251116_055828_7.csv"
+                match = re.search(r'Proposition_1st_(.+)\.csv$', csv_file)
+                if match:
+                    proposition_1st_timestamp = match.group(1)
+
+            # Read ADUs from CSV
+            try:
+                adus = []
+                with open(csv_path, "r", encoding="utf-8") as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader:
+                        adus.append(row)
+
+                adus_by_speech[speech_key] = adus
+                logger.info(f"Loaded {len(adus)} ADUs from {csv_file}")
+
+            except Exception as read_error:
+                logger.error(f"Failed to read {csv_path}: {str(read_error)}")
+                missing_speeches.append(speech_key)
+
+        if not adus_by_speech:
+            raise HTTPException(
+                status_code=404,
+                detail="No valid CSV files found for any speech in the debate format"
+            )
+
+        # Generate output filename using Proposition_1st timestamp
+        if proposition_1st_timestamp:
+            unified_csv_filename = f"unified_{proposition_1st_timestamp}.csv"
+        else:
+            # Fallback to current timestamp if Proposition_1st not found
+            fallback_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
+            unified_csv_filename = f"unified_{fallback_timestamp}.csv"
+            logger.warning("Proposition_1st timestamp not found, using current timestamp")
+
+        unified_csv_path = os.path.join(ADUS_DIR, unified_csv_filename)
+
+        # Merge ADUs into unified CSV
+        total_adus_written = merge_adus_to_unified_csv(
+            adus_by_speech=adus_by_speech,
+            output_path=unified_csv_path,
+            speech_order=speech_order
+        )
+
+        elapsed_time = datetime.now().timestamp() - start_time
+        print(f"[/merge-aducsvs-to-unifiedcsv] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "unified_csv_path": unified_csv_path,
+            "unified_csv_exists": os.path.exists(unified_csv_path),
+            "total_adus": total_adus_written,
+            "speeches_merged": list(adus_by_speech.keys()),
+            "missing_speeches": missing_speeches,
+            "debate_format": request.debate_format,
+            "speech_order": speech_order,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        elapsed_time = datetime.now().timestamp() - start_time
+        print(f"[/merge-aducsvs-to-unifiedcsv] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during CSV merging: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"CSV merging failed: {str(e)}")
+
+# ===== Pydantic Models for CSV to MD Conversion =====
+
+class UnifiedCSVToMDRequest(BaseModel):
+    """Request for converting unified CSV to Markdown"""
+    csv_path: str  # Path to the unified CSV file
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "csv_path": "/app/transcriptions/adus/unified_20251116_055828_7.csv"
+            }
+        }
+    }
+
+@router.post("/unified-csv-to-md")
+async def unified_csv_to_md(request: UnifiedCSVToMDRequest):
+    """
+    Convert a unified CSV file to Markdown format
+    - Input: Path to unified CSV file
+    - Output: Markdown file with format:
+      ## Speech_Key
+      id:1, text content...
+      id:2, text content...
+
+    The markdown file will be saved in the same directory as the CSV with .md extension
+    """
+    start_time = datetime.now().timestamp()
+    print(f"[/unified-csv-to-md] 処理開始")
+
+    try:
+        # Verify CSV file exists
+        if not os.path.exists(request.csv_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"CSV file not found: {request.csv_path}"
+            )
+
+        # Verify it's a CSV file
+        if not request.csv_path.endswith(".csv"):
+            raise HTTPException(
+                status_code=400,
+                detail="File must be a CSV file"
+            )
+
+        # Generate MD file path (same name, different extension)
+        md_path = request.csv_path.rsplit(".", 1)[0] + ".md"
+
+        # Convert to Markdown
+        total_adus = unified_csv_to_markdown(
+            csv_path=request.csv_path,
+            output_path=md_path
+        )
+
+        elapsed_time = datetime.now().timestamp() - start_time
+        print(f"[/unified-csv-to-md] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "csv_path": request.csv_path,
+            "md_path": md_path,
+            "md_exists": os.path.exists(md_path),
+            "total_adus": total_adus,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        elapsed_time = datetime.now().timestamp() - start_time
+        print(f"[/unified-csv-to-md] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during CSV to MD conversion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"CSV to MD conversion failed: {str(e)}")
