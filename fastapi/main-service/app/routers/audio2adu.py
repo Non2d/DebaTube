@@ -6,8 +6,10 @@ from openai import OpenAI, AsyncOpenAI
 import os, json, tempfile, re, csv
 from datetime import datetime
 import asyncio
+import time
 
 from google import genai
+from .utils import clean_gemini_markdown_response
 
 router = APIRouter()
 
@@ -100,6 +102,8 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
     - date_transcribed: "-"の後の部分（例：2025-11-16_140426）
     - 結果を1つのJSONにまとめて保存
     """
+    start_time = time.time()
+    print(f"[/audio-to-transcript-batch] 処理開始")
     try:
         # 複数ファイルを非同期で並列処理
         tasks = [transcribe_single_audio(file) for file in files]
@@ -126,16 +130,22 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
             print(f"Error saving batch file to {output_path}: {str(save_error)}")
             logger.error(f"Error saving batch file: {str(save_error)}")
 
+        elapsed_time = time.time() - start_time
+        print(f"[/audio-to-transcript-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
         return {
             "status": "success",
             "files_processed": len(batch_results),
             "batch_results": batch_results,
             "saved_to": output_path,
             "transcription_dir": TRANSCRIPTION_DIR,
-            "file_exists": os.path.exists(output_path)
+            "file_exists": os.path.exists(output_path),
+            "processing_time_seconds": round(elapsed_time, 2)
         }
 
     except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/audio-to-transcript-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during batch transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Batch transcription failed: {str(e)}")
 
@@ -146,6 +156,8 @@ async def transcript_to_adu(transcript: TranscriptRequest):
     - Input: Transcription JSON from Whisper API (verbose_json format)
     - Output: ADU segmentation with roles and timestamps
     """
+    start_time = time.time()
+    print(f"[/transcript-to-adu] 処理開始")
     try:
         # Extract text and word data from transcript
         transcript_text = transcript.text
@@ -156,8 +168,21 @@ async def transcript_to_adu(transcript: TranscriptRequest):
         response = client_gemini.models.generate_content(
             model=GEMINI_MODEL,
             contents=f"""
-Please segment the following debate speech into Argument Discourse Units (ADUs).
-Each ADU represents a single argument or discourse unit with a specific role (claim, premise, rebuttal, counterargument, etc.).
+Please segment the following debate speech into Argument Discourse Units.
+Each ADU represents a single argument or discourse unit with a specific role below:
+
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
 
 Speech transcription:
 {transcript_text}
@@ -173,7 +198,7 @@ Return the result as JSON in the following format:
       "start_word_index": 0,
       "end_word_index": 5,
       "text": "The actual ADU text",
-      "role": "claim",
+      "role": "independent_rebuttal/point_of_main_argument/etc",
       "start_time": 0.0,
       "end_time": 2.5,
     }}
@@ -214,7 +239,9 @@ Focus on semantic units of argumentation. Be precise with word indices and times
 
         try:
             # Parse Gemini response as JSON
-            adu_json = json.loads(response_text)
+            # Remove markdown code block formatting (```json ... ```)
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            adu_json = json.loads(cleaned_response)
             adus_list = adu_json.get("adus", [])
 
             # Write to CSV
@@ -246,6 +273,9 @@ Focus on semantic units of argumentation. Be precise with word indices and times
             csv_path = None
 
         # Return results
+        elapsed_time = time.time() - start_time
+        print(f"[/transcript-to-adu] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
         return {
             "status": "success",
             "adu_response": response_text,
@@ -255,10 +285,13 @@ Focus on semantic units of argumentation. Be precise with word indices and times
             "files_exist": {
                 "log": os.path.exists(log_path),
                 "csv": os.path.exists(csv_path) if csv_path else False
-            }
+            },
+            "processing_time_seconds": round(elapsed_time, 2)
         }
 
     except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/transcript-to-adu] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during ADU conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")
 
