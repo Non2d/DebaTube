@@ -387,6 +387,16 @@ export default function RecordPage() {
       return;
     }
 
+    // 確認ダイアログ
+    const confirmed = window.confirm(
+      'グラフを生成します。よろしいですか？\n\n' +
+      '処理には数分かかる場合があります。'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     setIsGeneratingGraph(true);
     setGenerationError(null);
     setGenerationSuccess(null);
