@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from routers import round, audio2adu, sub_apis, audio_save
+from routers import round, audio2adu, sub_apis, audio_save, logger_api
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -35,3 +35,4 @@ app.include_router(round.router, tags=["round"])
 app.include_router(audio2adu.router, tags=["audio2adu"])
 app.include_router(sub_apis.router, tags=["sub-api"])
 app.include_router(audio_save.router, tags=["audio-save"])
+app.include_router(logger_api.router, tags=["logs"])

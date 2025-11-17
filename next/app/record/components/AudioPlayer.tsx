@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { Play, Pause, Download } from 'lucide-react';
+import { logPlaybackEvent } from '../../../utils/userLogger';
 
 interface AudioPlayerProps {
   audioBlob?: Blob;
@@ -10,6 +11,7 @@ interface AudioPlayerProps {
   onPlayPause: () => void;
   onTimeJump?: (time: number) => void;
   seekTime?: number;
+  speechIndex?: number;
 }
 
 const formatTime = (seconds: number) => {
@@ -29,6 +31,7 @@ export default function AudioPlayer({
   isPlaying,
   onPlayPause,
   seekTime,
+  speechIndex = 0,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -192,6 +195,9 @@ export default function AudioPlayer({
         audioRef.current.currentTime = newTime - accumulatedTime;
         setCurrentTime(newTime);
       }
+
+      // ログを記録（シークバー操作）
+      logPlaybackEvent('seek', speechIndex, newTime);
     }
   };
 

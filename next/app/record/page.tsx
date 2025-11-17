@@ -7,6 +7,7 @@ import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
+import { logTabSwitch, logPlaybackEvent, logGraphNodeClick } from '../../utils/userLogger';
 
 interface GraphData {
   speeches: { [key: string]: any[] };
@@ -504,6 +505,9 @@ export default function RecordPage() {
   const handleGraphNodeClick = (globalNodeId: number) => {
     if (!autoLoadedGraphData) return;
 
+    // ログを記録
+    logGraphNodeClick(globalNodeId);
+
     try {
       // グローバルIDをローカルIDとスピーチキーに逆引き
       // ローカルIDは各スピーチで1から始まるので、グローバルIDを割り当てた順序で逆引き
@@ -901,6 +905,7 @@ export default function RecordPage() {
               <button
                 onClick={() => {
                   setActiveTab('home');
+                  logTabSwitch('home', matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'home'
@@ -913,6 +918,7 @@ export default function RecordPage() {
               <button
                 onClick={() => {
                   setActiveTab('baseline');
+                  logTabSwitch('baseline', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${
@@ -926,6 +932,7 @@ export default function RecordPage() {
               <button
                 onClick={() => {
                   setActiveTab('ctrl');
+                  logTabSwitch('ctrl', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${

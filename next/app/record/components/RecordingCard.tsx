@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Play, Pause, Download } from 'lucide-react';
 import AudioPlayer from './AudioPlayer';
+import { logPlaybackEvent } from '../../../utils/userLogger';
 
 interface Speech {
   name: string;
@@ -94,6 +95,9 @@ export default function RecordingCard({
               onClick={(e) => {
                 e.stopPropagation();
                 onPlayPause(index);
+                // ログを記録（再生時刻は 0 秒から開始）
+                const isCurrentlyPlaying = currentPlayingSpeech === index && isPlaying;
+                logPlaybackEvent(isCurrentlyPlaying ? 'pause' : 'play', index, 0);
               }}
               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               title={currentPlayingSpeech === index && isPlaying ? '停止' : '再生'}
@@ -128,6 +132,7 @@ export default function RecordingCard({
           onPlayPause={() => onPlayPause(index)}
           onTimeJump={onTimeJump}
           seekTime={seekTime}
+          speechIndex={index}
         />
       ) : (
         <div className="text-gray-400 text-sm text-center py-4">
