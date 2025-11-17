@@ -7,6 +7,7 @@ import os, json, tempfile, re, csv
 from datetime import datetime
 import asyncio
 import time
+import shutil
 
 from google import genai
 from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS, group_words_into_sentences
@@ -613,3 +614,127 @@ Do not include any other text, explanation, or formatting."""
         print(f"[/identify-rebuttal-structure] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during rebuttal structure identification: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Rebuttal structure identification failed: {str(e)}")
+
+class AudioToDebateGraphRequest(BaseModel):
+    """Request for converting audio to debate graph"""
+    match_name: str
+    debate_format: str = "NA"
+
+@router.post("/audio-to-debate-graph-batch")
+async def audio_to_debate_graph_batch(
+    files: List[UploadFile] = File(...),
+    match_name: str = "default",
+    debate_format: str = "NA"
+):
+    """
+    統合エンドポイント: 音声ファイルをディベートグラフに変換
+    - 入力: 複数の音声ファイル
+    - 処理:
+      1. 音声を文字起こし
+      2. ADUに変換
+      3. 反論構造を抽出
+    - 出力: audio-save/{match_name}/results/ に全ての結果を保存
+    """
+    start_time = time.time()
+    print(f"[/audio-to-debate-graph-batch] 処理開始 - match_name: {match_name}, format: {debate_format}")
+
+    # 出力ディレクトリの作成
+    RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(APP_DIR)), "audio-save", match_name, "results")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    logger.info(f"Results directory: {RESULTS_DIR}")
+
+    try:
+        # Step 1: 音声を文字起こし
+        print("[Step 1/3] 音声の文字起こしを開始...")
+        transcription_response = await audio_to_transcript_batch(files)
+
+        if transcription_response["status"] != "success":
+            raise Exception(f"Transcription failed: {transcription_response}")
+
+        batch_results = transcription_response["batch_results"]
+        print(f"[Step 1/3] 文字起こし完了: {len(batch_results)} ファイル")
+
+        # 文字起こし結果をファイルに保存
+        transcript_filename = f"batch_transcription_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-5]}.json"
+        transcript_path = os.path.join(RESULTS_DIR, transcript_filename)
+        with open(transcript_path, "w", encoding="utf-8") as f:
+            json.dump(batch_results, f, ensure_ascii=False, indent=2)
+        logger.info(f"Transcription results saved to {transcript_path}")
+
+        # Step 2: ADUに変換
+        print("[Step 2/3] ADU変換を開始...")
+        adu_request = BatchTranscriptRequest(root=batch_results)
+        adu_response = await transcript_to_adu_batch(adu_request, debate_format)
+
+        if adu_response["status"] not in ["success", "partial_success"]:
+            raise Exception(f"ADU conversion failed: {adu_response}")
+
+        print(f"[Step 2/3] ADU変換完了: {adu_response['total_adus_in_unified_csv']} ADUs")
+
+        # ADU結果をコピーして結果ディレクトリに配置
+        unified_csv_path = adu_response["unified_csv_path"]
+        unified_md_path = adu_response["unified_md_path"]
+
+        if unified_csv_path and os.path.exists(unified_csv_path):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
+            csv_filename = f"unified_adus_{debate_format}_{timestamp}.csv"
+            csv_dest = os.path.join(RESULTS_DIR, csv_filename)
+            shutil.copy(unified_csv_path, csv_dest)
+            logger.info(f"Unified CSV copied to {csv_dest}")
+            unified_csv_path = csv_dest
+
+        if unified_md_path and os.path.exists(unified_md_path):
+            md_filename = f"unified_adus_{debate_format}_{timestamp}.md"
+            md_dest = os.path.join(RESULTS_DIR, md_filename)
+            shutil.copy(unified_md_path, md_dest)
+            logger.info(f"Unified MD copied to {md_dest}")
+            unified_md_path = md_dest
+
+        # Step 3: 反論構造を抽出
+        print("[Step 3/3] 反論構造の抽出を開始...")
+        if not unified_csv_path or not os.path.exists(unified_csv_path):
+            raise Exception(f"Unified CSV not found: {unified_csv_path}")
+
+        rebuttal_request = RebuttalStructureRequest(unified_csv_path=unified_csv_path)
+        rebuttal_response = await identify_rebuttal_structure(rebuttal_request)
+
+        if rebuttal_response["status"] != "success":
+            raise Exception(f"Rebuttal structure identification failed: {rebuttal_response}")
+
+        print(f"[Step 3/3] 反論構造抽出完了: {rebuttal_response['total_rebuttal_pairs']} rebuttal pairs")
+
+        # 反論構造グラフを結果ディレクトリにコピー
+        rebuttal_graph_path = rebuttal_response["result_saved_to"]
+        if rebuttal_graph_path and os.path.exists(rebuttal_graph_path):
+            graph_filename = f"rebuttal_graph_{timestamp}.json"
+            graph_dest = os.path.join(RESULTS_DIR, graph_filename)
+            shutil.copy(rebuttal_graph_path, graph_dest)
+            logger.info(f"Rebuttal graph copied to {graph_dest}")
+            rebuttal_graph_path = graph_dest
+
+        elapsed_time = time.time() - start_time
+        print(f"[/audio-to-debate-graph-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "match_name": match_name,
+            "debate_format": debate_format,
+            "results_directory": RESULTS_DIR,
+            "transcription_file": transcript_path,
+            "unified_csv_file": unified_csv_path,
+            "unified_md_file": unified_md_path,
+            "rebuttal_graph_file": rebuttal_graph_path,
+            "summary": {
+                "files_transcribed": len(batch_results),
+                "total_adus": adu_response["total_adus_in_unified_csv"],
+                "total_rebuttal_pairs": rebuttal_response["total_rebuttal_pairs"],
+                "speeches": rebuttal_response["total_speeches"]
+            },
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/audio-to-debate-graph-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during audio to debate graph conversion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Audio to debate graph conversion failed: {str(e)}")

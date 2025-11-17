@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload, Zap } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
@@ -24,6 +24,9 @@ export default function RecordPage() {
   const [currentPlayingSpeech, setCurrentPlayingSpeech] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -301,6 +304,104 @@ export default function RecordPage() {
     setCurrentPlayingSpeech(null);
   };
 
+  // 全ての音声ファイルが揃っているかをチェック
+  const areAllAudioFilesReady = () => {
+    const recordedSpeechIndices = Object.keys(speechRecordings)
+      .filter(key => speechRecordings[parseInt(key)] && speechRecordings[parseInt(key)].length > 0)
+      .map(key => parseInt(key));
+    return recordedSpeechIndices.length === DEBATE_SPEECHES.length;
+  };
+
+  // 音声からディベートグラフを生成
+  const generateDebateGraph = async () => {
+    if (!matchName) {
+      setGenerationError('試合IDを入力してください');
+      return;
+    }
+
+    if (!areAllAudioFilesReady()) {
+      setGenerationError('全ての音声ファイルが必要です');
+      return;
+    }
+
+    setIsGeneratingGraph(true);
+    setGenerationError(null);
+    setGenerationSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('match_name', matchName);
+      formData.append('debate_format', debateFormat);
+
+      // 全ての音声ファイルを FormData に追加
+      let totalFiles = 0;
+      for (let i = 0; i < DEBATE_SPEECHES.length; i++) {
+        const recordings = speechRecordings[i];
+        if (recordings && recordings.length > 0) {
+          for (let j = 0; j < recordings.length; j++) {
+            const blob = recordings[j].blob;
+            const date = new Date(recordings[j].timestamp);
+            const dateStr = date.toISOString().split('T')[0];
+            const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '');
+            const timestamp = `${dateStr}_${timeStr}`;
+            const suffix = recordings.length > 1 ? `_${j}` : '';
+            const filename = `${DEBATE_SPEECHES[i].name.replace(/ /g, '_')}-${timestamp}${suffix}.webm`;
+            formData.append('files', blob, filename);
+            totalFiles++;
+          }
+        }
+      }
+
+      console.log(`[generateDebateGraph] Uploading ${totalFiles} audio files...`);
+
+      const response = await fetch('http://localhost:8080/audio-to-debate-graph-batch', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Failed to generate debate graph: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('[generateDebateGraph] Success:', result);
+
+      // 反論グラフの JSON を自動読み込み
+      if (result.rebuttal_graph_file) {
+        try {
+          // ファイルパスから JSON ファイルを読み込む
+          // Note: ファイルシステムへの直接アクセスはできないため、サーバーから返されたデータを使用
+          setGraphData({
+            speeches: result.summary,
+            rebuttals: []
+          });
+
+          setGenerationSuccess(
+            `グラフを生成しました！\n` +
+            `- 文字起こし: ${result.summary.files_transcribed}ファイル\n` +
+            `- ADU: ${result.summary.total_adus}個\n` +
+            `- 反論ペア: ${result.summary.total_rebuttal_pairs}個\n` +
+            `結果は以下に保存されました: ${result.results_directory}`
+          );
+        } catch (error) {
+          console.error('Failed to load graph data:', error);
+          setGenerationSuccess(
+            `グラフを生成しました！\n` +
+            `結果は以下に保存されました: ${result.results_directory}`
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[generateDebateGraph] Error:', error);
+      setGenerationError(
+        error instanceof Error ? error.message : 'グラフの生成に失敗しました'
+      );
+    } finally {
+      setIsGeneratingGraph(false);
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -432,33 +533,70 @@ export default function RecordPage() {
             </div>
           </div>
 
-          {/* JSON Upload Section */}
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-1">反論グラフの読み込み</h3>
-                <p className="text-sm text-gray-600">JSONファイルをアップロードして反論構造を表示します</p>
+          {/* Generate Graph and JSON Upload Section */}
+          <div className="mt-8 space-y-4">
+            {/* Generate Debate Graph */}
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">音声からディベートグラフを生成</h3>
+                  <p className="text-sm text-gray-600">全ての音声ファイルが入っている場合のみ生成できます</p>
+                </div>
+                <button
+                  onClick={generateDebateGraph}
+                  disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    !areAllAudioFilesReady() || !matchName
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : isGeneratingGraph
+                      ? 'bg-amber-500 text-white cursor-wait'
+                      : 'bg-amber-600 text-white hover:bg-amber-700'
+                  }`}
+                >
+                  <Zap size={16} />
+                  <span>{isGeneratingGraph ? '生成中...' : 'グラフを生成'}</span>
+                </button>
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Upload size={16} />
-                <span>JSONファイルをアップロード</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              {generationError && (
+                <div className="mt-2 text-sm text-red-700 bg-red-100 p-2 rounded">
+                  ✗ {generationError}
+                </div>
+              )}
+              {generationSuccess && (
+                <div className="mt-2 text-sm text-green-700 bg-green-100 p-2 rounded whitespace-pre-line">
+                  ✓ {generationSuccess}
+                </div>
+              )}
             </div>
-            {graphData && (
-              <div className="mt-2 text-sm text-green-700">
-                ✓ JSONファイルを読み込みました
+
+            {/* JSON Upload Section */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">反論グラフの読み込み</h3>
+                  <p className="text-sm text-gray-600">JSONファイルをアップロードして反論構造を表示します</p>
+                </div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Upload size={16} />
+                  <span>JSONファイルをアップロード</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </div>
-            )}
+              {graphData && (
+                <div className="mt-2 text-sm text-green-700">
+                  ✓ JSONファイルを読み込みました
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Rebuttal Graph Section */}
