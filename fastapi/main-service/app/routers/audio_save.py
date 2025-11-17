@@ -22,13 +22,13 @@ async def save_audio(
     duration: float = Form(0)
 ):
     """
-    Save audio recording to the server (supports multiple recordings per speech)
+    Save audio recording to the server (supports .webm and .mp3, multiple recordings per speech)
 
     Args:
         match_name: Name of the debate match (e.g., "2025-01-17-session_143052")
         speech_index: Index of the speech (0-7)
         speech_name: Name of the speech (e.g., "proposition_1st")
-        file: Audio file (webm format)
+        file: Audio file (.webm or .mp3)
         duration: Duration of the recording in seconds
 
     Returns:
@@ -39,12 +39,19 @@ async def save_audio(
         match_dir = AUDIO_SAVE_DIR / match_name
         match_dir.mkdir(parents=True, exist_ok=True)
 
+        # Determine file extension from uploaded file
+        file_ext = Path(file.filename).suffix.lower() if file.filename else ".webm"
+        if file_ext not in [".webm", ".mp3"]:
+            file_ext = ".webm"  # Default to webm if unknown
+
         # Find existing files for this speech to determine sequence number
-        existing_files = list(match_dir.glob(f"{speech_index}_{speech_name}_*.webm"))
+        # Count both .webm and .mp3 files
+        existing_files = list(match_dir.glob(f"{speech_index}_{speech_name}_*.webm")) + \
+                        list(match_dir.glob(f"{speech_index}_{speech_name}_*.mp3"))
         sequence_number = len(existing_files)
 
-        # Create filename: {speech_index}_{speech_name}_{sequence}.webm
-        filename = f"{speech_index}_{speech_name}_{sequence_number}.webm"
+        # Create filename: {speech_index}_{speech_name}_{sequence}.{ext}
+        filename = f"{speech_index}_{speech_name}_{sequence_number}{file_ext}"
         file_path = match_dir / filename
 
         # Save file
@@ -58,13 +65,14 @@ async def save_audio(
             "timestamp": datetime.now().isoformat(),
             "speech_index": speech_index,
             "speech_name": speech_name,
-            "sequence_number": sequence_number
+            "sequence_number": sequence_number,
+            "file_format": file_ext[1:] if file_ext.startswith(".") else "webm"
         }
         metadata_path = file_path.with_suffix('.json')
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
 
-        logger.info(f"Audio file saved: {file_path} (sequence: {sequence_number}, duration: {duration}s)")
+        logger.info(f"Audio file saved: {file_path} (sequence: {sequence_number}, duration: {duration}s, format: {file_ext})")
 
         return {
             "success": True,
@@ -74,7 +82,8 @@ async def save_audio(
             "speech_index": speech_index,
             "speech_name": speech_name,
             "sequence_number": sequence_number,
-            "duration": duration
+            "duration": duration,
+            "file_format": file_ext
         }
 
     except Exception as e:
@@ -104,7 +113,7 @@ async def list_matches():
 @router.get("/audio/match/{match_name}")
 async def get_match_files(match_name: str):
     """
-    Get all audio files for a specific match
+    Get all audio files for a specific match (supports .webm and .mp3)
 
     Args:
         match_name: Name of the debate match
@@ -119,7 +128,10 @@ async def get_match_files(match_name: str):
             raise HTTPException(status_code=404, detail=f"Match not found: {match_name}")
 
         files = []
-        for file_path in sorted(match_dir.glob("*.webm")):
+        # Support both .webm and .mp3 formats
+        audio_files = sorted(match_dir.glob("*.webm")) + sorted(match_dir.glob("*.mp3"))
+
+        for file_path in audio_files:
             file_info = {
                 "filename": file_path.name,
                 "size": file_path.stat().st_size,
@@ -155,7 +167,7 @@ async def get_match_files(match_name: str):
 @router.get("/audio/match/{match_name}/speech/{speech_index}")
 async def get_speech_files(match_name: str, speech_index: int):
     """
-    Get all audio files for a specific speech in a match (ordered by sequence)
+    Get all audio files for a specific speech in a match (ordered by sequence, supports .webm and .mp3)
 
     Args:
         match_name: Name of the debate match
@@ -170,10 +182,12 @@ async def get_speech_files(match_name: str, speech_index: int):
         if not match_dir.exists():
             raise HTTPException(status_code=404, detail=f"Match not found: {match_name}")
 
-        # Find all files for this speech_index
+        # Find all files for this speech_index (supports .webm and .mp3)
         files = []
-        for file_path in sorted(match_dir.glob(f"{speech_index}_*_*.webm")):
-            # Extract sequence number from filename (format: {speech_index}_{speech_name}_{sequence}.webm)
+        audio_files = sorted(match_dir.glob(f"{speech_index}_*_*.webm")) + sorted(match_dir.glob(f"{speech_index}_*_*.mp3"))
+
+        for file_path in audio_files:
+            # Extract sequence number from filename (format: {speech_index}_{speech_name}_{sequence}.webm or .mp3)
             parts = file_path.stem.split('_')
             if len(parts) >= 3:
                 try:
@@ -222,7 +236,7 @@ async def get_speech_files(match_name: str, speech_index: int):
 @router.get("/audio/file/{match_name}/{filename}")
 async def get_audio_file(match_name: str, filename: str):
     """
-    Serve an audio file
+    Serve an audio file (supports .webm and .mp3)
 
     Args:
         match_name: Name of the debate match
@@ -244,9 +258,17 @@ async def get_audio_file(match_name: str, filename: str):
         if not str(file_path.resolve()).startswith(str(AUDIO_SAVE_DIR.resolve())):
             raise HTTPException(status_code=403, detail="Access denied")
 
+        # Determine media type based on file extension
+        file_ext = file_path.suffix.lower()
+        media_type_map = {
+            ".webm": "audio/webm",
+            ".mp3": "audio/mpeg",
+        }
+        media_type = media_type_map.get(file_ext, "application/octet-stream")
+
         return FileResponse(
             path=str(file_path),
-            media_type="audio/webm",
+            media_type=media_type,
             filename=filename
         )
 
