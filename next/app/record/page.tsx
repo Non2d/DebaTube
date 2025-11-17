@@ -77,6 +77,33 @@ export default function RecordPage() {
     localStorage.setItem('debate_format', debateFormat);
   }, [debateFormat]);
 
+  // Helper function to get duration from audio blob
+  const getAudioDuration = async (blob: Blob): Promise<number> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio();
+
+      const handleLoadedMetadata = () => {
+        const duration = audio.duration;
+        URL.revokeObjectURL(url);
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('error', handleError);
+        resolve(duration || 0);
+      };
+
+      const handleError = () => {
+        URL.revokeObjectURL(url);
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('error', handleError);
+        resolve(0);
+      };
+
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('error', handleError);
+      audio.src = url;
+    });
+  };
+
   // Load existing audio files from server when match name changes
   useEffect(() => {
     const loadExistingRecordings = async () => {
@@ -106,12 +133,30 @@ export default function RecordPage() {
         const recordingsByIndex: {[key: number]: {blob: Blob, duration: number, timestamp: string}[]} = {};
 
         for (const fileInfo of data.files) {
-          // Parse filename: {speech_index}_{speech_name}_{sequence}.webm
+          // Parse filename: {speech_index}_{speech_name}_{sequence}.{ext}
+          // Support multiple filename formats
           const parts = fileInfo.filename.split('_');
-          if (parts.length < 3) continue;
+          let speechIndex: number | null = null;
 
-          const speechIndex = parseInt(parts[0]);
-          if (isNaN(speechIndex)) continue;
+          // Try to parse speech_index from first part
+          if (parts.length >= 1) {
+            const firstPart = parseInt(parts[0]);
+            if (!isNaN(firstPart)) {
+              speechIndex = firstPart;
+            } else {
+              // If first part is not a number, try to extract from speech name
+              // e.g., "Opposition_1st-2025-11-16.mp3" -> extract index from context
+              const filename = fileInfo.filename.toLowerCase();
+              if (filename.includes('proposition_1st')) speechIndex = 0;
+              else if (filename.includes('opposition_1st')) speechIndex = 1;
+              else if (filename.includes('proposition_2nd')) speechIndex = 2;
+              else if (filename.includes('opposition_2nd')) speechIndex = 3;
+              else if (filename.includes('proposition_3rd')) speechIndex = 4;
+              else if (filename.includes('opposition_3rd')) speechIndex = 5;
+            }
+          }
+
+          if (speechIndex === null || isNaN(speechIndex)) continue;
 
           // Fetch the audio file as blob
           const audioResponse = await fetch(`http://localhost:8080/audio/file/${matchName}/${fileInfo.filename}`);
@@ -122,8 +167,11 @@ export default function RecordPage() {
 
           const blob = await audioResponse.blob();
 
-          // Use duration from server metadata instead of trying to load it from the audio file
-          const duration = fileInfo.duration || 0;
+          // Use duration from server metadata if available, otherwise auto-detect from MP3
+          let duration = fileInfo.duration || 0;
+          if (duration === 0 && (fileInfo.filename.toLowerCase().endsWith('.mp3') || blob.type.includes('audio'))) {
+            duration = await getAudioDuration(blob);
+          }
 
           const recordingData = {
             blob,
