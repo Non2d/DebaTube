@@ -760,14 +760,8 @@ export default function RecordPage() {
           {/* Baseline Tab */}
           {activeTab === 'baseline' && (
           <div>
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                試合ID: <span className="font-semibold">{matchName}</span>
-              </p>
-            </div>
-
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900">録音ファイル</h3>
+            {/* Recording Cards */}
+            <div className="mb-12">
               <div className="grid grid-cols-4 gap-4">
                 {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
                   const recordings = speechRecordings[index];
@@ -789,6 +783,13 @@ export default function RecordPage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Match Name - Bottom */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                ID: <span className="font-semibold">{matchName}</span>
+              </p>
             </div>
           </div>
           )}
@@ -841,7 +842,7 @@ export default function RecordPage() {
             {/* Match Name - Bottom */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-gray-700">
-                試合ID: <span className="font-semibold">{matchName}</span>
+                ID: <span className="font-semibold">{matchName}</span>
               </p>
             </div>
           </div>
