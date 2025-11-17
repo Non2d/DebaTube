@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Upload, Zap } from 'lucide-react';
-import Header from '../../components/shared/Header';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
@@ -31,12 +30,14 @@ export default function RecordPage() {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
   const [autoLoadedGraphData, setAutoLoadedGraphData] = useState<GraphData | null>(null);
+  const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const durationRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isInitialMount = useRef<boolean>(true);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Get current debate speeches based on selected format
   const DEBATE_SPEECHES = DEBATE_FORMATS[debateFormat];
@@ -80,6 +81,16 @@ export default function RecordPage() {
     }
     localStorage.setItem('debate_format', debateFormat);
   }, [debateFormat]);
+
+  // Reset seekTargetTime after use
+  useEffect(() => {
+    if (seekTargetTime !== null) {
+      const timer = setTimeout(() => {
+        setSeekTargetTime(null);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [seekTargetTime]);
 
   // Helper function to get duration from audio blob
   const getAudioDuration = async (blob: Blob): Promise<number> => {
@@ -479,6 +490,58 @@ export default function RecordPage() {
     }
   };
 
+  // ノードクリック時のハンドラー - グローバルIDとstart_timeからスピーチを特定し、seekbarをジャンプ
+  const handleGraphNodeClick = (globalNodeId: number, startTime: number) => {
+    if (!autoLoadedGraphData) return;
+
+    try {
+      // globalNodeId からスピーチキーを逆引き
+      let speechKey: string | null = null;
+
+      for (const [key, adus] of Object.entries(autoLoadedGraphData.speeches)) {
+        const adu = adus.find((a: any) => a.id === globalNodeId);
+        if (adu) {
+          speechKey = key;
+          break;
+        }
+      }
+
+      if (!speechKey) {
+        console.warn(`[handleGraphNodeClick] Speech key not found for node ID: ${globalNodeId}`);
+        return;
+      }
+
+      // スピーチキーからspeech_indexを抽出
+      const speechIndex = Object.values(DEBATE_SPEECHES).findIndex(
+        (speech: SpeechFormat) => speech.name.toLowerCase().replace(/ /g, '_') === speechKey.toLowerCase()
+      );
+
+      if (speechIndex === -1) {
+        console.warn(`[handleGraphNodeClick] Speech index not found for: ${speechKey}`);
+        return;
+      }
+
+      // handleGraphNodeTimeJump を使用して、シークバーとオーディオプレイヤーを同期
+      handleGraphNodeTimeJump(speechIndex, startTime);
+
+      console.log(`[handleGraphNodeClick] Triggering time jump for ${speechKey} (index: ${speechIndex}) at ${startTime}s`);
+    } catch (error) {
+      console.error('[handleGraphNodeClick] Error:', error);
+    }
+  };
+
+  // ハンドラー: グラフノードクリックでシークバーをジャンプ
+  const handleGraphNodeTimeJump = (speechIndex: number, time: number) => {
+    // 対応するスピーチを再生状態にする
+    setCurrentPlayingSpeech(speechIndex);
+    setIsPlaying(true);
+
+    // シークバーがこの時間にジャンプするようにする
+    setSeekTargetTime(time);
+
+    console.log(`[handleGraphNodeTimeJump] Speech ${speechIndex} jump to ${time}s`);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -511,50 +574,9 @@ export default function RecordPage() {
 
   return (
     <>
-      <Header />
-      <div className="pt-20 min-h-screen bg-white">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          {/* Tab Navigation */}
-          <div className="flex gap-4 mb-8 border-b border-gray-200">
-            <button
-              onClick={() => {
-                setActiveTab('home');
-              }}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'home'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Home
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('baseline');
-                if (matchName) autoLoadGraphData(matchName);
-              }}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'baseline'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Feedback (Baseline)
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('ctrl');
-                if (matchName) autoLoadGraphData(matchName);
-              }}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'ctrl'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Feedback (Ctrl)
-            </button>
-          </div>
+      <div className="min-h-screen bg-white flex flex-col">
+        <div className="flex-1 max-w-4xl mx-auto px-4 py-4 w-full">
+          {/* Tab content */}
 
           {/* Home Tab */}
           {activeTab === 'home' && (
@@ -758,10 +780,11 @@ export default function RecordPage() {
                       recordings={recordings}
                       currentPlayingSpeech={currentPlayingSpeech}
                       isPlaying={isPlaying}
-                      isCurrentSpeech={index === currentSpeechIndex}
+                      isCurrentSpeech={false}
                       onPlayPause={handlePlayPause}
                       onDownload={downloadAudio}
-                      onClick={goToSpeech}
+                      onClick={() => {}}
+                      hideDownload={true}
                     />
                   );
                 })}
@@ -773,17 +796,26 @@ export default function RecordPage() {
           {/* Ctrl Tab */}
           {activeTab === 'ctrl' && (
           <div>
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                試合ID: <span className="font-semibold">{matchName}</span>
-              </p>
-            </div>
+            {/* Rebuttal Graph Section for Ctrl - Top */}
+            {autoLoadedGraphData && (
+              <div className="mb-12">
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} />
+                </div>
+              </div>
+            )}
+            {!autoLoadedGraphData && (
+              <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                <p className="text-gray-600">グラフデータが利用できません。Home タブでグラフを生成してください。</p>
+              </div>
+            )}
 
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900">録音ファイル</h3>
+            {/* Recording Cards - Middle */}
+            <div className="mt-8 mb-12">
               <div className="grid grid-cols-4 gap-4">
                 {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
                   const recordings = speechRecordings[index];
+                  const shouldSeek = currentPlayingSpeech === index && seekTargetTime !== null;
 
                   return (
                     <RecordingCard
@@ -793,32 +825,73 @@ export default function RecordPage() {
                       recordings={recordings}
                       currentPlayingSpeech={currentPlayingSpeech}
                       isPlaying={isPlaying}
-                      isCurrentSpeech={index === currentSpeechIndex}
+                      isCurrentSpeech={false}
                       onPlayPause={handlePlayPause}
                       onDownload={downloadAudio}
-                      onClick={goToSpeech}
+                      onClick={() => {}}
+                      hideDownload={true}
+                      seekTime={shouldSeek ? seekTargetTime : undefined}
+                      onTimeJump={(time) => handleGraphNodeTimeJump(index, time)}
                     />
                   );
                 })}
               </div>
             </div>
 
-            {/* Rebuttal Graph Section for Ctrl */}
-            {autoLoadedGraphData && (
-              <div className="mt-12">
-                <h2 className="text-2xl font-bold mb-6 text-gray-900">反論構造の可視化</h2>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                  <RebuttalGraph data={autoLoadedGraphData} />
-                </div>
-              </div>
-            )}
-            {!autoLoadedGraphData && (
-              <div className="mt-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                <p className="text-gray-600">グラフデータが利用できません。Home タブでグラフを生成してください。</p>
-              </div>
-            )}
+            {/* Match Name - Bottom */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                試合ID: <span className="font-semibold">{matchName}</span>
+              </p>
+            </div>
           </div>
           )}
+        </div>
+
+        {/* Tab Navigation - Bottom */}
+        <div className="border-t border-gray-200 bg-white">
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setActiveTab('home');
+                }}
+                className={`px-6 py-3 font-medium transition-colors ${
+                  activeTab === 'home'
+                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('baseline');
+                  if (matchName) autoLoadGraphData(matchName);
+                }}
+                className={`px-6 py-3 font-medium transition-colors ${
+                  activeTab === 'baseline'
+                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Feedback (Baseline)
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('ctrl');
+                  if (matchName) autoLoadGraphData(matchName);
+                }}
+                className={`px-6 py-3 font-medium transition-colors ${
+                  activeTab === 'ctrl'
+                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Feedback (Ctrl)
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </>

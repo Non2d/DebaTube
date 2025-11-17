@@ -8,6 +8,8 @@ interface AudioPlayerProps {
   recordingDurations?: number[];
   isPlaying: boolean;
   onPlayPause: () => void;
+  onTimeJump?: (time: number) => void;
+  seekTime?: number;
 }
 
 const formatTime = (seconds: number) => {
@@ -26,6 +28,7 @@ export default function AudioPlayer({
   recordingDurations,
   isPlaying,
   onPlayPause,
+  seekTime,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -124,6 +127,37 @@ export default function AudioPlayer({
       }
     }
   }, [isPlaying]);
+
+  // Handle external seek request (from graph node click)
+  useEffect(() => {
+    if (seekTime !== undefined && audioRef.current && blobDurations.length > 0) {
+      // Find which blob this time corresponds to
+      let accumulatedTime = 0;
+      let targetBlobIndex = 0;
+      for (let i = 0; i < blobDurations.length; i++) {
+        if (accumulatedTime + blobDurations[i] > seekTime) {
+          targetBlobIndex = i;
+          break;
+        }
+        accumulatedTime += blobDurations[i];
+      }
+
+      // Switch to the correct blob if needed
+      if (targetBlobIndex !== currentBlobIndex) {
+        setCurrentBlobIndex(targetBlobIndex);
+        // Will be set after blob loads
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.currentTime = seekTime - accumulatedTime;
+            setCurrentTime(seekTime);
+          }
+        }, 100);
+      } else {
+        audioRef.current.currentTime = seekTime - accumulatedTime;
+        setCurrentTime(seekTime);
+      }
+    }
+  }, [seekTime, blobDurations, currentBlobIndex]);
 
   // Reset to beginning when blobs change
   useEffect(() => {

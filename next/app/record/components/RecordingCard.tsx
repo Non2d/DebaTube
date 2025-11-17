@@ -24,6 +24,9 @@ interface RecordingCardProps {
   onPlayPause: (index: number) => void;
   onDownload: (index: number) => void;
   onClick: (index: number) => void;
+  hideDownload?: boolean;
+  onTimeJump?: (time: number) => void;
+  seekTime?: number;
 }
 
 export default function RecordingCard({
@@ -36,7 +39,10 @@ export default function RecordingCard({
   isCurrentSpeech,
   onPlayPause,
   onDownload,
-  onClick
+  onClick,
+  hideDownload = false,
+  onTimeJump,
+  seekTime
 }: RecordingCardProps) {
   const hasRecording = (recordings && recordings.length > 0) || recording;
   const totalDuration = useMemo(() =>
@@ -98,16 +104,18 @@ export default function RecordingCard({
                 <Play size={12} />
               )}
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDownload(index);
-              }}
-              className="p-2 bg-green-500 text-white rounded hover:bg-green-600"
-              title="ダウンロード"
-            >
-              <Download size={12} />
-            </button>
+            {!hideDownload && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload(index);
+                }}
+                className="p-2 bg-green-500 text-white rounded hover:bg-green-600"
+                title="ダウンロード"
+              >
+                <Download size={12} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -118,6 +126,8 @@ export default function RecordingCard({
           recordingDurations={durations}
           isPlaying={currentPlayingSpeech === index ? isPlaying : false}
           onPlayPause={() => onPlayPause(index)}
+          onTimeJump={onTimeJump}
+          seekTime={seekTime}
         />
       ) : (
         <div className="text-gray-400 text-sm text-center py-4">

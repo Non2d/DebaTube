@@ -123,12 +123,28 @@ batch_transcription_{timestamp}.json
 }
 ```
 
+## グラフのノードクリック機能
+
+**Feedback (Ctrl) タブ限定**：
+- グラフのノードをクリック → 対応するスピーチの音声が start_time から再生
+- 実装：
+  - `RebuttalGraph.tsx`: `onNodeClick` コールバック
+  - `record/page.tsx`: `handleGraphNodeClick` ハンドラー
+
+**フロー**:
+1. ノードクリック → nodeId と startTime を取得
+2. nodeId からスピーチキーを逆引き（speeches オブジェクトから）
+3. スピーチキーから speech_index を検索
+4. speechRecordings[speech_index] から音声 Blob を取得
+5. Audio 要素で currentTime = startTime に設定して再生
+
 ## よくある落とし穴
 
 1. **グラフ JSON の場所**
-   - 新規生成：`transcriptions/results_{match_name}/`
-   - 旧形式：`transcriptions/adus/`
-   - API は両方検索する
+   - 検索順序：
+     1. `audio-save/{match_name}/rebuttal_graph_*.json` ←主要
+     2. `transcriptions/results_{match_name}/`
+     3. `transcriptions/adus/` ←旧形式
 
 2. **音声ファイルの場所**
    - API 保存：`audio-save/{match_name}/`
@@ -137,3 +153,8 @@ batch_transcription_{timestamp}.json
 3. **試合IDの管理**
    - Home タブでのみ変更可能
    - Baseline/Ctrl タブではその試合IDの情報を参照
+
+4. **ノードID と speechKey の対応**
+   - ノードID は sequence_id（グローバルID）
+   - speeches オブジェクトで逆引きして speech_key を取得
+   - speech_key を DEBATE_SPEECHES で検索して speech_index を得る

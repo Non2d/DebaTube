@@ -22,13 +22,15 @@ interface GraphDataJson {
 
 interface RebuttalGraphProps {
   data: GraphDataJson;
+  onNodeClick?: (nodeId: number, startTime: number) => void;
 }
 
 const nodeTypeMap: { [key: number]: string } = {};
 
-const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
+const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const nodeDataRef = useRef<{ [key: number]: { startTime: number } }>({});
 
   useEffect(() => {
     try {
@@ -145,6 +147,10 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
               isBackground: false,
             },
           });
+          // ノードの start_time をリファレンスに保存
+          nodeDataRef.current[argumentUnit.sequence_id] = {
+            startTime: argumentUnit.start,
+          };
           nodeY += 8;
         }
 
@@ -229,6 +235,14 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
 
   const proOptions = { hideAttribution: true };
 
+  const handleNodeClick = (event: React.MouseEvent, node: any) => {
+    if (!node.data.isBackground && onNodeClick) {
+      const nodeId = node.data.sequence_id;
+      const startTime = nodeDataRef.current[nodeId]?.startTime || 0;
+      onNodeClick(nodeId, startTime);
+    }
+  };
+
   return (
     <div style={{ cursor: "default", width: "100%", height: "100%" }}>
       <ReactFlow
@@ -236,6 +250,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data }) => {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
         nodesDraggable={false}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
