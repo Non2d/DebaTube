@@ -9,3 +9,5 @@ httpx
 cryptography
 pytz
 mysql-connector-python
+google-genai
+python-multipart

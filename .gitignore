@@ -7,3 +7,4 @@ data
 .claude
 storage
 fastapi/main-service/app/transcriptions/*
+fastapi/main-service/audio-save/*

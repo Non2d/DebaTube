@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Upload, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
-import { saveRecording, getAllRecordings, clearAllRecordings } from '../../lib/indexedDB';
 
 const DEBATE_SPEECHES = [
   { name: 'Proposition 1st', duration: 7 * 60, team: 'proposition' },
@@ -26,14 +25,13 @@ interface GraphData {
 }
 
 export default function RecordPage() {
+  const [matchName, setMatchName] = useState('');
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [speechRecordings, setSpeechRecordings] = useState<{[key: number]: {blob: Blob, duration: number, timestamp: string} | null}>({});
+  const [speechRecordings, setSpeechRecordings] = useState<{[key: number]: {blob: Blob, duration: number, timestamp: string}[]}>({});
   const [currentPlayingSpeech, setCurrentPlayingSpeech] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -41,14 +39,108 @@ export default function RecordPage() {
   const durationRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load recordings from IndexedDB on mount
+  // Load match name from LocalStorage or set default on mount
   useEffect(() => {
-    getAllRecordings().then(recordings => {
-      setSpeechRecordings(recordings);
-    }).catch(error => {
-      console.error('Failed to load recordings from IndexedDB:', error);
-    });
+    const savedMatchName = localStorage.getItem('debate_match_name');
+    if (savedMatchName) {
+      setMatchName(savedMatchName);
+    } else {
+      // Set default match name: YYYY-MM-DD-session_HHmmss
+      const now = new Date();
+      const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const time = now.toTimeString().split(' ')[0].replace(/:/g, ''); // HHmmss
+      const defaultName = `${date}-session_${time}`;
+      setMatchName(defaultName);
+      localStorage.setItem('debate_match_name', defaultName);
+    }
   }, []);
+
+  // Save match name to LocalStorage when it changes
+  useEffect(() => {
+    if (matchName) {
+      localStorage.setItem('debate_match_name', matchName);
+    }
+  }, [matchName]);
+
+  // Load existing audio files from server when match name changes
+  useEffect(() => {
+    const loadExistingRecordings = async () => {
+      if (!matchName) return;
+
+      try {
+        const response = await fetch(`http://localhost:8080/audio/match/${matchName}`);
+
+        if (!response.ok) {
+          // If match doesn't exist (404), reset all recordings
+          if (response.status === 404) {
+            console.log('No existing recordings for this match - resetting');
+            setSpeechRecordings({});
+            return;
+          }
+          throw new Error(`Failed to load recordings: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.files || data.files.length === 0) {
+          console.log('No recordings found for this match');
+          return;
+        }
+
+        // Group files by speech_index and fetch them as blobs
+        const recordingsByIndex: {[key: number]: {blob: Blob, duration: number, timestamp: string}[]} = {};
+
+        for (const fileInfo of data.files) {
+          // Parse filename: {speech_index}_{speech_name}_{sequence}.webm
+          const parts = fileInfo.filename.split('_');
+          if (parts.length < 3) continue;
+
+          const speechIndex = parseInt(parts[0]);
+          if (isNaN(speechIndex)) continue;
+
+          // Fetch the audio file as blob
+          const audioResponse = await fetch(`http://localhost:8080/audio/file/${matchName}/${fileInfo.filename}`);
+          if (!audioResponse.ok) {
+            console.error(`Failed to fetch audio file: ${fileInfo.filename}`);
+            continue;
+          }
+
+          const blob = await audioResponse.blob();
+
+          // Use duration from server metadata instead of trying to load it from the audio file
+          const duration = fileInfo.duration || 0;
+
+          const recordingData = {
+            blob,
+            duration,
+            timestamp: new Date(fileInfo.modified * 1000).toISOString()
+          };
+
+          if (!recordingsByIndex[speechIndex]) {
+            recordingsByIndex[speechIndex] = [];
+          }
+          recordingsByIndex[speechIndex].push(recordingData);
+          console.log(`Added recording for speech ${speechIndex}: ${fileInfo.filename}, duration=${duration}s`);
+        }
+
+        // Sort recordings by timestamp for each speech
+        Object.keys(recordingsByIndex).forEach(key => {
+          const index = parseInt(key);
+          recordingsByIndex[index].sort((a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+        });
+
+        setSpeechRecordings(recordingsByIndex);
+        console.log('Loaded existing recordings:', recordingsByIndex);
+
+      } catch (error) {
+        console.error('Failed to load existing recordings:', error);
+      }
+    };
+
+    loadExistingRecordings();
+  }, [matchName]);
 
   const startRecording = async () => {
     try {
@@ -74,14 +166,33 @@ export default function RecordPage() {
 
         setSpeechRecordings(prev => ({
           ...prev,
-          [currentSpeechIndex]: recordingData
+          [currentSpeechIndex]: [...(prev[currentSpeechIndex] || []), recordingData]
         }));
 
-        // Save to IndexedDB
+        // Save to API
         try {
-          await saveRecording(currentSpeechIndex, recordingData);
+          const formData = new FormData();
+          formData.append('match_name', matchName);
+          formData.append('speech_index', currentSpeechIndex.toString());
+          const speechName = DEBATE_SPEECHES[currentSpeechIndex].name.toLowerCase().replace(/ /g, '_');
+          formData.append('speech_name', speechName);
+          formData.append('file', blob, `${speechName}.webm`);
+          formData.append('duration', durationRef.current.toString());
+
+          const response = await fetch('http://localhost:8080/audio/save', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to save audio: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log('Audio saved successfully:', result);
         } catch (error) {
-          console.error('Failed to save recording to IndexedDB:', error);
+          console.error('Failed to save recording to API:', error);
+          alert('録音の保存に失敗しました。もう一度お試しください。');
         }
 
         stream.getTracks().forEach(track => track.stop());
@@ -125,42 +236,37 @@ export default function RecordPage() {
   };
 
   const handlePlayPause = (index: number) => {
+    console.log('handlePlayPause called with index:', index, 'currentPlayingSpeech:', currentPlayingSpeech, 'isPlaying:', isPlaying);
     if (currentPlayingSpeech === index) {
+      console.log('Same speech, toggling isPlaying to:', !isPlaying);
       setIsPlaying(!isPlaying);
     } else {
+      console.log('Different speech, setting currentPlayingSpeech to:', index, 'and isPlaying to true');
       setCurrentPlayingSpeech(index);
       setIsPlaying(true);
     }
   };
 
-  const handleSeek = (time: number) => {
-    setCurrentTime(time);
-  };
-
-  const handleTimeUpdate = (time: number) => {
-    setCurrentTime(time);
-  };
-
-  const handleDurationChange = (newDuration: number) => {
-    setDuration(newDuration);
-  };
-
   const downloadAudio = (speechIndex: number) => {
-    const speechRecording = speechRecordings[speechIndex];
-    if (speechRecording) {
-      const url = URL.createObjectURL(speechRecording.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      // タイムスタンプを YYYY-MM-DD_HHmmss 形式に変換
-      const date = new Date(speechRecording.timestamp);
-      const dateStr = date.toISOString().split('T')[0];
-      const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '');
-      const timestamp = `${dateStr}_${timeStr}`;
-      a.download = `${DEBATE_SPEECHES[speechIndex].name.replace(/ /g, '_')}-${timestamp}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    const recordings = speechRecordings[speechIndex];
+    if (recordings && recordings.length > 0) {
+      // Download all recordings for this speech
+      recordings.forEach((recording, index) => {
+        const url = URL.createObjectURL(recording.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // タイムスタンプを YYYY-MM-DD_HHmmss 形式に変換
+        const date = new Date(recording.timestamp);
+        const dateStr = date.toISOString().split('T')[0];
+        const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '');
+        const timestamp = `${dateStr}_${timeStr}`;
+        const suffix = recordings.length > 1 ? `_${index}` : '';
+        a.download = `${DEBATE_SPEECHES[speechIndex].name.replace(/ /g, '_')}-${timestamp}${suffix}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
     }
   };
 
@@ -184,21 +290,6 @@ export default function RecordPage() {
     setCurrentSpeechIndex(index);
     setRecordingDuration(0);
     setCurrentPlayingSpeech(null);
-  };
-
-  const handleDeleteAll = async () => {
-    if (confirm('すべての録音を削除しますか？この操作は取り消せません。')) {
-      try {
-        await clearAllRecordings();
-        setSpeechRecordings({});
-        setCurrentPlayingSpeech(null);
-        setIsPlaying(false);
-        alert('すべての録音を削除しました。');
-      } catch (error) {
-        console.error('Failed to delete recordings:', error);
-        alert('録音の削除に失敗しました。');
-      }
-    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,14 +370,14 @@ export default function RecordPage() {
           <div className="mt-8">
             <div className="grid grid-cols-4 gap-4">
               {DEBATE_SPEECHES.map((speech, index) => {
-                const recording = speechRecordings[index];
+                const recordings = speechRecordings[index];
 
                 return (
                   <RecordingCard
                     key={index}
                     speech={speech}
                     index={index}
-                    recording={recording}
+                    recordings={recordings}
                     currentPlayingSpeech={currentPlayingSpeech}
                     isPlaying={isPlaying}
                     isCurrentSpeech={index === currentSpeechIndex}
@@ -297,17 +388,21 @@ export default function RecordPage() {
                 );
               })}
             </div>
+          </div>
 
-            {/* Delete All Button */}
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={handleDeleteAll}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={Object.keys(speechRecordings).length === 0}
-              >
-                <Trash2 size={16} />
-                <span>すべての録音を削除</span>
-              </button>
+          {/* Match Name Input */}
+          <div className="mt-8 flex justify-center">
+            <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                試合ID:
+              </label>
+              <input
+                type="text"
+                value={matchName}
+                onChange={(e) => setMatchName(e.target.value)}
+                className="w-64 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="例: 2025-01-17-session_143052"
+              />
             </div>
           </div>
 

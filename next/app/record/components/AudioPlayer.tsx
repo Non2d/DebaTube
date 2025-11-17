@@ -2,8 +2,10 @@ import { useRef, useEffect, useState } from 'react';
 import { Play, Pause, Download } from 'lucide-react';
 
 interface AudioPlayerProps {
-  audioBlob: Blob;
+  audioBlob?: Blob;
+  audioBlobs?: Blob[];
   recordingDuration: number;
+  recordingDurations?: number[];
   isPlaying: boolean;
   onPlayPause: () => void;
 }
@@ -19,49 +21,169 @@ const formatTime = (seconds: number) => {
 
 export default function AudioPlayer({
   audioBlob,
+  audioBlobs,
   recordingDuration,
+  recordingDurations,
   isPlaying,
   onPlayPause,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [currentBlobIndex, setCurrentBlobIndex] = useState(0);
+  const [blobUrls, setBlobUrls] = useState<string[]>([]);
+  const [blobDurations, setBlobDurations] = useState<number[]>([]);
 
+  // Initialize blob URLs and durations
   useEffect(() => {
-    if (audioBlob && audioRef.current) {
-      const url = URL.createObjectURL(audioBlob);
-      audioRef.current.src = url;
-      
+    const blobs = audioBlobs || (audioBlob ? [audioBlob] : []);
+    console.log('AudioPlayer: blobs', blobs);
+    if (blobs.length === 0) {
+      console.log('AudioPlayer: No blobs found');
+      return;
+    }
+
+    const urls = blobs.map(blob => {
+      console.log('AudioPlayer: Creating URL for blob', blob);
+      return URL.createObjectURL(blob);
+    });
+    console.log('AudioPlayer: Created URLs', urls);
+    setBlobUrls(urls);
+
+    return () => {
+      urls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [audioBlob, audioBlobs]);
+
+  // Load current blob
+  useEffect(() => {
+    if (blobUrls.length > 0 && audioRef.current) {
+      console.log('AudioPlayer: Loading blob URL:', blobUrls[currentBlobIndex], 'index:', currentBlobIndex);
+      audioRef.current.src = blobUrls[currentBlobIndex];
+
       const handleTimeUpdate = () => {
-        setCurrentTime(audioRef.current?.currentTime || 0);
+        const localTime = audioRef.current?.currentTime || 0;
+        const accumulatedTime = blobDurations.slice(0, currentBlobIndex).reduce((sum, d) => sum + d, 0);
+        setCurrentTime(accumulatedTime + localTime);
+      };
+
+      const handleEnded = () => {
+        console.log('AudioPlayer: Playback ended');
+        if (currentBlobIndex < blobUrls.length - 1) {
+          // Move to next blob
+          setCurrentBlobIndex(prev => prev + 1);
+        } else {
+          // All blobs finished
+          onPlayPause(); // Stop playing
+          setCurrentBlobIndex(0);
+          setCurrentTime(0);
+        }
+      };
+
+      const handleLoadedMetadata = () => {
+        console.log('AudioPlayer: Metadata loaded, duration:', audioRef.current?.duration);
+      };
+
+      const handleCanPlay = () => {
+        console.log('AudioPlayer: Can play');
+      };
+
+      const handleError = (e: Event) => {
+        console.error('AudioPlayer: Audio error event:', e, audioRef.current?.error);
       };
 
       audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+      audioRef.current.addEventListener('ended', handleEnded);
+      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audioRef.current.addEventListener('canplay', handleCanPlay);
+      audioRef.current.addEventListener('error', handleError);
       audioRef.current.load();
-      
+      console.log('AudioPlayer: Called load()');
+
       return () => {
-        URL.revokeObjectURL(url);
         if (audioRef.current) {
           audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+          audioRef.current.removeEventListener('ended', handleEnded);
+          audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          audioRef.current.removeEventListener('canplay', handleCanPlay);
+          audioRef.current.removeEventListener('error', handleError);
         }
       };
     }
-  }, [audioBlob]);
+  }, [blobUrls, currentBlobIndex]);
+
+  // Store blob durations when metadata is loaded
+  useEffect(() => {
+    if (blobUrls.length > 0 && audioRef.current) {
+      const audio = audioRef.current;
+      const handleLoadedMetadata = () => {
+        setBlobDurations(prev => {
+          const newDurations = [...prev];
+          // Prefer recordingDurations if provided for this blob
+          // Otherwise use actual duration if available and finite
+          // Otherwise use recordingDuration as fallback
+          const duration = recordingDurations?.[currentBlobIndex] ??
+            (audio.duration && isFinite(audio.duration) ? audio.duration : recordingDuration);
+          newDurations[currentBlobIndex] = duration;
+          return newDurations;
+        });
+      };
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      return () => {
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      };
+    }
+  }, [blobUrls, currentBlobIndex, recordingDuration, recordingDurations]);
 
   useEffect(() => {
     if (audioRef.current) {
+      console.log('AudioPlayer: isPlaying changed to', isPlaying, 'paused:', audioRef.current.paused);
       if (isPlaying && audioRef.current.paused) {
-        audioRef.current.play();
+        console.log('AudioPlayer: Starting playback');
+        audioRef.current.play().catch(err => {
+          console.error('AudioPlayer: Play failed', err);
+        });
       } else if (!isPlaying && !audioRef.current.paused) {
+        console.log('AudioPlayer: Pausing playback');
         audioRef.current.pause();
       }
+    } else {
+      console.log('AudioPlayer: audioRef.current is null');
     }
   }, [isPlaying]);
+
+  // Reset to beginning when blobs change
+  useEffect(() => {
+    setCurrentBlobIndex(0);
+    setCurrentTime(0);
+  }, [blobUrls]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = parseFloat(e.target.value);
     if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
+      // Find which blob this time corresponds to
+      let accumulatedTime = 0;
+      let targetBlobIndex = 0;
+      for (let i = 0; i < blobDurations.length; i++) {
+        if (accumulatedTime + blobDurations[i] > newTime) {
+          targetBlobIndex = i;
+          break;
+        }
+        accumulatedTime += blobDurations[i];
+      }
+
+      // Switch to the correct blob if needed
+      if (targetBlobIndex !== currentBlobIndex) {
+        setCurrentBlobIndex(targetBlobIndex);
+        // Will be set after blob loads
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.currentTime = newTime - accumulatedTime;
+          }
+        }, 100);
+      } else {
+        audioRef.current.currentTime = newTime - accumulatedTime;
+        setCurrentTime(newTime);
+      }
     }
   };
 

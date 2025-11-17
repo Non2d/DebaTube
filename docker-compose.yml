@@ -19,6 +19,7 @@ services:
     container_name: fastapi
     volumes:
       - ./fastapi/main-service/app:/app
+      - ./fastapi/main-service/audio-save:/app/audio-save
     build:
       context: ./fastapi/main-service
       dockerfile: Dockerfile.dev

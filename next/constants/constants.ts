@@ -1,0 +1,1 @@
+// const NA_ROLE

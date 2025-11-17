@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Play, Pause, Download } from 'lucide-react';
 import AudioPlayer from './AudioPlayer';
 
@@ -15,7 +16,8 @@ interface Recording {
 interface RecordingCardProps {
   speech: Speech;
   index: number;
-  recording: Recording | null;
+  recording?: Recording | null;
+  recordings?: Recording[];
   currentPlayingSpeech: number | null;
   isPlaying: boolean;
   isCurrentSpeech: boolean;
@@ -28,6 +30,7 @@ export default function RecordingCard({
   speech,
   index,
   recording,
+  recordings,
   currentPlayingSpeech,
   isPlaying,
   isCurrentSpeech,
@@ -35,15 +38,35 @@ export default function RecordingCard({
   onDownload,
   onClick
 }: RecordingCardProps) {
+  const hasRecording = (recordings && recordings.length > 0) || recording;
+  const totalDuration = useMemo(() =>
+    recordings
+      ? recordings.reduce((sum, r) => sum + r.duration, 0)
+      : (recording?.duration || 0),
+    [recordings, recording]
+  );
+  const blobs = useMemo(() =>
+    recordings
+      ? recordings.map(r => r.blob)
+      : (recording ? [recording.blob] : []),
+    [recordings, recording]
+  );
+  const durations = useMemo(() =>
+    recordings
+      ? recordings.map(r => r.duration)
+      : (recording ? [recording.duration] : []),
+    [recordings, recording]
+  );
+
   return (
-    <div 
+    <div
       className={`rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-        isCurrentSpeech 
+        isCurrentSpeech
           ? speech.team === 'proposition'
             ? 'border-2 border-red-500 bg-red-50'
             : 'border-2 border-blue-500 bg-blue-50'
-          : recording 
-            ? 'bg-gray-50 hover:bg-gray-100' 
+          : hasRecording
+            ? 'bg-gray-50 hover:bg-gray-100'
             : 'bg-gray-100 border-2 border-dashed border-gray-300 hover:bg-gray-200'
       }`}
       onClick={() => onClick(index)}
@@ -55,12 +78,17 @@ export default function RecordingCard({
           }`}>
             {speech.name}
           </h4>
+          {recordings && recordings.length > 1 && (
+            <span className="text-xs text-gray-500">({recordings.length} recordings)</span>
+          )}
         </div>
-        {recording && (
+        {hasRecording && (
           <div className="flex gap-1">
             <button
               onClick={(e) => {
+                console.log('RecordingCard: Play button clicked, index:', index);
                 e.stopPropagation();
+                console.log('RecordingCard: Calling onPlayPause with index:', index);
                 onPlayPause(index);
               }}
               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -85,10 +113,11 @@ export default function RecordingCard({
           </div>
         )}
       </div>
-      {recording ? (
+      {hasRecording ? (
         <AudioPlayer
-          audioBlob={recording.blob}
-          recordingDuration={recording.duration}
+          audioBlobs={blobs}
+          recordingDuration={totalDuration}
+          recordingDurations={durations}
           isPlaying={currentPlayingSpeech === index ? isPlaying : false}
           onPlayPause={() => onPlayPause(index)}
         />
