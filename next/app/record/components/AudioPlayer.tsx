@@ -36,17 +36,11 @@ export default function AudioPlayer({
   // Initialize blob URLs and durations
   useEffect(() => {
     const blobs = audioBlobs || (audioBlob ? [audioBlob] : []);
-    console.log('AudioPlayer: blobs', blobs);
     if (blobs.length === 0) {
-      console.log('AudioPlayer: No blobs found');
       return;
     }
 
-    const urls = blobs.map(blob => {
-      console.log('AudioPlayer: Creating URL for blob', blob);
-      return URL.createObjectURL(blob);
-    });
-    console.log('AudioPlayer: Created URLs', urls);
+    const urls = blobs.map(blob => URL.createObjectURL(blob));
     setBlobUrls(urls);
 
     return () => {
@@ -57,7 +51,6 @@ export default function AudioPlayer({
   // Load current blob
   useEffect(() => {
     if (blobUrls.length > 0 && audioRef.current) {
-      console.log('AudioPlayer: Loading blob URL:', blobUrls[currentBlobIndex], 'index:', currentBlobIndex);
       audioRef.current.src = blobUrls[currentBlobIndex];
 
       const handleTimeUpdate = () => {
@@ -67,7 +60,6 @@ export default function AudioPlayer({
       };
 
       const handleEnded = () => {
-        console.log('AudioPlayer: Playback ended');
         if (currentBlobIndex < blobUrls.length - 1) {
           // Move to next blob
           setCurrentBlobIndex(prev => prev + 1);
@@ -79,32 +71,19 @@ export default function AudioPlayer({
         }
       };
 
-      const handleLoadedMetadata = () => {
-        console.log('AudioPlayer: Metadata loaded, duration:', audioRef.current?.duration);
-      };
-
-      const handleCanPlay = () => {
-        console.log('AudioPlayer: Can play');
-      };
-
       const handleError = (e: Event) => {
         console.error('AudioPlayer: Audio error event:', e, audioRef.current?.error);
       };
 
       audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
       audioRef.current.addEventListener('ended', handleEnded);
-      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audioRef.current.addEventListener('canplay', handleCanPlay);
       audioRef.current.addEventListener('error', handleError);
       audioRef.current.load();
-      console.log('AudioPlayer: Called load()');
 
       return () => {
         if (audioRef.current) {
           audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
           audioRef.current.removeEventListener('ended', handleEnded);
-          audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-          audioRef.current.removeEventListener('canplay', handleCanPlay);
           audioRef.current.removeEventListener('error', handleError);
         }
       };
@@ -136,18 +115,13 @@ export default function AudioPlayer({
 
   useEffect(() => {
     if (audioRef.current) {
-      console.log('AudioPlayer: isPlaying changed to', isPlaying, 'paused:', audioRef.current.paused);
       if (isPlaying && audioRef.current.paused) {
-        console.log('AudioPlayer: Starting playback');
         audioRef.current.play().catch(err => {
           console.error('AudioPlayer: Play failed', err);
         });
       } else if (!isPlaying && !audioRef.current.paused) {
-        console.log('AudioPlayer: Pausing playback');
         audioRef.current.pause();
       }
-    } else {
-      console.log('AudioPlayer: audioRef.current is null');
     }
   }, [isPlaying]);
 

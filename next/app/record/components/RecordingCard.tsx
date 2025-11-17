@@ -86,9 +86,7 @@ export default function RecordingCard({
           <div className="flex gap-1">
             <button
               onClick={(e) => {
-                console.log('RecordingCard: Play button clicked, index:', index);
                 e.stopPropagation();
-                console.log('RecordingCard: Calling onPlayPause with index:', index);
                 onPlayPause(index);
               }}
               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"

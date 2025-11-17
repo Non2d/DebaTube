@@ -7,17 +7,7 @@ import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
-
-const DEBATE_SPEECHES = [
-  { name: 'Proposition 1st', duration: 7 * 60, team: 'proposition' },
-  { name: 'Opposition 1st', duration: 7 * 60, team: 'opposition' },
-  { name: 'Proposition 2nd', duration: 7 * 60, team: 'proposition' },
-  { name: 'Opposition 2nd', duration: 7 * 60, team: 'opposition' },
-  { name: 'Proposition Whip', duration: 7 * 60, team: 'proposition' },
-  { name: 'Opposition Whip', duration: 7 * 60, team: 'opposition' },
-  { name: 'Proposition Reply', duration: 4 * 60, team: 'proposition' },
-  { name: 'Opposition Reply', duration: 4 * 60, team: 'opposition' }
-] as const;
+import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
 
 interface GraphData {
   speeches: { [key: string]: any[] };
@@ -26,6 +16,7 @@ interface GraphData {
 
 export default function RecordPage() {
   const [matchName, setMatchName] = useState('');
+  const [debateFormat, setDebateFormat] = useState<DebateFormatType>('BP'); // Default format
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -38,6 +29,18 @@ export default function RecordPage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const durationRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isInitialMount = useRef<boolean>(true);
+
+  // Get current debate speeches based on selected format
+  const DEBATE_SPEECHES = DEBATE_FORMATS[debateFormat];
+
+  // Load debate format from LocalStorage after mount to avoid hydration errors
+  useEffect(() => {
+    const savedFormat = localStorage.getItem('debate_format');
+    if (savedFormat && (savedFormat === 'NA' || savedFormat === 'ASIAN' || savedFormat === 'BP')) {
+      setDebateFormat(savedFormat as DebateFormatType);
+    }
+  }, []);
 
   // Load match name from LocalStorage or set default on mount
   useEffect(() => {
@@ -61,6 +64,15 @@ export default function RecordPage() {
       localStorage.setItem('debate_match_name', matchName);
     }
   }, [matchName]);
+
+  // Save debate format to LocalStorage when it changes (skip on initial mount)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    localStorage.setItem('debate_format', debateFormat);
+  }, [debateFormat]);
 
   // Load existing audio files from server when match name changes
   useEffect(() => {
@@ -236,12 +248,9 @@ export default function RecordPage() {
   };
 
   const handlePlayPause = (index: number) => {
-    console.log('handlePlayPause called with index:', index, 'currentPlayingSpeech:', currentPlayingSpeech, 'isPlaying:', isPlaying);
     if (currentPlayingSpeech === index) {
-      console.log('Same speech, toggling isPlaying to:', !isPlaying);
       setIsPlaying(!isPlaying);
     } else {
-      console.log('Different speech, setting currentPlayingSpeech to:', index, 'and isPlaying to true');
       setCurrentPlayingSpeech(index);
       setIsPlaying(true);
     }
@@ -369,7 +378,7 @@ export default function RecordPage() {
 
           <div className="mt-8">
             <div className="grid grid-cols-4 gap-4">
-              {DEBATE_SPEECHES.map((speech, index) => {
+              {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
                 const recordings = speechRecordings[index];
 
                 return (
@@ -390,8 +399,25 @@ export default function RecordPage() {
             </div>
           </div>
 
-          {/* Match Name Input */}
-          <div className="mt-8 flex justify-center">
+          {/* Match Name and Format Selection */}
+          <div className="mt-8 flex justify-center gap-4">
+            {/* Debate Format Selection */}
+            <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                フォーマット:
+              </label>
+              <select
+                value={debateFormat}
+                onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
+                className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+              >
+                <option value="NA">NA (6 speeches)</option>
+                <option value="ASIAN">ASIAN (8 speeches)</option>
+                <option value="BP">BP (8 speeches)</option>
+              </select>
+            </div>
+
+            {/* Match Name Input */}
             <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
                 試合ID:

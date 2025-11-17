@@ -1,1 +1,53 @@
-// const NA_ROLE
+// Debate speech format types
+export type SpeechFormat = {
+  name: string;
+  duration: number;
+  team: 'proposition' | 'opposition';
+};
+
+// NA Format (6 speeches)
+export const NA_FORMAT: SpeechFormat[] = [
+  { name: 'Proposition_1st', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_1st', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_2nd', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_2nd', duration: 7 * 60, team: 'opposition' },
+  { name: 'Opposition_3rd', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_3rd', duration: 7 * 60, team: 'proposition' },
+];
+
+// Asian Format (8 speeches)
+export const ASIAN_FORMAT: SpeechFormat[] = [
+  { name: 'Proposition_1st', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_1st', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_2nd', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_2nd', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_3rd', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_3rd', duration: 7 * 60, team: 'opposition' },
+  { name: 'Opposition_4th', duration: 4 * 60, team: 'opposition' },
+  { name: 'Proposition_4th', duration: 4 * 60, team: 'proposition' }
+];
+
+// BP Format (8 speeches - British Parliamentary)
+export const BP_FORMAT: SpeechFormat[] = [
+  { name: 'Proposition_1st', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_1st', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_2nd', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_2nd', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_3rd', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_3rd', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_4th', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_4th', duration: 7 * 60, team: 'opposition' }
+];
+
+export const DEBATE_FORMATS = {
+  NA: NA_FORMAT,
+  ASIAN: ASIAN_FORMAT,
+  BP: BP_FORMAT
+} as const;
+
+export type DebateFormatType = keyof typeof DEBATE_FORMATS;
+
+// Legacy order arrays (kept for backward compatibility)
+export const NA_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Opposition_3rd", "Proposition_3rd"]
+export const ASIAN_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Opposition_4th", "Proposition_4th"]
+export const BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Proposition_4th", "Proposition_4th"]
