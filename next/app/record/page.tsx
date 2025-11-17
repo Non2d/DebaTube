@@ -514,32 +514,11 @@ export default function RecordPage() {
 
       let speechKey: string | null = null;
 
-      const speechKeysInOrder = Object.keys(autoLoadedGraphData.speeches).sort((a, b) => {
-        const ordinalToNumber = (s: string): number => {
-          const map: {[key: string]: number} = {
-            '1st': 1, '2nd': 2, '3rd': 3, '4th': 4,
-            '1': 1, '2': 2, '3': 3, '4': 4
-          };
-          const match = s.match(/(\d+|1st|2nd|3rd|4th)/i);
-          return match ? map[match[1].toLowerCase()] || 0 : 999;
-        };
-
-        const propMatch1 = a.match(/^Prop(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
-        const oppMatch1 = a.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
-        const propMatch2 = b.match(/^Prop(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
-        const oppMatch2 = b.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
-
-        const aOrder = propMatch1 ? (ordinalToNumber(propMatch1[1]) - 1) * 2 : (oppMatch1 ? (ordinalToNumber(oppMatch1[1]) - 1) * 2 + 1 : 999);
-        const bOrder = propMatch2 ? (ordinalToNumber(propMatch2[1]) - 1) * 2 : (oppMatch2 ? (ordinalToNumber(oppMatch2[1]) - 1) * 2 + 1 : 999);
-
-        return aOrder - bOrder;
-      });
-
-      // グローバルIDマッピングを再構築
+      // グローバルIDマッピングを再構築（グラフデータの順序をそのまま使用）
       let globalIdCounter = 1;
       const globalIdToInfo: { [globalId: number]: { speechKey: string, localId: number, startTime: number } } = {};
 
-      speechKeysInOrder.forEach((key) => {
+      Object.keys(autoLoadedGraphData.speeches).forEach((key) => {
         (autoLoadedGraphData.speeches[key] || []).forEach((segment: any) => {
           const localSegmentId = segment.id !== undefined ? segment.id : 1;
           globalIdToInfo[globalIdCounter] = {
