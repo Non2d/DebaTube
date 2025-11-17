@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Upload, Trash2 } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
+import { saveRecording, getAllRecordings, clearAllRecordings } from '../../lib/indexedDB';
 
 const DEBATE_SPEECHES = [
   { name: 'Proposition 1st', duration: 7 * 60, team: 'proposition' },
@@ -40,6 +41,15 @@ export default function RecordPage() {
   const durationRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Load recordings from IndexedDB on mount
+  useEffect(() => {
+    getAllRecordings().then(recordings => {
+      setSpeechRecordings(recordings);
+    }).catch(error => {
+      console.error('Failed to load recordings from IndexedDB:', error);
+    });
+  }, []);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -54,16 +64,26 @@ export default function RecordPage() {
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
+        const recordingData = {
+          blob,
+          duration: durationRef.current,
+          timestamp: new Date().toISOString()
+        };
+
         setSpeechRecordings(prev => ({
           ...prev,
-          [currentSpeechIndex]: {
-            blob,
-            duration: durationRef.current,
-            timestamp: new Date().toISOString()
-          }
+          [currentSpeechIndex]: recordingData
         }));
+
+        // Save to IndexedDB
+        try {
+          await saveRecording(currentSpeechIndex, recordingData);
+        } catch (error) {
+          console.error('Failed to save recording to IndexedDB:', error);
+        }
+
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -166,6 +186,21 @@ export default function RecordPage() {
     setCurrentPlayingSpeech(null);
   };
 
+  const handleDeleteAll = async () => {
+    if (confirm('すべての録音を削除しますか？この操作は取り消せません。')) {
+      try {
+        await clearAllRecordings();
+        setSpeechRecordings({});
+        setCurrentPlayingSpeech(null);
+        setIsPlaying(false);
+        alert('すべての録音を削除しました。');
+      } catch (error) {
+        console.error('Failed to delete recordings:', error);
+        alert('録音の削除に失敗しました。');
+      }
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -261,6 +296,18 @@ export default function RecordPage() {
                   />
                 );
               })}
+            </div>
+
+            {/* Delete All Button */}
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={handleDeleteAll}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={Object.keys(speechRecordings).length === 0}
+              >
+                <Trash2 size={16} />
+                <span>すべての録音を削除</span>
+              </button>
             </div>
           </div>
 
