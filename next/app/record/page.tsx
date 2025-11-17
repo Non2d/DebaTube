@@ -14,7 +14,10 @@ interface GraphData {
   rebuttals: [number, number][];
 }
 
+type TabType = 'home' | 'baseline' | 'ctrl';
+
 export default function RecordPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [matchName, setMatchName] = useState('');
   const [debateFormat, setDebateFormat] = useState<DebateFormatType>('BP'); // Default format
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
@@ -27,6 +30,7 @@ export default function RecordPage() {
   const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
+  const [autoLoadedGraphData, setAutoLoadedGraphData] = useState<GraphData | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -450,6 +454,31 @@ export default function RecordPage() {
     }
   };
 
+  // グラフデータを自動読み込み（サーバーから）
+  const autoLoadGraphData = async (matchId: string) => {
+    if (!matchId) return;
+
+    try {
+      console.log(`[autoLoadGraphData] Loading graph for match: ${matchId}`);
+      const response = await fetch(`http://localhost:8080/rebuttal-graph/${matchId}`);
+
+      if (!response.ok) {
+        console.warn(`[autoLoadGraphData] Graph not found for match: ${matchId}`);
+        setAutoLoadedGraphData(null);
+        return;
+      }
+
+      const result = await response.json();
+      if (result.status === 'success' && result.data) {
+        setAutoLoadedGraphData(result.data);
+        console.log(`[autoLoadGraphData] Graph loaded successfully for match: ${matchId}`);
+      }
+    } catch (error) {
+      console.error('[autoLoadGraphData] Error:', error);
+      setAutoLoadedGraphData(null);
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -461,6 +490,8 @@ export default function RecordPage() {
         // バリデーション
         if (json.speeches && json.rebuttals && Array.isArray(json.rebuttals)) {
           setGraphData(json);
+          // Feedback (Ctrl) でも表示されるように
+          setAutoLoadedGraphData(json);
         } else {
           alert('Invalid JSON format. Please ensure it contains "speeches" and "rebuttals" properties.');
         }
@@ -483,6 +514,51 @@ export default function RecordPage() {
       <Header />
       <div className="pt-20 min-h-screen bg-white">
         <div className="max-w-4xl mx-auto px-4 py-4">
+          {/* Tab Navigation */}
+          <div className="flex gap-4 mb-8 border-b border-gray-200">
+            <button
+              onClick={() => {
+                setActiveTab('home');
+              }}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'home'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Home
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('baseline');
+                if (matchName) autoLoadGraphData(matchName);
+              }}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'baseline'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Feedback (Baseline)
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('ctrl');
+                if (matchName) autoLoadGraphData(matchName);
+              }}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'ctrl'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Feedback (Ctrl)
+            </button>
+          </div>
+
+          {/* Home Tab */}
+          {activeTab === 'home' && (
+          <div>
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-8 mb-6">
               <button
@@ -655,6 +731,93 @@ export default function RecordPage() {
                 <RebuttalGraph data={graphData} />
               </div>
             </div>
+          )}
+          </div>
+          )}
+
+          {/* Baseline Tab */}
+          {activeTab === 'baseline' && (
+          <div>
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                試合ID: <span className="font-semibold">{matchName}</span>
+              </p>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">録音ファイル</h3>
+              <div className="grid grid-cols-4 gap-4">
+                {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
+                  const recordings = speechRecordings[index];
+
+                  return (
+                    <RecordingCard
+                      key={index}
+                      speech={speech}
+                      index={index}
+                      recordings={recordings}
+                      currentPlayingSpeech={currentPlayingSpeech}
+                      isPlaying={isPlaying}
+                      isCurrentSpeech={index === currentSpeechIndex}
+                      onPlayPause={handlePlayPause}
+                      onDownload={downloadAudio}
+                      onClick={goToSpeech}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          )}
+
+          {/* Ctrl Tab */}
+          {activeTab === 'ctrl' && (
+          <div>
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                試合ID: <span className="font-semibold">{matchName}</span>
+              </p>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">録音ファイル</h3>
+              <div className="grid grid-cols-4 gap-4">
+                {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
+                  const recordings = speechRecordings[index];
+
+                  return (
+                    <RecordingCard
+                      key={index}
+                      speech={speech}
+                      index={index}
+                      recordings={recordings}
+                      currentPlayingSpeech={currentPlayingSpeech}
+                      isPlaying={isPlaying}
+                      isCurrentSpeech={index === currentSpeechIndex}
+                      onPlayPause={handlePlayPause}
+                      onDownload={downloadAudio}
+                      onClick={goToSpeech}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Rebuttal Graph Section for Ctrl */}
+            {autoLoadedGraphData && (
+              <div className="mt-12">
+                <h2 className="text-2xl font-bold mb-6 text-gray-900">反論構造の可視化</h2>
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                  <RebuttalGraph data={autoLoadedGraphData} />
+                </div>
+              </div>
+            )}
+            {!autoLoadedGraphData && (
+              <div className="mt-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                <p className="text-gray-600">グラフデータが利用できません。Home タブでグラフを生成してください。</p>
+              </div>
+            )}
+          </div>
           )}
         </div>
       </div>

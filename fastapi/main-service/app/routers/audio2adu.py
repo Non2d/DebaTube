@@ -639,7 +639,7 @@ async def audio_to_debate_graph_batch(
     print(f"[/audio-to-debate-graph-batch] 処理開始 - match_name: {match_name}, format: {debate_format}")
 
     # 出力ディレクトリの作成
-    RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(APP_DIR)), "audio-save", match_name, "results")
+    RESULTS_DIR = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
     os.makedirs(RESULTS_DIR, exist_ok=True)
     logger.info(f"Results directory: {RESULTS_DIR}")
 
@@ -738,3 +738,60 @@ async def audio_to_debate_graph_batch(
         print(f"[/audio-to-debate-graph-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during audio to debate graph conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Audio to debate graph conversion failed: {str(e)}")
+
+@router.get("/rebuttal-graph/{match_name}")
+async def get_rebuttal_graph(match_name: str):
+    """
+    Get the rebuttal graph JSON for a specific match
+    - Reads from audio-save/{match_name}/ directory (primary)
+    - Falls back to transcriptions/results_{match_name}/ or transcriptions/adus/
+    - Returns the latest rebuttal_graph_*.json file
+    """
+    try:
+        graph_files = []
+        graph_path = None
+
+        # Search order:
+        # 1. audio-save/{match_name}/
+        audio_save_dir = os.path.join(os.path.dirname(os.path.dirname(APP_DIR)), "audio-save", match_name)
+        if os.path.exists(audio_save_dir):
+            graph_files = sorted([f for f in os.listdir(audio_save_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
+            if graph_files:
+                graph_path = os.path.join(audio_save_dir, graph_files[0])
+
+        # 2. transcriptions/results_{match_name}/
+        if not graph_path:
+            results_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
+            if os.path.exists(results_dir):
+                graph_files = sorted([f for f in os.listdir(results_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
+                if graph_files:
+                    graph_path = os.path.join(results_dir, graph_files[0])
+
+        # 3. transcriptions/adus/ (latest)
+        if not graph_path:
+            adus_dir = ADUS_DIR
+            if os.path.exists(adus_dir):
+                all_graph_files = sorted([f for f in os.listdir(adus_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
+                if all_graph_files:
+                    graph_path = os.path.join(adus_dir, all_graph_files[0])
+
+        if not graph_path:
+            raise HTTPException(status_code=404, detail=f"No rebuttal graph found for match: {match_name}")
+
+        with open(graph_path, 'r', encoding='utf-8') as f:
+            graph_data = json.load(f)
+
+        logger.info(f"Rebuttal graph loaded from {graph_path}")
+
+        return {
+            "status": "success",
+            "match_name": match_name,
+            "graph_file": os.path.basename(graph_path),
+            "data": graph_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get rebuttal graph: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get rebuttal graph: {str(e)}")
