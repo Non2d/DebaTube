@@ -1,8 +1,0 @@
-{
-  "timestamp": "20251117_141521_2",
-  "csv_path": "/audio-save/default/results/unified_adus_NA_20251117_141355_1.csv",
-  "input_transcript_length": 28483,
-  "gemini_response": "```json\n[\n  [12, 4],\n  [17, 10],\n  [19, 4],\n  [22, 6],\n  [24, 18],\n  [25, 17],\n  [32, 19],\n  [34, 28],\n  [36, 8],\n  [39, 10],\n  [41, 28],\n  [45, 32],\n  [51, 10],\n  [56, 41],\n  [59, 42],\n  [60, 18],\n  [62, 12]\n]\n```",
-  "raw_response": "sdk_http_response=HttpResponse(\n  headers=<dict len=11>\n) candidates=[Candidate(\n  citation_metadata=CitationMetadata(\n    citations=[\n      Citation(\n        end_index=2343,\n        license='',\n        start_index=2035,\n        uri='https://github.com/Non2d/DebateVizSystem'\n      ),\n    ]\n  ),\n  content=Content(\n    parts=[\n      Part(\n        text=\"\"\"```json\n[\n  [12, 4],\n  [17, 10],\n  [19, 4],\n  [22, 6],\n  [24, 18],\n  [25, 17],\n  [32, 19],\n  [34, 28],\n  [36, 8],\n  [39, 10],\n  [41, 28],\n  [45, 32],\n  [51, 10],\n  [56, 41],\n  [59, 42],\n  [60, 18],\n  [62, 12]\n]\n```\"\"\"\n      ),\n    ],\n    role='model'\n  ),\n  finish_reason=<FinishReason.STOP: 'STOP'>,\n  index=0\n)] create_time=None model_version='gemini-2.5-pro' prompt_feedback=None response_id='oy0baZDUEtqh0-kP3pCU8Ac' usage_metadata=GenerateContentResponseUsageMetadata(\n  candidates_token_count=174,\n  prompt_token_count=6626,\n  prompt_tokens_details=[\n    ModalityTokenCount(\n      modality=<MediaModality.TEXT: 'TEXT'>,\n      token_count=6626\n    ),\n  ],\n  thoughts_token_count=9315,\n  total_token_count=16115\n) automatic_function_calling_history=[] parsed=None",
-  "model": "gemini-2.5-pro"
-}
