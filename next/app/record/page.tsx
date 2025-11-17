@@ -491,28 +491,63 @@ export default function RecordPage() {
   };
 
   // ノードクリック時のハンドラー - グローバルIDとstart_timeからスピーチを特定し、seekbarをジャンプ
-  const handleGraphNodeClick = (globalNodeId: number, startTime: number) => {
+  const handleGraphNodeClick = (globalNodeId: number) => {
     if (!autoLoadedGraphData) return;
 
     try {
-      // globalNodeId からスピーチキーを逆引き
+      // グローバルIDをローカルIDとスピーチキーに逆引き
+      // ローカルIDは各スピーチで1から始まるので、グローバルIDを割り当てた順序で逆引き
+
       let speechKey: string | null = null;
 
-      for (const [key, adus] of Object.entries(autoLoadedGraphData.speeches)) {
-        const adu = adus.find((a: any) => a.id === globalNodeId);
-        if (adu) {
-          speechKey = key;
-          break;
-        }
-      }
+      const speechKeysInOrder = Object.keys(autoLoadedGraphData.speeches).sort((a, b) => {
+        const ordinalToNumber = (s: string): number => {
+          const map: {[key: string]: number} = {
+            '1st': 1, '2nd': 2, '3rd': 3, '4th': 4,
+            '1': 1, '2': 2, '3': 3, '4': 4
+          };
+          const match = s.match(/(\d+|1st|2nd|3rd|4th)/i);
+          return match ? map[match[1].toLowerCase()] || 0 : 999;
+        };
 
-      if (!speechKey) {
-        console.warn(`[handleGraphNodeClick] Speech key not found for node ID: ${globalNodeId}`);
+        const propMatch1 = a.match(/^Prop(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
+        const oppMatch1 = a.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
+        const propMatch2 = b.match(/^Prop(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
+        const oppMatch2 = b.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
+
+        const aOrder = propMatch1 ? (ordinalToNumber(propMatch1[1]) - 1) * 2 : (oppMatch1 ? (ordinalToNumber(oppMatch1[1]) - 1) * 2 + 1 : 999);
+        const bOrder = propMatch2 ? (ordinalToNumber(propMatch2[1]) - 1) * 2 : (oppMatch2 ? (ordinalToNumber(oppMatch2[1]) - 1) * 2 + 1 : 999);
+
+        return aOrder - bOrder;
+      });
+
+      // グローバルIDマッピングを再構築
+      let globalIdCounter = 1;
+      const globalIdToInfo: { [globalId: number]: { speechKey: string, localId: number, startTime: number } } = {};
+
+      speechKeysInOrder.forEach((key) => {
+        (autoLoadedGraphData.speeches[key] || []).forEach((segment: any) => {
+          const localSegmentId = segment.id !== undefined ? segment.id : 1;
+          globalIdToInfo[globalIdCounter] = {
+            speechKey: key,
+            localId: localSegmentId,
+            startTime: segment.start || 0
+          };
+          globalIdCounter++;
+        });
+      });
+
+      if (!globalIdToInfo[globalNodeId]) {
+        console.warn(`[handleGraphNodeClick] Global ID not found: ${globalNodeId}`);
+        console.warn(`[handleGraphNodeClick] Available global IDs:`, Object.keys(globalIdToInfo));
         return;
       }
 
+      const { speechKey: foundSpeechKey, startTime: foundStartTime } = globalIdToInfo[globalNodeId];
+      speechKey = foundSpeechKey;
+
       // スピーチキーからspeech_indexを抽出
-      const speechIndex = Object.values(DEBATE_SPEECHES).findIndex(
+      let speechIndex = DEBATE_SPEECHES.findIndex(
         (speech: SpeechFormat) => speech.name.toLowerCase().replace(/ /g, '_') === speechKey.toLowerCase()
       );
 
@@ -521,10 +556,10 @@ export default function RecordPage() {
         return;
       }
 
-      // handleGraphNodeTimeJump を使用して、シークバーとオーディオプレイヤーを同期
-      handleGraphNodeTimeJump(speechIndex, startTime);
+      // 実際の開始時刻を使用
+      handleGraphNodeTimeJump(speechIndex, foundStartTime);
 
-      console.log(`[handleGraphNodeClick] Triggering time jump for ${speechKey} (index: ${speechIndex}) at ${startTime}s`);
+      console.log(`[handleGraphNodeClick] Triggering time jump for ${speechKey} (index: ${speechIndex}) at ${foundStartTime}s`);
     } catch (error) {
       console.error('[handleGraphNodeClick] Error:', error);
     }
@@ -832,7 +867,7 @@ export default function RecordPage() {
                       onClick={() => {}}
                       hideDownload={true}
                       seekTime={shouldSeek ? seekTargetTime : undefined}
-                      onTimeJump={(time) => handleGraphNodeTimeJump(index, time)}
+                      onTimeJump={(time: number) => handleGraphNodeTimeJump(index, time)}
                     />
                   );
                 })}
