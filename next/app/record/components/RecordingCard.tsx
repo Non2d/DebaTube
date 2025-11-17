@@ -59,7 +59,10 @@ export default function RecordingCard({
         {recording && (
           <div className="flex gap-1">
             <button
-              onClick={() => onPlayPause(index)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlayPause(index);
+              }}
               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               title={currentPlayingSpeech === index && isPlaying ? '停止' : '再生'}
             >
@@ -70,7 +73,10 @@ export default function RecordingCard({
               )}
             </button>
             <button
-              onClick={() => onDownload(index)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload(index);
+              }}
               className="p-2 bg-green-500 text-white rounded hover:bg-green-600"
               title="ダウンロード"
             >
