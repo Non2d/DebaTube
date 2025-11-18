@@ -373,7 +373,7 @@ export default function RecordPage() {
     const recordedSpeechIndices = Object.keys(speechRecordings)
       .filter(key => speechRecordings[parseInt(key)] && speechRecordings[parseInt(key)].length > 0)
       .map(key => parseInt(key));
-    return recordedSpeechIndices.length === DEBATE_SPEECHES.length;
+    return recordedSpeechIndices.length > 0; // 少なくとも1つの音声があればOK
   };
 
   // 音声からディベートグラフを生成
@@ -715,7 +715,7 @@ export default function RecordPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">音声からディベートグラフを生成</h3>
-                  <p className="text-sm text-gray-600">全ての音声ファイルが入っている場合のみ生成できます</p>
+                  <p className="text-sm text-gray-600">少なくとも1つの音声ファイルがあれば生成できます</p>
                 </div>
                 <button
                   onClick={generateDebateGraph}

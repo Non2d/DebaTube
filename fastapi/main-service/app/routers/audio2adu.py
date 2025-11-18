@@ -770,13 +770,13 @@ async def get_rebuttal_graph(match_name: str):
                 if graph_files:
                     graph_path = os.path.join(results_dir, graph_files[0])
 
-        # 3. transcriptions/adus/ (latest)
-        if not graph_path:
-            adus_dir = ADUS_DIR
-            if os.path.exists(adus_dir):
-                all_graph_files = sorted([f for f in os.listdir(adus_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
-                if all_graph_files:
-                    graph_path = os.path.join(adus_dir, all_graph_files[0])
+        # # 3. transcriptions/adus/ (latest)
+        # if not graph_path:
+        #     adus_dir = ADUS_DIR
+        #     if os.path.exists(adus_dir):
+        #         all_graph_files = sorted([f for f in os.listdir(adus_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
+        #         if all_graph_files:
+        #             graph_path = os.path.join(adus_dir, all_graph_files[0])
 
         if not graph_path:
             raise HTTPException(status_code=404, detail=f"No rebuttal graph found for match: {match_name}")
