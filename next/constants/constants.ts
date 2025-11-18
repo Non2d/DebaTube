@@ -39,10 +39,20 @@ export const BP_FORMAT: SpeechFormat[] = [
   { name: 'Opposition_4th', duration: 7 * 60, team: 'opposition' }
 ];
 
+// Opening Half BP Format (4 speeches - modified BP)
+export const OPENING_HALF_BP_FORMAT: SpeechFormat[] = [
+  { name: 'Proposition_1st', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_1st', duration: 7 * 60, team: 'opposition' },
+  { name: 'Proposition_2nd', duration: 7 * 60, team: 'proposition' },
+  { name: 'Opposition_2nd', duration: 7 * 60, team: 'opposition' },
+];
+
+
 export const DEBATE_FORMATS = {
   NA: NA_FORMAT,
   ASIAN: ASIAN_FORMAT,
-  BP: BP_FORMAT
+  BP: BP_FORMAT,
+  OPENING_HALF_BP_ORDER: OPENING_HALF_BP_FORMAT,
 } as const;
 
 export type DebateFormatType = keyof typeof DEBATE_FORMATS;
@@ -51,3 +61,4 @@ export type DebateFormatType = keyof typeof DEBATE_FORMATS;
 export const NA_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Opposition_3rd", "Proposition_3rd"]
 export const ASIAN_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Opposition_4th", "Proposition_4th"]
 export const BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Proposition_4th", "Proposition_4th"]
+export const OPENING_HALF_BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd"]

@@ -46,7 +46,7 @@ export default function RecordPage() {
   // Load debate format from LocalStorage after mount to avoid hydration errors
   useEffect(() => {
     const savedFormat = localStorage.getItem('debate_format');
-    if (savedFormat && (savedFormat === 'NA' || savedFormat === 'ASIAN' || savedFormat === 'BP')) {
+    if (savedFormat && (savedFormat === 'NA' || savedFormat === 'ASIAN' || savedFormat === 'BP' || savedFormat === 'OPENING_HALF_BP_ORDER')) {
       setDebateFormat(savedFormat as DebateFormatType);
     }
   }, []);
@@ -689,6 +689,7 @@ export default function RecordPage() {
                 <option value="NA">NA (6 speeches)</option>
                 <option value="ASIAN">ASIAN (8 speeches)</option>
                 <option value="BP">BP (8 speeches)</option>
+                <option value="OPENING_HALF_BP_ORDER">Opening Half BP (4 speeches)</option>
               </select>
             </div>
 

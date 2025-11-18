@@ -9,11 +9,13 @@ from typing import Dict, List, Any, Optional
 NA_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Opposition_3rd", "Proposition_3rd"]
 ASIAN_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Opposition_4th", "Proposition_4th"]
 BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Proposition_4th", "Opposition_4th"]
+OPENING_HALF_BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd"]
 
 DEBATE_FORMATS = {
     "NA": NA_ORDER,
     "ASIAN": ASIAN_ORDER,
-    "BP": BP_ORDER
+    "BP": BP_ORDER,
+    "OPENING_HALF_BP_ORDER": OPENING_HALF_BP_ORDER
 }
 
 def clean_gemini_markdown_response(response_text: str) -> str:
