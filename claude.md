@@ -158,3 +158,26 @@ batch_transcription_{timestamp}.json
    - ノードID は sequence_id（グローバルID）
    - speeches オブジェクトで逆引きして speech_key を取得
    - speech_key を DEBATE_SPEECHES で検索して speech_index を得る
+
+## 統合音声再生機能（Feedback タブ）
+
+### 新機能：UnifiedAudioPlayer
+- Feedback (Baseline) と Feedback (Ctrl) タブで，すべてのスピーチの音声を順序通りに統合・再生
+- 単一のシークバーで全スピーチを管理
+- 複数の音声ファイルがある場合は自動的に繋ぎ合わせて連続再生
+
+### グラフノードクリック時の時刻計算
+- **Ctrl タブ限定**：グラフのノードをクリック → 統合シークバーが自動ジャンプ
+- 計算ロジック：
+  1. ノードの speechIndex とローカル start_time を特定
+  2. 該当スピーチより前のスピーチの duration を累積
+  3. 累積値 + ローカル start_time = グローバル時刻
+  - 例：Prop1 duration=300秒, Opp1 node start=20秒 → global=320秒
+
+### 実装ファイル
+- `app/record/utils/speechTimeline.ts` - タイムライン管理ユーティリティ
+- `app/record/components/UnifiedAudioPlayer.tsx` - 統合再生コンポーネント
+- `app/record/page.tsx` - Baseline/Ctrl タブでの統合
+
+### 注意事項
+- **Docker ビルドのエラー：** `npm run build` を実行するとDocker側でCSS が消えて生HTML になる問題が報告されている。TypeScript のチェックは行わず，直接動作確認すること
