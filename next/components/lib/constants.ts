@@ -56,7 +56,10 @@ export const isGovernment = (positionName: string): boolean => {
 }
 
 export const isGovernmentFromSpeechId = (speechId: number, speechLength: number): boolean => {
-    if (speechLength === 6) {
+    if (speechLength === 4) {
+        // Opening Half BP: Prop 1st (0), Prop 2nd (2)
+        return speechId === 0 || speechId === 2;
+    } else if (speechLength === 6) {
         return speechId === 0 || speechId === 2 || speechId === 5;
     } else if (speechLength === 8) {
         return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 7;

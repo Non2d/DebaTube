@@ -469,13 +469,14 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest):
         speeches_data = {}
         markdown_lines = []
         current_speech = None
+        global_id_counter = 1  # グローバルIDカウンター
 
         with open(csv_path, "r", encoding="utf-8") as csvfile:
             reader = csv.DictReader(csvfile)
 
             for row in reader:
                 speech_key = row.get("speech_key", "")
-                adu_id = int(row.get("id", 0))
+                local_adu_id = int(row.get("id", 0))  # CSVのローカルID
                 text = row.get("text", "")
                 role = row.get("role", "")
                 start_time = float(row.get("start_time", 0))
@@ -484,16 +485,16 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest):
                 if speech_key not in speeches_data:
                     speeches_data[speech_key] = []
 
-                # Format: {id, type, text, start}
+                # Format: {id, type, text, start} - グローバルIDを使用
                 adu_data = {
-                    "id": adu_id,
+                    "id": global_id_counter,  # グローバルID
                     "type": role,  # role -> type
                     "text": text,
                     "start": start_time  # start_time -> start
                 }
                 speeches_data[speech_key].append(adu_data)
 
-                # Build markdown for Gemini
+                # Build markdown for Gemini - グローバルIDを使用
                 if speech_key != current_speech:
                     if current_speech is not None:
                         markdown_lines.append("")  # Blank line between speeches
@@ -501,8 +502,10 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest):
                     markdown_lines.append("")
                     current_speech = speech_key
 
-                markdown_lines.append(f"id:{adu_id}, {text}")
+                markdown_lines.append(f"id:{global_id_counter}, {text}")
                 markdown_lines.append("")
+
+                global_id_counter += 1  # グローバルIDをインクリメント
 
         transcript = "\n".join(markdown_lines)
         logger.info(f"Loaded {sum(len(v) for v in speeches_data.values())} ADUs from CSV")
