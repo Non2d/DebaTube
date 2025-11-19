@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from log_config import logger
 from pydantic import BaseModel
 from typing import List, Dict, Any
-import os, json, csv, time
+import os, json, csv, time, re
 from datetime import datetime
 from google import genai
 

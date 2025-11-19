@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, RootModel
 from log_config import logger
@@ -626,8 +626,8 @@ class AudioToDebateGraphRequest(BaseModel):
 @router.post("/audio-to-debate-graph-batch")
 async def audio_to_debate_graph_batch(
     files: List[UploadFile] = File(...),
-    match_name: str = "default",
-    debate_format: str = "NA"
+    match_name: str = Form("default"),
+    debate_format: str = Form("NA")
 ):
     """
     統合エンドポイント: 音声ファイルをディベートグラフに変換
@@ -756,7 +756,8 @@ async def get_rebuttal_graph(match_name: str):
 
         # Search order:
         # 1. audio-save/{match_name}/
-        audio_save_dir = os.path.join(os.path.dirname(os.path.dirname(APP_DIR)), "audio-save", match_name)
+        # Docker: /app/audio-save, Local: ../audio-save
+        audio_save_dir = os.path.join(os.path.dirname(APP_DIR), "audio-save", match_name)
         if os.path.exists(audio_save_dir):
             graph_files = sorted([f for f in os.listdir(audio_save_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
             if graph_files:

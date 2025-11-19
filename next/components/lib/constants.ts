@@ -61,6 +61,9 @@ export const isGovernmentFromSpeechId = (speechId: number, speechLength: number)
         return speechId === 0 || speechId === 2;
     } else if (speechLength === 6) {
         return speechId === 0 || speechId === 2 || speechId === 5;
+    } else if (speechLength === 7) {
+        // BP without Opposition 4th: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (6)
+        return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 6;
     } else if (speechLength === 8) {
         return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 7;
     } else {
