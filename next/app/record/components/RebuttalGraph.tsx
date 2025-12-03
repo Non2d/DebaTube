@@ -23,11 +23,12 @@ interface GraphDataJson {
 interface RebuttalGraphProps {
   data: GraphDataJson;
   onNodeClick?: (nodeId: number, startTime: number) => void;
+  debateFormat?: string;
 }
 
 const nodeTypeMap: { [key: number]: string } = {};
 
-const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick }) => {
+const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debateFormat }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const nodeDataRef = useRef<{ [key: number]: { startTime: number } }>({});
@@ -119,14 +120,14 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick }) => {
       const speechLength = convertedSpeeches.length;
       const oppIndices: number[] = [];
       for (let i = 0; i < speechLength; i++) {
-        if (!isGovernmentFromSpeechId(i, speechLength)) {
+        if (!isGovernmentFromSpeechId(i, speechLength, debateFormat)) {
           oppIndices.push(i);
         }
       }
       const secondLastOppIndex = oppIndices.length >= 2 ? oppIndices[oppIndices.length - 2] : -1;
 
       for (let i = 0; i < convertedSpeeches.length; i++) {
-        const isGovernment = isGovernmentFromSpeechId(i, speechLength);
+        const isGovernment = isGovernmentFromSpeechId(i, speechLength, debateFormat);
         let startNodeY = nodeY;
 
         const argumentUnits = convertedSpeeches[i].argument_units;
@@ -231,7 +232,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick }) => {
       console.error("Error converting graph data:", error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, debateFormat]);
 
   const proOptions = { hideAttribution: true };
 

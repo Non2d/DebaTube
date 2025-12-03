@@ -6,9 +6,10 @@ from fastapi.responses import FileResponse
 from log_config import logger
 from pydantic import BaseModel
 from typing import List, Dict, Any
-import os, json, csv, time, re
-from datetime import datetime
+import os, json, csv, time, re, tempfile
+from datetime import datetime, timezone, timedelta
 from google import genai
+from openai import OpenAI
 
 router = APIRouter()
 
@@ -16,8 +17,15 @@ router = APIRouter()
 from .audio2adu import ADUS_DIR, LOGS_DIR
 from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences
 
+# Define SUB_TRANSCRIPTS directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SUB_TRANSCRIPTS_DIR = os.path.join(BASE_DIR, "transcriptions", "sub-transcripts")
+os.makedirs(SUB_TRANSCRIPTS_DIR, exist_ok=True)
+
 # Initialize Gemini client
 client_gemini = genai.Client()
+
+client = OpenAI()
 
 # ===== Pydantic Models =====
 
@@ -52,6 +60,65 @@ class SentenceGroupResponse(BaseModel):
     sentences: List[SentenceInfo]
 
 # ===== Endpoints =====
+
+@router.post("/audio-to-transcript")
+async def audio_to_transcript(file: UploadFile = File(...)):
+    """
+    Transcribe audio file using Whisper API with verbose_json output
+    - Input: Audio file upload
+    - Output: Transcription JSON with word-level timestamps
+    - Saves result to transcriptions/sub-transcripts/
+    """
+    temp_file_path = None
+    try:
+        # Save uploaded file to temporary location
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        # Call Whisper API for transcription (sync version)
+        with open(temp_file_path, "rb") as audio_file:
+            transcription = client.audio.transcriptions.create(
+                file=audio_file,
+                model="whisper-1",
+                response_format="verbose_json",
+                timestamp_granularities=["word"],
+                language="en"
+            )
+
+        # Save transcription result to sub-transcripts directory
+        # Extract audio filename base (without extension)
+        audio_filename_base = os.path.splitext(file.filename)[0]
+        jst = timezone(timedelta(hours=9))
+        timestamp = datetime.now(jst).strftime("%Y%m%d_%H%M%S_%f")[:-5]
+        json_filename = f"{audio_filename_base}_{timestamp}.json"
+        json_path = os.path.join(SUB_TRANSCRIPTS_DIR, json_filename)
+
+        # Convert response to dict for JSON serialization
+        response_dict = transcription.model_dump() if hasattr(transcription, 'model_dump') else dict(transcription)
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(response_dict, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"Transcription saved to: {json_path}")
+
+        return {
+            "status": "success",
+            "transcription": response_dict,
+            "saved_to": json_path,
+            "file_exists": os.path.exists(json_path)
+        }
+
+    except Exception as e:
+        logger.error(f"Error during audio transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Audio transcription failed: {str(e)}")
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+
+
 
 @router.post("/group-sentences", response_model=SentenceGroupResponse)
 async def group_sentences(request: SentenceGroupRequest):

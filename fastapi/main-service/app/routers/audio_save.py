@@ -22,13 +22,13 @@ async def save_audio(
     duration: float = Form(0)
 ):
     """
-    Save audio recording to the server (supports .webm and .mp3, multiple recordings per speech)
+    Save audio recording to the server (supports .webm, .mp3, and .m4a, multiple recordings per speech)
 
     Args:
         match_name: Name of the debate match (e.g., "2025-01-17-session_143052")
         speech_index: Index of the speech (0-7)
         speech_name: Name of the speech (e.g., "proposition_1st")
-        file: Audio file (.webm or .mp3)
+        file: Audio file (.webm, .mp3, or .m4a)
         duration: Duration of the recording in seconds
 
     Returns:
@@ -40,14 +40,15 @@ async def save_audio(
         match_dir.mkdir(parents=True, exist_ok=True)
 
         # Determine file extension from uploaded file
-        file_ext = Path(file.filename).suffix.lower() if file.filename else ".webm"
-        if file_ext not in [".webm", ".mp3"]:
-            file_ext = ".webm"  # Default to webm if unknown
+        file_ext = Path(file.filename).suffix.lower() if file.filename else ".m4a"
+        if file_ext not in [".webm", ".mp3", ".m4a"]:
+            file_ext = ".m4a"  # Default to m4a if unknown
 
         # Find existing files for this speech to determine sequence number
-        # Count both .webm and .mp3 files
+        # Count .webm, .mp3, and .m4a files
         existing_files = list(match_dir.glob(f"{speech_index}_{speech_name}_*.webm")) + \
-                        list(match_dir.glob(f"{speech_index}_{speech_name}_*.mp3"))
+                        list(match_dir.glob(f"{speech_index}_{speech_name}_*.mp3")) + \
+                        list(match_dir.glob(f"{speech_index}_{speech_name}_*.m4a"))
         sequence_number = len(existing_files)
 
         # Create filename: {speech_index}_{speech_name}_{sequence}.{ext}
@@ -113,7 +114,7 @@ async def list_matches():
 @router.get("/audio/match/{match_name}")
 async def get_match_files(match_name: str):
     """
-    Get all audio files for a specific match (supports .webm and .mp3)
+    Get all audio files for a specific match (supports .webm, .mp3, and .m4a)
 
     Args:
         match_name: Name of the debate match
@@ -128,8 +129,8 @@ async def get_match_files(match_name: str):
             raise HTTPException(status_code=404, detail=f"Match not found: {match_name}")
 
         files = []
-        # Support both .webm and .mp3 formats
-        audio_files = sorted(match_dir.glob("*.webm")) + sorted(match_dir.glob("*.mp3"))
+        # Support .webm, .mp3, and .m4a formats
+        audio_files = sorted(match_dir.glob("*.webm")) + sorted(match_dir.glob("*.mp3")) + sorted(match_dir.glob("*.m4a"))
 
         for file_path in audio_files:
             file_info = {
@@ -167,7 +168,7 @@ async def get_match_files(match_name: str):
 @router.get("/audio/match/{match_name}/speech/{speech_index}")
 async def get_speech_files(match_name: str, speech_index: int):
     """
-    Get all audio files for a specific speech in a match (ordered by sequence, supports .webm and .mp3)
+    Get all audio files for a specific speech in a match (ordered by sequence, supports .webm, .mp3, and .m4a)
 
     Args:
         match_name: Name of the debate match
@@ -182,12 +183,12 @@ async def get_speech_files(match_name: str, speech_index: int):
         if not match_dir.exists():
             raise HTTPException(status_code=404, detail=f"Match not found: {match_name}")
 
-        # Find all files for this speech_index (supports .webm and .mp3)
+        # Find all files for this speech_index (supports .webm, .mp3, and .m4a)
         files = []
-        audio_files = sorted(match_dir.glob(f"{speech_index}_*_*.webm")) + sorted(match_dir.glob(f"{speech_index}_*_*.mp3"))
+        audio_files = sorted(match_dir.glob(f"{speech_index}_*_*.webm")) + sorted(match_dir.glob(f"{speech_index}_*_*.mp3")) + sorted(match_dir.glob(f"{speech_index}_*_*.m4a"))
 
         for file_path in audio_files:
-            # Extract sequence number from filename (format: {speech_index}_{speech_name}_{sequence}.webm or .mp3)
+            # Extract sequence number from filename (format: {speech_index}_{speech_name}_{sequence}.webm, .mp3, or .m4a)
             parts = file_path.stem.split('_')
             if len(parts) >= 3:
                 try:
@@ -236,7 +237,7 @@ async def get_speech_files(match_name: str, speech_index: int):
 @router.get("/audio/file/{match_name}/{filename}")
 async def get_audio_file(match_name: str, filename: str):
     """
-    Serve an audio file (supports .webm and .mp3)
+    Serve an audio file (supports .webm, .mp3, and .m4a)
 
     Args:
         match_name: Name of the debate match
@@ -263,6 +264,7 @@ async def get_audio_file(match_name: str, filename: str):
         media_type_map = {
             ".webm": "audio/webm",
             ".mp3": "audio/mpeg",
+            ".m4a": "audio/mp4",
         }
         media_type = media_type_map.get(file_ext, "application/octet-stream")
 

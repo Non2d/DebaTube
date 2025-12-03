@@ -54,7 +54,8 @@ os.makedirs(ADUS_DIR, exist_ok=True)
 async def regroup_single_speech_to_adu(
     speech_key: str,
     transcript_data: Dict[str, Any],
-    timestamp: str
+    timestamp: str,
+    match_name: str = ""
 ) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str]]:
     """
     Process a single speech transcript to ADU conversion asynchronously
@@ -133,11 +134,16 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
         except:
             raw_response_dict = str(response)
 
+        # Create match-specific log directory
+        match_logs_dir = os.path.join(LOGS_DIR, f"logs_{match_name}") if match_name else LOGS_DIR
+        os.makedirs(match_logs_dir, exist_ok=True)
+
         log_filename = f"adu_conversion_{speech_key}_{timestamp}.json"
-        log_path = os.path.join(LOGS_DIR, log_filename)
+        log_path = os.path.join(match_logs_dir, log_filename)
 
         log_data = {
             "timestamp": timestamp,
+            "match_name": match_name,
             "speech_key": speech_key,
             "input_transcript": transcript_data,
             "gemini_response": response_text,
@@ -295,7 +301,8 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
 @router.post("/transcript-to-adu-batch")
 async def transcript_to_adu_batch(
     batch_request: BatchTranscriptRequest,
-    debate_format: str = "NA"
+    debate_format: str = "NA",
+    match_name: str = ""
 ):
     """
     Convert multiple speech transcriptions to ADUs in parallel using Gemini API
@@ -306,6 +313,7 @@ async def transcript_to_adu_batch(
     Parameters:
     - batch_request: Dictionary of speech transcriptions (from /audio-to-transcript-batch)
     - debate_format: Debate format to determine speech order ("NA", "ASIAN", or "BP"). Default: "NA"
+    - match_name: Name of the debate match for log organization (optional)
     """
     start_time = time.time()
     print(f"[/transcript-to-adu-batch] 処理開始 - Debate format: {debate_format}")
@@ -329,7 +337,7 @@ async def transcript_to_adu_batch(
 
         # Create tasks for parallel processing
         tasks = [
-            regroup_single_speech_to_adu(speech_key, transcript_data, timestamp)
+            regroup_single_speech_to_adu(speech_key, transcript_data, timestamp, match_name)
             for speech_key, transcript_data in transcripts.items()
         ]
 
@@ -435,7 +443,7 @@ async def transcript_to_adu_batch(
         raise HTTPException(status_code=500, detail=f"Batch ADU conversion failed: {str(e)}")
 
 @router.post("/identify-rebuttal-structure")
-async def identify_rebuttal_structure(request: RebuttalStructureRequest):
+async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_name: str = ""):
     """
     注意：csvとmdが同じディレクトリにあることを前提としています。
     Identify rebuttal structure from unified CSV file
@@ -443,6 +451,9 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest):
     - Output: {speeches: {...}, rebuttals: [[rebutting_id, rebutted_id], ...]}
     - Uses Gemini API to analyze rebuttal relationships
     - Saves result as JSON file
+
+    Parameters:
+    - match_name: Name of the debate match for log organization (optional)
     """
     start_time = time.time()
     print(f"[/identify-rebuttal-structure] 処理開始")
@@ -572,8 +583,11 @@ Do not include any other text, explanation, or formatting."""
         logger.info(f"Rebuttal graph saved to {result_path}")
 
         # Save log
+        match_logs_dir = os.path.join(LOGS_DIR, f"logs_{match_name}") if match_name else LOGS_DIR
+        os.makedirs(match_logs_dir, exist_ok=True)
+
         log_filename = f"rebuttal_structure_{timestamp}.json"
-        log_path = os.path.join(LOGS_DIR, log_filename)
+        log_path = os.path.join(match_logs_dir, log_filename)
 
         # Convert response object to dict for JSON serialization
         try:
@@ -583,6 +597,7 @@ Do not include any other text, explanation, or formatting."""
 
         log_data = {
             "timestamp": timestamp,
+            "match_name": match_name,
             "csv_path": csv_path,
             "input_transcript_length": len(transcript),
             "gemini_response": response_text,
@@ -667,7 +682,7 @@ async def audio_to_debate_graph_batch(
         # Step 2: ADUに変換
         print("[Step 2/3] ADU変換を開始...")
         adu_request = BatchTranscriptRequest(root=batch_results)
-        adu_response = await transcript_to_adu_batch(adu_request, debate_format)
+        adu_response = await transcript_to_adu_batch(adu_request, debate_format, match_name)
 
         if adu_response["status"] not in ["success", "partial_success"]:
             raise Exception(f"ADU conversion failed: {adu_response}")
@@ -699,7 +714,7 @@ async def audio_to_debate_graph_batch(
             raise Exception(f"Unified CSV not found: {unified_csv_path}")
 
         rebuttal_request = RebuttalStructureRequest(unified_csv_path=unified_csv_path)
-        rebuttal_response = await identify_rebuttal_structure(rebuttal_request)
+        rebuttal_response = await identify_rebuttal_structure(rebuttal_request, match_name)
 
         if rebuttal_response["status"] != "success":
             raise Exception(f"Rebuttal structure identification failed: {rebuttal_response}")
@@ -713,6 +728,14 @@ async def audio_to_debate_graph_batch(
             graph_dest = os.path.join(RESULTS_DIR, graph_filename)
             shutil.copy(rebuttal_graph_path, graph_dest)
             logger.info(f"Rebuttal graph copied to {graph_dest}")
+
+            # audio-save/{match_name}/ にもコピー
+            audio_save_match_dir = os.path.join(os.path.dirname(APP_DIR), "audio-save", match_name)
+            os.makedirs(audio_save_match_dir, exist_ok=True)
+            audio_save_graph_dest = os.path.join(audio_save_match_dir, graph_filename)
+            shutil.copy(rebuttal_graph_path, audio_save_graph_dest)
+            logger.info(f"Rebuttal graph copied to {audio_save_graph_dest}")
+
             rebuttal_graph_path = graph_dest
 
         elapsed_time = time.time() - start_time
@@ -746,38 +769,19 @@ async def audio_to_debate_graph_batch(
 async def get_rebuttal_graph(match_name: str):
     """
     Get the rebuttal graph JSON for a specific match
-    - Reads from audio-save/{match_name}/ directory (primary)
-    - Falls back to transcriptions/results_{match_name}/ or transcriptions/adus/
+    - Reads from audio-save/{match_name}/ directory only
     - Returns the latest rebuttal_graph_*.json file
     """
     try:
-        graph_files = []
         graph_path = None
 
-        # Search order:
-        # 1. audio-save/{match_name}/
+        # Only search in audio-save/{match_name}/
         # Docker: /app/audio-save, Local: ../audio-save
         audio_save_dir = os.path.join(os.path.dirname(APP_DIR), "audio-save", match_name)
         if os.path.exists(audio_save_dir):
             graph_files = sorted([f for f in os.listdir(audio_save_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
             if graph_files:
                 graph_path = os.path.join(audio_save_dir, graph_files[0])
-
-        # 2. transcriptions/results_{match_name}/
-        if not graph_path:
-            results_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
-            if os.path.exists(results_dir):
-                graph_files = sorted([f for f in os.listdir(results_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
-                if graph_files:
-                    graph_path = os.path.join(results_dir, graph_files[0])
-
-        # # 3. transcriptions/adus/ (latest)
-        # if not graph_path:
-        #     adus_dir = ADUS_DIR
-        #     if os.path.exists(adus_dir):
-        #         all_graph_files = sorted([f for f in os.listdir(adus_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
-        #         if all_graph_files:
-        #             graph_path = os.path.join(adus_dir, all_graph_files[0])
 
         if not graph_path:
             raise HTTPException(status_code=404, detail=f"No rebuttal graph found for match: {match_name}")

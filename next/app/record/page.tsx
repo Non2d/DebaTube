@@ -779,7 +779,7 @@ export default function RecordPage() {
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6 text-gray-900">反論構造の可視化</h2>
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                <RebuttalGraph data={graphData} />
+                <RebuttalGraph data={graphData} debateFormat={debateFormat} />
               </div>
             </div>
           )}
@@ -830,7 +830,7 @@ export default function RecordPage() {
             {autoLoadedGraphData && (
               <div className="mb-12">
                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} />
+                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} />
                 </div>
               </div>
             )}
