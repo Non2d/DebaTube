@@ -177,6 +177,7 @@ batch_transcription_{timestamp}.json
 ### 実装ファイル
 - `app/record/utils/speechTimeline.ts` - タイムライン管理ユーティリティ
 - `app/record/components/UnifiedAudioPlayer.tsx` - 統合再生コンポーネント
+  - なんでか1bf2dbdで計画立てたのに消えてるけど，/Users/electra/.claude/plans/fuzzy-rolling-micali.mdに新たに作り直した実装方針があるらしい
 - `app/record/page.tsx` - Baseline/Ctrl タブでの統合
 
 ### 注意事項
