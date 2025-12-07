@@ -6,15 +6,17 @@ import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
+import UnifiedAudioPlayer from './components/UnifiedAudioPlayer';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
 import { logTabSwitch, logPlaybackEvent, logGraphNodeClick } from '../../utils/userLogger';
+import { localToGlobalTime, buildSpeechSegments } from './utils/speechTimeline';
 
 interface GraphData {
   speeches: { [key: string]: any[] };
   rebuttals: [number, number][];
 }
 
-type TabType = 'home' | 'baseline' | 'ctrl';
+type TabType = 'home' | 'baseline' | 'ctrl' | 'ctrl2';
 
 export default function RecordPage() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -32,6 +34,8 @@ export default function RecordPage() {
   const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
   const [autoLoadedGraphData, setAutoLoadedGraphData] = useState<GraphData | null>(null);
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
+  const [unifiedSeekTime, setUnifiedSeekTime] = useState<number | undefined>(undefined);
+  const [isUnifiedPlaying, setIsUnifiedPlaying] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,6 +96,16 @@ export default function RecordPage() {
       return () => clearTimeout(timer);
     }
   }, [seekTargetTime]);
+
+  // Reset unifiedSeekTime after use
+  useEffect(() => {
+    if (unifiedSeekTime !== undefined) {
+      const timer = setTimeout(() => {
+        setUnifiedSeekTime(undefined);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [unifiedSeekTime]);
 
   // Helper function to get duration from audio blob
   const getAudioDuration = async (blob: Blob): Promise<number> => {
@@ -570,6 +584,61 @@ export default function RecordPage() {
     console.log(`[handleGraphNodeTimeJump] Speech ${speechIndex} jump to ${time}s`);
   };
 
+  // ハンドラー: Ctrl-2タブでのグラフノードクリック（累積時間計算）
+  const handleGraphNodeClickCtrl2 = (globalNodeId: number) => {
+    if (!autoLoadedGraphData) return;
+
+    // ログを記録
+    logGraphNodeClick(globalNodeId);
+
+    try {
+      // グローバルIDをローカルIDとスピーチキーに逆引き
+      let globalIdCounter = 1;
+      const globalIdToInfo: { [globalId: number]: { speechKey: string, localId: number, startTime: number } } = {};
+
+      Object.keys(autoLoadedGraphData.speeches).forEach((key) => {
+        (autoLoadedGraphData.speeches[key] || []).forEach((segment: any) => {
+          const localSegmentId = segment.id !== undefined ? segment.id : 1;
+          globalIdToInfo[globalIdCounter] = {
+            speechKey: key,
+            localId: localSegmentId,
+            startTime: segment.start || 0
+          };
+          globalIdCounter++;
+        });
+      });
+
+      if (!globalIdToInfo[globalNodeId]) {
+        console.warn(`[handleGraphNodeClickCtrl2] Global ID not found: ${globalNodeId}`);
+        return;
+      }
+
+      const { speechKey: foundSpeechKey, startTime: foundStartTime } = globalIdToInfo[globalNodeId];
+
+      // スピーチキーからspeech_indexを抽出
+      let speechIndex = DEBATE_SPEECHES.findIndex(
+        (speech: SpeechFormat) => speech.name.toLowerCase().replace(/ /g, '_') === foundSpeechKey.toLowerCase()
+      );
+
+      if (speechIndex === -1) {
+        console.warn(`[handleGraphNodeClickCtrl2] Speech index not found for: ${foundSpeechKey}`);
+        return;
+      }
+
+      // 累積時間を計算: 該当スピーチより前のすべてのスピーチのdurationを合計
+      const segments = buildSpeechSegments(speechRecordings, DEBATE_SPEECHES.length);
+      const globalTime = localToGlobalTime(speechIndex, foundStartTime, segments);
+
+      // Unified Audio Playerにシーク
+      setUnifiedSeekTime(globalTime);
+      setIsUnifiedPlaying(true);
+
+      console.log(`[handleGraphNodeClickCtrl2] Speech ${speechIndex} at local ${foundStartTime}s -> global ${globalTime}s`);
+    } catch (error) {
+      console.error('[handleGraphNodeClickCtrl2] Error:', error);
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -876,6 +945,43 @@ export default function RecordPage() {
             </div>
           </div>
           )}
+
+          {/* Ctrl-2 Tab */}
+          {activeTab === 'ctrl2' && (
+          <div>
+            {/* Rebuttal Graph Section for Ctrl-2 - Top */}
+            {autoLoadedGraphData && (
+              <div className="mb-12">
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} />
+                </div>
+              </div>
+            )}
+            {!autoLoadedGraphData && (
+              <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                <p className="text-gray-600">グラフデータが利用できません。Home タブでグラフを生成してください。</p>
+              </div>
+            )}
+
+            {/* Unified Audio Player - Middle */}
+            <div className="mt-8 mb-12">
+              <UnifiedAudioPlayer
+                speechRecordings={speechRecordings}
+                speechCount={DEBATE_SPEECHES.length}
+                isPlaying={isUnifiedPlaying}
+                onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
+                seekToGlobalTime={unifiedSeekTime}
+              />
+            </div>
+
+            {/* Match Name - Bottom */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                ID: <span className="font-semibold">{matchName}</span>
+              </p>
+            </div>
+          </div>
+          )}
         </div>
 
         {/* Tab Navigation - Bottom */}
@@ -922,6 +1028,20 @@ export default function RecordPage() {
                 }`}
               >
                 Feedback (Ctrl)
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('ctrl2');
+                  logTabSwitch('ctrl2', matchName);
+                  if (matchName) autoLoadGraphData(matchName);
+                }}
+                className={`px-6 py-3 font-medium transition-colors ${
+                  activeTab === 'ctrl2'
+                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Feedback (Ctrl-2)
               </button>
             </div>
           </div>
