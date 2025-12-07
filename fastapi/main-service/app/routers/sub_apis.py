@@ -8,8 +8,9 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 import os, json, csv, time, re, tempfile
 from datetime import datetime, timezone, timedelta
+import asyncio
 from google import genai
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ os.makedirs(SUB_TRANSCRIPTS_DIR, exist_ok=True)
 client_gemini = genai.Client()
 
 client = OpenAI()
+async_client = AsyncOpenAI()
 
 # ===== Pydantic Models =====
 
@@ -59,15 +61,12 @@ class SentenceGroupResponse(BaseModel):
     """Response containing grouped sentences"""
     sentences: List[SentenceInfo]
 
-# ===== Endpoints =====
+# ===== Helper Functions =====
 
-@router.post("/audio-to-transcript")
-async def audio_to_transcript(file: UploadFile = File(...)):
+async def transcribe_single_file(file: UploadFile) -> Dict[str, Any]:
     """
-    Transcribe audio file using Whisper API with verbose_json output
-    - Input: Audio file upload
-    - Output: Transcription JSON with word-level timestamps
-    - Saves result to transcriptions/sub-transcripts/
+    Transcribe a single audio file asynchronously
+    Returns: Dictionary with transcription result or error information
     """
     temp_file_path = None
     try:
@@ -77,26 +76,29 @@ async def audio_to_transcript(file: UploadFile = File(...)):
             temp_file.write(content)
             temp_file_path = temp_file.name
 
-        # Call Whisper API for transcription (sync version)
-        with open(temp_file_path, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
-                file=audio_file,
-                model="whisper-1",
-                response_format="verbose_json",
-                timestamp_granularities=["word"],
-                language="en"
-            )
+        try:
+            # Call Whisper API for transcription (async version)
+            with open(temp_file_path, "rb") as audio_file:
+                transcription = await async_client.audio.transcriptions.create(
+                    file=audio_file,
+                    model="whisper-1",
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"],
+                )
+        finally:
+            # Clean up temporary file
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+
+        # Convert response to dict for JSON serialization
+        response_dict = transcription.model_dump() if hasattr(transcription, 'model_dump') else dict(transcription)
 
         # Save transcription result to sub-transcripts directory
-        # Extract audio filename base (without extension)
         audio_filename_base = os.path.splitext(file.filename)[0]
         jst = timezone(timedelta(hours=9))
         timestamp = datetime.now(jst).strftime("%Y%m%d_%H%M%S_%f")[:-5]
         json_filename = f"{audio_filename_base}_{timestamp}.json"
         json_path = os.path.join(SUB_TRANSCRIPTS_DIR, json_filename)
-
-        # Convert response to dict for JSON serialization
-        response_dict = transcription.model_dump() if hasattr(transcription, 'model_dump') else dict(transcription)
 
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(response_dict, f, ensure_ascii=False, indent=2)
@@ -104,6 +106,7 @@ async def audio_to_transcript(file: UploadFile = File(...)):
         logger.info(f"Transcription saved to: {json_path}")
 
         return {
+            "filename": file.filename,
             "status": "success",
             "transcription": response_dict,
             "saved_to": json_path,
@@ -111,12 +114,48 @@ async def audio_to_transcript(file: UploadFile = File(...)):
         }
 
     except Exception as e:
-        logger.error(f"Error during audio transcription: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Audio transcription failed: {str(e)}")
-    finally:
-        # Clean up temporary file
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+        logger.error(f"Error during audio transcription for {file.filename}: {str(e)}")
+        return {
+            "filename": file.filename,
+            "status": "failed",
+            "error": str(e)
+        }
+
+# ===== Endpoints =====
+
+@router.post("/audio-to-transcript")
+async def audio_to_transcript(files: List[UploadFile] = File(...)):
+    """
+    Transcribe multiple audio files in parallel using Whisper API with verbose_json output
+    - Input: One or more audio file uploads
+    - Output: Array of transcription results with word-level timestamps
+    - Saves each result to transcriptions/sub-transcripts/
+    - Processing: Asynchronous parallel processing with AsyncOpenAI
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    # Process all files in parallel using asyncio.gather
+    tasks = [transcribe_single_file(file) for file in files]
+    results = await asyncio.gather(*tasks)
+
+    # Separate successful and failed results
+    successful_results = [r for r in results if r["status"] == "success"]
+    failed_results = [r for r in results if r["status"] == "failed"]
+
+    # Return overall status
+    overall_status = "success" if len(successful_results) == len(files) else (
+        "partial_success" if successful_results else "failed"
+    )
+
+    return {
+        "status": overall_status,
+        "total_files": len(files),
+        "successful_count": len(successful_results),
+        "failed_count": len(failed_results),
+        "successful_results": successful_results,
+        "failed_results": failed_results
+    }
 
 
 
