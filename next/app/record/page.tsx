@@ -7,6 +7,7 @@ import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
 import UnifiedAudioPlayer from './components/UnifiedAudioPlayer';
+import Header from '../../components/shared/Header';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
 import { logTabSwitch, logPlaybackEvent, logGraphNodeClick } from '../../utils/userLogger';
 import { localToGlobalTime, buildSpeechSegments } from './utils/speechTimeline';
@@ -285,7 +286,7 @@ export default function RecordPage() {
           console.log('Audio saved successfully:', result);
         } catch (error) {
           console.error('Failed to save recording to API:', error);
-          alert('録音の保存に失敗しました。もう一度お試しください。');
+          alert('Failed to save recording. Please try again.');
         }
 
         stream.getTracks().forEach(track => track.stop());
@@ -304,8 +305,8 @@ export default function RecordPage() {
         });
       }, 1000);
     } catch (error) {
-      console.error('録音の開始に失敗しました:', error);
-      alert('マイクへのアクセスが拒否されました。ブラウザの設定を確認してください。');
+      console.error('Failed to start recording:', error);
+      alert('Microphone access denied. Please check your browser settings.');
     }
   };
 
@@ -393,19 +394,19 @@ export default function RecordPage() {
   // 音声からディベートグラフを生成
   const generateDebateGraph = async () => {
     if (!matchName) {
-      setGenerationError('試合IDを入力してください');
+      setGenerationError('Please enter Match ID');
       return;
     }
 
     if (!areAllAudioFilesReady()) {
-      setGenerationError('全ての音声ファイルが必要です');
+      setGenerationError('All audio files required');
       return;
     }
 
     // 確認ダイアログ
     const confirmed = window.confirm(
-      'グラフを生成します。よろしいですか？\n\n' +
-      '処理には数分かかる場合があります。'
+      'Generate graph?\n\n' +
+      'This may take several minutes to complete.'
     );
 
     if (!confirmed) {
@@ -466,24 +467,24 @@ export default function RecordPage() {
           });
 
           setGenerationSuccess(
-            `グラフを生成しました！\n` +
-            `- 文字起こし: ${result.summary.files_transcribed}ファイル\n` +
-            `- ADU: ${result.summary.total_adus}個\n` +
-            `- 反論ペア: ${result.summary.total_rebuttal_pairs}個\n` +
-            `結果は以下に保存されました: ${result.results_directory}`
+            `Graph generated successfully!\n` +
+            `- Transcribed: ${result.summary.files_transcribed} files\n` +
+            `- ADUs: ${result.summary.total_adus}\n` +
+            `- Rebuttal pairs: ${result.summary.total_rebuttal_pairs}\n` +
+            `Results saved to: ${result.results_directory}`
           );
         } catch (error) {
           console.error('Failed to load graph data:', error);
           setGenerationSuccess(
-            `グラフを生成しました！\n` +
-            `結果は以下に保存されました: ${result.results_directory}`
+            `Graph generated successfully!\n` +
+            `Results saved to: ${result.results_directory}`
           );
         }
       }
     } catch (error) {
       console.error('[generateDebateGraph] Error:', error);
       setGenerationError(
-        error instanceof Error ? error.message : 'グラフの生成に失敗しました'
+        error instanceof Error ? error.message : 'Failed to generate graph'
       );
     } finally {
       setIsGeneratingGraph(false);
@@ -671,7 +672,8 @@ export default function RecordPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-white flex flex-col">
+      <Header title="DebaTube Live" />
+      <div className="min-h-screen bg-white flex flex-col pt-16">
         <div className="flex-1 max-w-4xl mx-auto px-4 py-4 w-full">
           {/* Tab content */}
 
@@ -748,7 +750,7 @@ export default function RecordPage() {
             {/* Debate Format Selection */}
             <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                フォーマット:
+                Format:
               </label>
               <select
                 value={debateFormat}
@@ -765,14 +767,14 @@ export default function RecordPage() {
             {/* Match Name Input */}
             <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                試合ID:
+                Match ID:
               </label>
               <input
                 type="text"
                 value={matchName}
                 onChange={(e) => setMatchName(e.target.value)}
                 className="w-64 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="例: 2025-01-17-session_143052"
+                placeholder="e.g., 2025-01-17-session_143052"
               />
             </div>
           </div>
@@ -783,8 +785,8 @@ export default function RecordPage() {
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">音声からディベートグラフを生成</h3>
-                  <p className="text-sm text-gray-600">少なくとも1つの音声ファイルがあれば生成できます</p>
+                  <h3 className="font-semibold text-gray-900 mb-1">Generate Debate Graph from Audio</h3>
+                  <p className="text-sm text-gray-600">At least one audio file required to generate</p>
                 </div>
                 <button
                   onClick={generateDebateGraph}
@@ -798,7 +800,7 @@ export default function RecordPage() {
                   }`}
                 >
                   <Zap size={16} />
-                  <span>{isGeneratingGraph ? '生成中...' : 'グラフを生成'}</span>
+                  <span>{isGeneratingGraph ? 'Generating...' : 'Generate Graph'}</span>
                 </button>
               </div>
               {generationError && (
@@ -817,15 +819,15 @@ export default function RecordPage() {
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">反論グラフの読み込み</h3>
-                  <p className="text-sm text-gray-600">JSONファイルをアップロードして反論構造を表示します</p>
+                  <h3 className="font-semibold text-gray-900 mb-1">Load Rebuttal Graph</h3>
+                  <p className="text-sm text-gray-600">Upload JSON file to display rebuttal structure</p>
                 </div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Upload size={16} />
-                  <span>JSONファイルをアップロード</span>
+                  <span>Upload JSON File</span>
                 </button>
                 <input
                   ref={fileInputRef}
@@ -837,7 +839,7 @@ export default function RecordPage() {
               </div>
               {graphData && (
                 <div className="mt-2 text-sm text-green-700">
-                  ✓ JSONファイルを読み込みました
+                  ✓ JSON file loaded successfully
                 </div>
               )}
             </div>
@@ -846,7 +848,7 @@ export default function RecordPage() {
           {/* Rebuttal Graph Section */}
           {graphData && (
             <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">反論構造の可視化</h2>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900">Rebuttal Structure Visualization</h2>
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
                 <RebuttalGraph data={graphData} debateFormat={debateFormat} />
               </div>
@@ -905,7 +907,7 @@ export default function RecordPage() {
             )}
             {!autoLoadedGraphData && (
               <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                <p className="text-gray-600">グラフデータが利用できません。Home タブでグラフを生成してください。</p>
+                <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
               </div>
             )}
 
@@ -959,7 +961,7 @@ export default function RecordPage() {
             )}
             {!autoLoadedGraphData && (
               <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                <p className="text-gray-600">グラフデータが利用できません。Home タブでグラフを生成してください。</p>
+                <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
               </div>
             )}
 

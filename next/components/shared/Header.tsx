@@ -5,7 +5,11 @@ import { Moon, Sun, Menu, X } from 'lucide-react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../store/userAtom';
 
-export default function Header() {
+interface HeaderProps {
+  title?: string;
+}
+
+export default function Header({ title = "DebaTube" }: HeaderProps) {
   const [isDark, setIsDark] = useAtom(themeAtom);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -24,7 +28,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <a href="/landing" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:text-blue-600 transition-colors">
-              DebaTube
+              {title}
             </a>
           </div>
           
