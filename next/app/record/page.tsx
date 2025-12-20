@@ -33,6 +33,8 @@ export default function RecordPage() {
   const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
+  const [generationElapsedTime, setGenerationElapsedTime] = useState<number>(0);
+  const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
   const [autoLoadedGraphData, setAutoLoadedGraphData] = useState<GraphData | null>(null);
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
   const [unifiedSeekTime, setUnifiedSeekTime] = useState<number | undefined>(undefined);
@@ -120,6 +122,22 @@ export default function RecordPage() {
       return () => clearTimeout(timer);
     }
   }, [seekTargetTime]);
+
+  // Track elapsed time during graph generation
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isGeneratingGraph && generationStartTime !== null) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - generationStartTime) / 1000);
+        setGenerationElapsedTime(elapsed);
+      }, 100);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isGeneratingGraph, generationStartTime]);
 
   // Reset unifiedSeekTime after use
   useEffect(() => {
@@ -417,7 +435,7 @@ export default function RecordPage() {
   // 音声からディベートグラフを生成
   const generateDebateGraph = async () => {
     if (!matchName) {
-      setGenerationError('Please enter Match ID');
+      setGenerationError('Please enter round ID');
       return;
     }
 
@@ -439,6 +457,8 @@ export default function RecordPage() {
     setIsGeneratingGraph(true);
     setGenerationError(null);
     setGenerationSuccess(null);
+    setGenerationStartTime(Date.now());
+    setGenerationElapsedTime(0);
 
     try {
       const formData = new FormData();
@@ -490,7 +510,7 @@ export default function RecordPage() {
           });
 
           setGenerationSuccess(
-            `Graph generated successfully!\n` +
+            `Graph generated successfully! (${result.processing_time_seconds}s)\n` +
             `- Transcribed: ${result.summary.files_transcribed} files\n` +
             `- ADUs: ${result.summary.total_adus}\n` +
             `- Rebuttal pairs: ${result.summary.total_rebuttal_pairs}\n` +
@@ -499,7 +519,7 @@ export default function RecordPage() {
         } catch (error) {
           console.error('Failed to load graph data:', error);
           setGenerationSuccess(
-            `Graph generated successfully!\n` +
+            `Graph generated successfully! (${result.processing_time_seconds}s)\n` +
             `Results saved to: ${result.results_directory}`
           );
         }
@@ -790,7 +810,7 @@ export default function RecordPage() {
             {/* Match Name Input */}
             <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Match ID:
+                Round ID:
               </label>
               <input
                 type="text"
@@ -826,6 +846,11 @@ export default function RecordPage() {
                   <span>{isGeneratingGraph ? 'Generating...' : 'Generate Graph'}</span>
                 </button>
               </div>
+              {isGeneratingGraph && (
+                <div className="mt-2 text-sm text-amber-700 bg-amber-100 p-2 rounded">
+                  ⏱ Processing: {generationElapsedTime}s
+                </div>
+              )}
               {generationError && (
                 <div className="mt-2 text-sm text-red-700 bg-red-100 p-2 rounded">
                   ✗ {generationError}
