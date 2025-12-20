@@ -54,8 +54,6 @@ class SentenceInfo(BaseModel):
     text: str
     start_time: float
     end_time: float
-    start_word_index: int
-    end_word_index: int
 
 class SentenceGroupResponse(BaseModel):
     """Response containing grouped sentences"""

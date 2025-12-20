@@ -51,7 +51,7 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 ADUS_DIR = os.path.join(TRANSCRIPTION_DIR, "adus")  # ADU保存ディレクトリ
 os.makedirs(ADUS_DIR, exist_ok=True)
 
-async def regroup_single_speech_to_adu(
+async def regroup_single_speech_sentences_to_adus(
     speech_key: str,
     transcript_data: Dict[str, Any],
     timestamp: str,
@@ -347,7 +347,7 @@ async def transcript_to_adu_batch(
 
         # Create tasks for parallel processing
         tasks = [
-            regroup_single_speech_to_adu(speech_key, transcript_data, timestamp, match_name)
+            regroup_single_speech_sentences_to_adus(speech_key, transcript_data, timestamp, match_name)
             for speech_key, transcript_data in transcripts.items()
         ]
 

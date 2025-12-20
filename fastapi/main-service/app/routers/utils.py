@@ -97,8 +97,6 @@ def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> L
             "text": sentence_text,
             "start_time": round(start_time, 1),
             "end_time": round(end_time, 1),
-            "start_word_index": current_word_idx,
-            "end_word_index": end_word_idx - 1
         })
 
         current_word_idx = end_word_idx
