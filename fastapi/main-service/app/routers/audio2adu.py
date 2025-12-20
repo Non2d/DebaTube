@@ -94,6 +94,7 @@ async def regroup_single_speech_sentences_to_adus(
         ]
 
         sentences_data = group_words_into_sentences(transcript_text, words_data)
+        total_sentences = len(sentences_data)
         prompt_sentences_data = [
             {
                 "id": sentence["id"],
@@ -137,6 +138,7 @@ Return the result as JSON in the following format:
       "id": 1,
       "start_sentence_index": 0,
       "end_sentence_index": 2,
+      "text": "The actual ADU text",
       "role": "independent_rebuttal/point_of_main_argument/etc",
     }}
   ]
@@ -144,6 +146,7 @@ Return the result as JSON in the following format:
 
 Note: Use start_sentence_index and end_sentence_index instead of word indices.
 Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
+IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
 """,
         )
 
@@ -199,19 +202,25 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
                 start_sentence_idx = adu.get("start_sentence_index", 0)
                 end_sentence_idx = adu.get("end_sentence_index", 0)
 
+                # Validate sentence indices
+                if start_sentence_idx >= len(sentences_data) or end_sentence_idx >= len(sentences_data):
+                    logger.warning(
+                        f"Invalid sentence indices for ADU {adu.get('id', '?')}: "
+                        f"start={start_sentence_idx}, end={end_sentence_idx}, "
+                        f"total_sentences={len(sentences_data)}"
+                    )
+                    continue
+
                 start_time = sentences_data[start_sentence_idx].get("start_time", -1.0)
                 end_time = sentences_data[end_sentence_idx].get("end_time", -1.0)
 
-                text = " ".join(sentences_data[i]["text"] for i in range(start_sentence_idx, end_sentence_idx + 1))
-
                 # Geminiが誤って生成してる場合の上書きするよ警告
-                keys_to_check = ["text", "start_time", "end_time"]
+                keys_to_check = ["start_time", "end_time"]
                 existing_keys = [key for key in keys_to_check if key in adu]
                 if existing_keys:
                     logger.warning(f"Overwriting existing keys in ADU {adu.get('id', '?')}: {existing_keys}")
                 adu_with_timestamp = {
                     **adu,
-                    "text": text,
                     "start_time": start_time,
                     "end_time": end_time,
                 }

@@ -26,7 +26,7 @@ export default function RecordPage() {
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [speechRecordings, setSpeechRecordings] = useState<{[key: number]: {blob: Blob, duration: number, timestamp: string}[]}>({});
+  const [speechRecordings, setSpeechRecordings] = useState<{ [key: number]: { blob: Blob, duration: number, timestamp: string }[] }>({});
   const [currentPlayingSpeech, setCurrentPlayingSpeech] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
@@ -202,7 +202,7 @@ export default function RecordPage() {
         }
 
         // Group files by speech_index and fetch them as blobs
-        const recordingsByIndex: {[key: number]: {blob: Blob, duration: number, timestamp: string}[]} = {};
+        const recordingsByIndex: { [key: number]: { blob: Blob, duration: number, timestamp: string }[] } = {};
 
         for (const fileInfo of data.files) {
           // Parse filename: {speech_index}_{speech_name}_{sequence}.{ext}
@@ -284,7 +284,7 @@ export default function RecordPage() {
       mediaRecorderRef.current = mediaRecorder;
 
       const chunks: Blob[] = [];
-      
+
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunks.push(e.data);
@@ -337,7 +337,7 @@ export default function RecordPage() {
       setIsRecording(true);
       setRecordingDuration(0);
       durationRef.current = 0;
-      
+
       intervalRef.current = setInterval(() => {
         setRecordingDuration(prev => {
           const newDuration = prev + 1;
@@ -355,7 +355,7 @@ export default function RecordPage() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
+
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
@@ -722,339 +722,327 @@ export default function RecordPage() {
 
           {/* Home Tab */}
           {activeTab === 'home' && (
-          <div>
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-8 mb-6">
-              <button
-                onClick={prevSpeech}
-                disabled={currentSpeechIndex === 0}
-                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
-              >
-                <ChevronLeft size={16} />
-                <span className="font-medium">Prev</span>
-              </button>
-              
-              <div className="text-center px-8">
-                <h2 className={`text-2xl font-bold ${
-                  currentSpeech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
-                }`}>
-                  {currentSpeech.name}
-                </h2>
+            <div>
+              <div className="text-center mb-8">
+                <div className="flex items-center justify-center gap-8 mb-6">
+                  <button
+                    onClick={prevSpeech}
+                    disabled={currentSpeechIndex === 0}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
+                  >
+                    <ChevronLeft size={16} />
+                    <span className="font-medium">Prev</span>
+                  </button>
+
+                  <div className="text-center px-8">
+                    <h2 className={`text-2xl font-bold ${currentSpeech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
+                      }`}>
+                      {currentSpeech.name}
+                    </h2>
+                  </div>
+
+                  <button
+                    onClick={nextSpeech}
+                    disabled={currentSpeechIndex === DEBATE_SPEECHES.length - 1}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
+                  >
+                    <span className="font-medium">Next</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                <TimerDisplay
+                  recordingDuration={recordingDuration}
+                  isRecording={isRecording}
+                  maxDuration={currentSpeech.duration}
+                />
+
+                <RecordButton
+                  isRecording={isRecording}
+                  onStartRecording={startRecording}
+                  onStopRecording={stopRecording}
+                />
               </div>
-              
-              <button
-                onClick={nextSpeech}
-                disabled={currentSpeechIndex === DEBATE_SPEECHES.length - 1}
-                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
-              >
-                <span className="font-medium">Next</span>
-                <ChevronRight size={16} />
-              </button>
-            </div>
 
-            <TimerDisplay 
-              recordingDuration={recordingDuration}
-              isRecording={isRecording}
-              maxDuration={currentSpeech.duration}
-            />
+              <div className="mt-8">
+                <div className="grid grid-cols-4 gap-4">
+                  {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
+                    const recordings = speechRecordings[index];
 
-            <RecordButton
-              isRecording={isRecording}
-              onStartRecording={startRecording}
-              onStopRecording={stopRecording}
-            />
-          </div>
+                    return (
+                      <RecordingCard
+                        key={index}
+                        speech={speech}
+                        index={index}
+                        recordings={recordings}
+                        currentPlayingSpeech={currentPlayingSpeech}
+                        isPlaying={isPlaying}
+                        isCurrentSpeech={index === currentSpeechIndex}
+                        onPlayPause={handlePlayPause}
+                        onDownload={downloadAudio}
+                        onClick={goToSpeech}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
 
-          <div className="mt-8">
-            <div className="grid grid-cols-4 gap-4">
-              {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
-                const recordings = speechRecordings[index];
+              {/* Match Name and Format Selection */}
+              <div className="mt-8 flex justify-center gap-4">
+                {/* Debate Format Selection */}
+                <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
+                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Format:
+                  </label>
+                  <select
+                    value={debateFormat}
+                    onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
+                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                  >
+                    <option value="NA">NA (6 speeches)</option>
+                    <option value="ASIAN">ASIAN (8 speeches)</option>
+                    <option value="BP">BP (8 speeches)</option>
+                    <option value="OPENING_HALF_BP_ORDER">Opening Half BP (4 speeches)</option>
+                  </select>
+                </div>
 
-                return (
-                  <RecordingCard
-                    key={index}
-                    speech={speech}
-                    index={index}
-                    recordings={recordings}
-                    currentPlayingSpeech={currentPlayingSpeech}
-                    isPlaying={isPlaying}
-                    isCurrentSpeech={index === currentSpeechIndex}
-                    onPlayPause={handlePlayPause}
-                    onDownload={downloadAudio}
-                    onClick={goToSpeech}
+                {/* Match Name Input */}
+                <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
+                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Round ID:
+                  </label>
+                  <input
+                    type="text"
+                    value={matchName}
+                    onChange={(e) => setMatchName(e.target.value)}
+                    className="w-64 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="e.g., 2025-01-17-session_143052"
                   />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Match Name and Format Selection */}
-          <div className="mt-8 flex justify-center gap-4">
-            {/* Debate Format Selection */}
-            <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Format:
-              </label>
-              <select
-                value={debateFormat}
-                onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
-                className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-              >
-                <option value="NA">NA (6 speeches)</option>
-                <option value="ASIAN">ASIAN (8 speeches)</option>
-                <option value="BP">BP (8 speeches)</option>
-                <option value="OPENING_HALF_BP_ORDER">Opening Half BP (4 speeches)</option>
-              </select>
-            </div>
-
-            {/* Match Name Input */}
-            <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Round ID:
-              </label>
-              <input
-                type="text"
-                value={matchName}
-                onChange={(e) => setMatchName(e.target.value)}
-                className="w-64 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="e.g., 2025-01-17-session_143052"
-              />
-            </div>
-          </div>
-
-          {/* Generate Graph and JSON Upload Section */}
-          <div className="mt-8 space-y-4">
-            {/* Generate Debate Graph */}
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Generate Debate Graph from Audio</h3>
-                  <p className="text-sm text-gray-600">At least one audio file required to generate</p>
                 </div>
-                <button
-                  onClick={generateDebateGraph}
-                  disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    !areAllAudioFilesReady() || !matchName
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : isGeneratingGraph
-                      ? 'bg-amber-500 text-white cursor-wait'
-                      : 'bg-amber-600 text-white hover:bg-amber-700'
-                  }`}
-                >
-                  <Zap size={16} />
-                  <span>{isGeneratingGraph ? 'Generating...' : 'Generate Graph'}</span>
-                </button>
               </div>
-              {isGeneratingGraph && (
-                <div className="mt-2 text-sm text-amber-700 bg-amber-100 p-2 rounded">
-                  ⏱ Processing: {generationElapsedTime}s
-                </div>
-              )}
-              {generationError && (
-                <div className="mt-2 text-sm text-red-700 bg-red-100 p-2 rounded">
-                  ✗ {generationError}
-                </div>
-              )}
-              {generationSuccess && (
-                <div className="mt-2 text-sm text-green-700 bg-green-100 p-2 rounded whitespace-pre-line">
-                  ✓ {generationSuccess}
-                </div>
-              )}
-            </div>
 
-            {/* Graph Display Options */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Graph Display Options</h3>
-                  <p className="text-sm text-gray-600">Toggle POI colors and node IDs visibility</p>
+              {/* Generate Graph and JSON Upload Section */}
+              <div className="mt-8 space-y-4">
+                {/* Generate Debate Graph */}
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Generate Debate Graph from Audio</h3>
+                      <p className="text-sm text-gray-600">At least one audio file required to generate</p>
+                    </div>
+                    <button
+                      onClick={generateDebateGraph}
+                      disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!areAllAudioFilesReady() || !matchName
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : isGeneratingGraph
+                            ? 'bg-amber-500 text-white cursor-wait'
+                            : 'bg-amber-600 text-white hover:bg-amber-700'
+                        }`}
+                    >
+                      <Zap size={16} />
+                      <span>{isGeneratingGraph ? 'Generating...' : 'Generate Graph'}</span>
+                    </button>
+                  </div>
+                  {isGeneratingGraph && (
+                    <div className="mt-2 text-sm text-amber-700 bg-amber-100 p-2 rounded">
+                      ⏱ Processing: {generationElapsedTime}s
+                    </div>
+                  )}
+                  {generationError && (
+                    <div className="mt-2 text-sm text-red-700 bg-red-100 p-2 rounded">
+                      ✗ {generationError}
+                    </div>
+                  )}
+                  {generationSuccess && (
+                    <div className="mt-2 text-sm text-green-700 bg-green-100 p-2 rounded whitespace-pre-line">
+                      ✓ {generationSuccess}
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showPoiColors}
-                      onChange={(e) => setShowPoiColors(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Show POI Colors</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showNodeIds}
-                      onChange={(e) => setShowNodeIds(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Show Node IDs</span>
-                  </label>
+
+                {/* Graph Display Options */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Graph Display Options</h3>
+                      <p className="text-sm text-gray-600">Toggle POI colors and node IDs visibility</p>
+                    </div>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showPoiColors}
+                          onChange={(e) => setShowPoiColors(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Show POI Colors</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showNodeIds}
+                          onChange={(e) => setShowNodeIds(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Show Node IDs</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Rebuttal Graph Section */}
-          {graphData && (
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">Rebuttal Structure Visualization</h2>
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                <RebuttalGraph data={graphData} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
-              </div>
-            </div>
-          )}
-          </div>
           )}
 
           {/* Baseline Tab */}
           {activeTab === 'baseline' && (
-          <div>
-            {/* Recording Cards */}
-            <div className="mb-12">
-              <div className="grid grid-cols-4 gap-4">
-                {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
-                  const recordings = speechRecordings[index];
+            <div>
+              {/* Recording Cards */}
+              <div className="mb-12">
+                <div className="grid grid-cols-4 gap-4">
+                  {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
+                    const recordings = speechRecordings[index];
 
-                  return (
-                    <RecordingCard
-                      key={index}
-                      speech={speech}
-                      index={index}
-                      recordings={recordings}
-                      currentPlayingSpeech={currentPlayingSpeech}
-                      isPlaying={isPlaying}
-                      isCurrentSpeech={false}
-                      onPlayPause={handlePlayPause}
-                      onDownload={downloadAudio}
-                      onClick={() => {}}
-                      hideDownload={true}
-                    />
-                  );
-                })}
+                    return (
+                      <RecordingCard
+                        key={index}
+                        speech={speech}
+                        index={index}
+                        recordings={recordings}
+                        currentPlayingSpeech={currentPlayingSpeech}
+                        isPlaying={isPlaying}
+                        isCurrentSpeech={false}
+                        onPlayPause={handlePlayPause}
+                        onDownload={downloadAudio}
+                        onClick={() => { }}
+                        hideDownload={true}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Match Name - Bottom */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  ID: <span className="font-semibold">{matchName}</span>
+                </p>
               </div>
             </div>
-
-            {/* Match Name - Bottom */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                ID: <span className="font-semibold">{matchName}</span>
-              </p>
-            </div>
-          </div>
           )}
 
           {/* Baseline-2 Tab */}
           {activeTab === 'baseline2' && (
-          <div>
-            {/* Unified Audio Player */}
-            <div className="mb-12">
-              <UnifiedAudioPlayer
-                speechRecordings={speechRecordings}
-                speechCount={DEBATE_SPEECHES.length}
-                isPlaying={isUnifiedPlaying}
-                onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
-                seekToGlobalTime={unifiedSeekTime}
-              />
-            </div>
+            <div>
+              {/* Unified Audio Player */}
+              <div className="mb-12">
+                <UnifiedAudioPlayer
+                  speechRecordings={speechRecordings}
+                  speechCount={DEBATE_SPEECHES.length}
+                  isPlaying={isUnifiedPlaying}
+                  onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
+                  seekToGlobalTime={unifiedSeekTime}
+                />
+              </div>
 
-            {/* Match Name - Bottom */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                ID: <span className="font-semibold">{matchName}</span>
-              </p>
+              {/* Match Name - Bottom */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  ID: <span className="font-semibold">{matchName}</span>
+                </p>
+              </div>
             </div>
-          </div>
           )}
 
           {/* Ctrl Tab */}
           {activeTab === 'ctrl' && (
-          <div>
-            {/* Rebuttal Graph Section for Ctrl - Top */}
-            {autoLoadedGraphData && (
-              <div className="mb-12">
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
+            <div>
+              {/* Rebuttal Graph Section for Ctrl - Top */}
+              {autoLoadedGraphData && (
+                <div className="mb-12">
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                    <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
+                  </div>
+                </div>
+              )}
+              {!autoLoadedGraphData && (
+                <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                  <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
+                </div>
+              )}
+
+              {/* Recording Cards - Middle */}
+              <div className="mt-8 mb-12">
+                <div className="grid grid-cols-4 gap-4">
+                  {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
+                    const recordings = speechRecordings[index];
+                    const shouldSeek = currentPlayingSpeech === index && seekTargetTime !== null;
+
+                    return (
+                      <RecordingCard
+                        key={index}
+                        speech={speech}
+                        index={index}
+                        recordings={recordings}
+                        currentPlayingSpeech={currentPlayingSpeech}
+                        isPlaying={isPlaying}
+                        isCurrentSpeech={false}
+                        onPlayPause={handlePlayPause}
+                        onDownload={downloadAudio}
+                        onClick={() => { }}
+                        hideDownload={true}
+                        seekTime={shouldSeek ? seekTargetTime : undefined}
+                        onTimeJump={(time: number) => handleGraphNodeTimeJump(index, time)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
-            )}
-            {!autoLoadedGraphData && (
-              <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
-              </div>
-            )}
 
-            {/* Recording Cards - Middle */}
-            <div className="mt-8 mb-12">
-              <div className="grid grid-cols-4 gap-4">
-                {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
-                  const recordings = speechRecordings[index];
-                  const shouldSeek = currentPlayingSpeech === index && seekTargetTime !== null;
-
-                  return (
-                    <RecordingCard
-                      key={index}
-                      speech={speech}
-                      index={index}
-                      recordings={recordings}
-                      currentPlayingSpeech={currentPlayingSpeech}
-                      isPlaying={isPlaying}
-                      isCurrentSpeech={false}
-                      onPlayPause={handlePlayPause}
-                      onDownload={downloadAudio}
-                      onClick={() => {}}
-                      hideDownload={true}
-                      seekTime={shouldSeek ? seekTargetTime : undefined}
-                      onTimeJump={(time: number) => handleGraphNodeTimeJump(index, time)}
-                    />
-                  );
-                })}
+              {/* Match Name - Bottom */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  ID: <span className="font-semibold">{matchName}</span>
+                </p>
               </div>
             </div>
-
-            {/* Match Name - Bottom */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                ID: <span className="font-semibold">{matchName}</span>
-              </p>
-            </div>
-          </div>
           )}
 
           {/* Ctrl-2 Tab */}
           {activeTab === 'ctrl2' && (
-          <div>
-            {/* Rebuttal Graph Section for Ctrl-2 - Top */}
-            {autoLoadedGraphData && (
-              <div className="mb-12">
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
+            <div>
+              {/* Rebuttal Graph Section for Ctrl-2 - Top */}
+              {autoLoadedGraphData && (
+                <div className="mb-12">
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+                    <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
+                  </div>
                 </div>
-              </div>
-            )}
-            {!autoLoadedGraphData && (
-              <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
-              </div>
-            )}
+              )}
+              {!autoLoadedGraphData && (
+                <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                  <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
+                </div>
+              )}
 
-            {/* Unified Audio Player - Middle */}
-            <div className="mt-8 mb-12">
-              <UnifiedAudioPlayer
-                speechRecordings={speechRecordings}
-                speechCount={DEBATE_SPEECHES.length}
-                isPlaying={isUnifiedPlaying}
-                onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
-                seekToGlobalTime={unifiedSeekTime}
-              />
-            </div>
+              {/* Unified Audio Player - Middle */}
+              <div className="mt-8 mb-12">
+                <UnifiedAudioPlayer
+                  speechRecordings={speechRecordings}
+                  speechCount={DEBATE_SPEECHES.length}
+                  isPlaying={isUnifiedPlaying}
+                  onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
+                  seekToGlobalTime={unifiedSeekTime}
+                />
+              </div>
 
-            {/* Match Name - Bottom */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-gray-700">
-                ID: <span className="font-semibold">{matchName}</span>
-              </p>
+              {/* Match Name - Bottom */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  ID: <span className="font-semibold">{matchName}</span>
+                </p>
+              </div>
             </div>
-          </div>
           )}
         </div>
 
@@ -1067,11 +1055,10 @@ export default function RecordPage() {
                   setActiveTab('home');
                   logTabSwitch('home', matchName);
                 }}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'home'
+                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'home'
                     ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Home
               </button>
@@ -1081,11 +1068,10 @@ export default function RecordPage() {
                   logTabSwitch('baseline', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'baseline'
+                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'baseline'
                     ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 FB (Baseline)
               </button>
@@ -1095,11 +1081,10 @@ export default function RecordPage() {
                   logTabSwitch('baseline2', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'baseline2'
+                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'baseline2'
                     ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 FB (Baseline-2)
               </button>
@@ -1109,11 +1094,10 @@ export default function RecordPage() {
                   logTabSwitch('ctrl', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'ctrl'
+                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'ctrl'
                     ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 FB (Ctrl)
               </button>
@@ -1123,11 +1107,10 @@ export default function RecordPage() {
                   logTabSwitch('ctrl2', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'ctrl2'
+                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'ctrl2'
                     ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 FB (Ctrl-2)
               </button>
