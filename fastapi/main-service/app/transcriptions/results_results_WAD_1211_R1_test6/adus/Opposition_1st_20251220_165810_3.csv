@@ -1,0 +1,10 @@
+id,start_sentence_index,end_sentence_index,text,role,start_time,end_time
+1,0,2,,introduction,0.0,43.2
+2,3,4,,definition,44.1,67.6
+3,5,7,,point_of_main_argument,67.6,126.1
+4,8,10,,point_of_main_argument,129.6,153.7
+5,11,14,,point_of_main_argument,154.6,223.7
+6,15,17,,point_of_main_argument,224.1,254.9
+7,18,18,,independent_rebuttal,256.5,267.8
+8,19,21,,point_of_main_argument,267.8,306.5
+9,22,27,,point_of_comparison,306.9,373.2
