@@ -24,17 +24,20 @@ interface RebuttalGraphProps {
   data: GraphDataJson;
   onNodeClick?: (nodeId: number, startTime: number) => void;
   debateFormat?: string;
+  showNodeIds?: boolean;
+  showPoiColors?: boolean;
 }
 
-const nodeTypeMap: { [key: number]: string } = {};
-
-const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debateFormat }) => {
+const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debateFormat, showNodeIds = true, showPoiColors = true }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const nodeDataRef = useRef<{ [key: number]: { startTime: number } }>({});
 
   useEffect(() => {
     try {
+      const nodeTypeMap: { [key: number]: string } = {};
+      const poiNodeMap: { [key: number]: boolean } = {};
+
       // キー名を討論順序にソートする関数
       const getSpeechOrder = (key: string): number => {
         // Prop1, Prop2, etc. または Proposition_1st, Proposition_2nd, etc.
@@ -105,6 +108,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
           return {
             sequence_id: globalId,
             start: segment.start || 0,
+            type: segment.type || '',
           };
         }),
       }));
@@ -133,9 +137,14 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
         const argumentUnits = convertedSpeeches[i].argument_units;
         for (let j = 0; j < argumentUnits.length; j++) {
           const argumentUnit = argumentUnits[j];
-          const nodeType = isGovernment ? "govNode" : "oppNode";
+          // POIの場合は相手チームの色を使用
+          const isPoi = argumentUnit.type === 'poi';
+          const nodeType = isPoi
+            ? (isGovernment ? "oppNode" : "govNode")
+            : (isGovernment ? "govNode" : "oppNode");
 
           nodeTypeMap[argumentUnit.sequence_id] = nodeType;
+          poiNodeMap[argumentUnit.sequence_id] = isPoi;
 
           newNodes.push({
             id: "adu-" + argumentUnit.sequence_id.toString(),
@@ -146,6 +155,9 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
               label: argumentUnit.sequence_id.toString(),
               time: argumentUnit.start,
               isBackground: false,
+              isPoi: isPoi,
+              showNodeIds: showNodeIds,
+              showPoiColors: showPoiColors,
             },
           });
           // ノードの start_time をリファレンスに保存
@@ -175,12 +187,14 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
       const newEdges = [];
       let isTfBase = true;
 
-      // 同じチーム内での反論を除外
+      // 同じチーム内での反論を除外、かつPOIノードからの反論とPOIノードへの反論も除外
       const filteredRebuttals = data.rebuttals.filter(([src, tgt]) => {
         const srcNodeType = nodeTypeMap[src];
         const tgtNodeType = nodeTypeMap[tgt];
-        // 異なるチーム間の反論のみを保持
-        return srcNodeType !== tgtNodeType;
+        const isSrcPoi = poiNodeMap[src];
+        const isTgtPoi = poiNodeMap[tgt];
+        // 異なるチーム間の反論のみを保持、かつソースとターゲットがPOIでない
+        return srcNodeType !== tgtNodeType && !isSrcPoi && !isTgtPoi;
       });
 
       const rebuttalCandidates = filteredRebuttals.map(([src, tgt]) => ({ src, tgt }));

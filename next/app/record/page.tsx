@@ -17,7 +17,7 @@ interface GraphData {
   rebuttals: [number, number][];
 }
 
-type TabType = 'home' | 'baseline' | 'ctrl' | 'ctrl2';
+type TabType = 'home' | 'baseline' | 'baseline2' | 'ctrl' | 'ctrl2';
 
 export default function RecordPage() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -37,6 +37,20 @@ export default function RecordPage() {
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
   const [unifiedSeekTime, setUnifiedSeekTime] = useState<number | undefined>(undefined);
   const [isUnifiedPlaying, setIsUnifiedPlaying] = useState(false);
+  const [showNodeIds, setShowNodeIds] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('graph_show_node_ids');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const [showPoiColors, setShowPoiColors] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('graph_show_poi_colors');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,6 +101,15 @@ export default function RecordPage() {
     }
     localStorage.setItem('debate_format', debateFormat);
   }, [debateFormat]);
+
+  // Save graph display options to LocalStorage when they change
+  useEffect(() => {
+    localStorage.setItem('graph_show_node_ids', showNodeIds.toString());
+  }, [showNodeIds]);
+
+  useEffect(() => {
+    localStorage.setItem('graph_show_poi_colors', showPoiColors.toString());
+  }, [showPoiColors]);
 
   // Reset seekTargetTime after use
   useEffect(() => {
@@ -815,33 +838,34 @@ export default function RecordPage() {
               )}
             </div>
 
-            {/* JSON Upload Section */}
+            {/* Graph Display Options */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Load Rebuttal Graph</h3>
-                  <p className="text-sm text-gray-600">Upload JSON file to display rebuttal structure</p>
+                  <h3 className="font-semibold text-gray-900 mb-1">Graph Display Options</h3>
+                  <p className="text-sm text-gray-600">Toggle POI colors and node IDs visibility</p>
                 </div>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Upload size={16} />
-                  <span>Upload JSON File</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showPoiColors}
+                      onChange={(e) => setShowPoiColors(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Show POI Colors</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showNodeIds}
+                      onChange={(e) => setShowNodeIds(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Show Node IDs</span>
+                  </label>
+                </div>
               </div>
-              {graphData && (
-                <div className="mt-2 text-sm text-green-700">
-                  ✓ JSON file loaded successfully
-                </div>
-              )}
             </div>
           </div>
 
@@ -850,7 +874,7 @@ export default function RecordPage() {
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6 text-gray-900">Rebuttal Structure Visualization</h2>
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                <RebuttalGraph data={graphData} debateFormat={debateFormat} />
+                <RebuttalGraph data={graphData} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
               </div>
             </div>
           )}
@@ -894,6 +918,29 @@ export default function RecordPage() {
           </div>
           )}
 
+          {/* Baseline-2 Tab */}
+          {activeTab === 'baseline2' && (
+          <div>
+            {/* Unified Audio Player */}
+            <div className="mb-12">
+              <UnifiedAudioPlayer
+                speechRecordings={speechRecordings}
+                speechCount={DEBATE_SPEECHES.length}
+                isPlaying={isUnifiedPlaying}
+                onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
+                seekToGlobalTime={unifiedSeekTime}
+              />
+            </div>
+
+            {/* Match Name - Bottom */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                ID: <span className="font-semibold">{matchName}</span>
+              </p>
+            </div>
+          </div>
+          )}
+
           {/* Ctrl Tab */}
           {activeTab === 'ctrl' && (
           <div>
@@ -901,7 +948,7 @@ export default function RecordPage() {
             {autoLoadedGraphData && (
               <div className="mb-12">
                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} />
+                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
                 </div>
               </div>
             )}
@@ -955,7 +1002,7 @@ export default function RecordPage() {
             {autoLoadedGraphData && (
               <div className="mb-12">
                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} />
+                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
                 </div>
               </div>
             )}
@@ -1015,7 +1062,21 @@ export default function RecordPage() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Feedback (Baseline)
+                FB (Baseline)
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('baseline2');
+                  logTabSwitch('baseline2', matchName);
+                  if (matchName) autoLoadGraphData(matchName);
+                }}
+                className={`px-6 py-3 font-medium transition-colors ${
+                  activeTab === 'baseline2'
+                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                FB (Baseline-2)
               </button>
               <button
                 onClick={() => {
@@ -1029,7 +1090,7 @@ export default function RecordPage() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Feedback (Ctrl)
+                FB (Ctrl)
               </button>
               <button
                 onClick={() => {
@@ -1043,7 +1104,7 @@ export default function RecordPage() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Feedback (Ctrl-2)
+                FB (Ctrl-2)
               </button>
             </div>
           </div>
