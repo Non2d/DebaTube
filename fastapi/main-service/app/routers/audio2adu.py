@@ -56,10 +56,10 @@ async def regroup_single_speech_sentences_to_adus(
     transcript_data: Dict[str, Any],
     timestamp: str,
     match_name: str = ""
-) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str]]:
+) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str], Optional[list]]:
     """
     Process a single speech transcript to ADU conversion asynchronously
-    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message)
+    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message, adus_list)
     """
     try:
         transcript_text = transcript_data.get("text", "")
@@ -184,17 +184,19 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
 
         except json.JSONDecodeError as json_error:
             logger.error(f"Error parsing Gemini response as JSON for {speech_key}: {str(json_error)}")
+            adus_list = []
             csv_path = None
         except Exception as csv_error:
             logger.error(f"Error saving CSV file for {speech_key}: {str(csv_error)}")
+            adus_list = []
             csv_path = None
 
-        return (speech_key, log_path, csv_path, raw_response_dict, response_text, None)
+        return (speech_key, log_path, csv_path, raw_response_dict, response_text, None, adus_list)
 
     except Exception as e:
         error_msg = f"Error processing {speech_key}: {str(e)}"
         logger.error(error_msg)
-        return (speech_key, None, None, None, None, error_msg)
+        return (speech_key, None, None, None, None, error_msg, [])
 
 async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[Dict[str, Any]]]:
     """
@@ -362,7 +364,7 @@ async def transcript_to_adu_batch(
         all_raw_responses = {}
         adus_by_speech = {}
 
-        for speech_key, log_path, csv_path, raw_response, response_text, error_msg in results:
+        for speech_key, log_path, csv_path, raw_response, response_text, error_msg, adus_list in results:
             if error_msg:
                 failed_speeches.append({
                     "speech_key": speech_key,
@@ -379,13 +381,9 @@ async def transcript_to_adu_batch(
                     csv_files.append(csv_path)
                 if response_text:
                     all_responses[speech_key] = response_text
-                    # Parse ADUs for unified CSV
-                    try:
-                        cleaned_response = clean_gemini_markdown_response(response_text)
-                        adu_json = json.loads(cleaned_response)
-                        adus_by_speech[speech_key] = adu_json.get("adus", [])
-                    except (json.JSONDecodeError, Exception) as parse_error:
-                        logger.warning(f"Failed to parse ADUs for {speech_key}: {str(parse_error)}")
+                # Use pre-parsed ADUs from regroup_single_speech_sentences_to_adus
+                if adus_list:
+                    adus_by_speech[speech_key] = adus_list
                 if raw_response:
                     all_raw_responses[speech_key] = raw_response
 
