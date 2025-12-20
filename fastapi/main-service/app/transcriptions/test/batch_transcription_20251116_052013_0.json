@@ -1,0 +1,265 @@
+{
+  "Proposition_1st-2025-11": {
+    "date_transcribed": "16_140426",
+    "duration": 12.539999961853027,
+    "language": "english",
+    "text": "Ladies, gentlemen, fellow wizards, and muggles, right-wing populists and individual activists worldwide are a threat to minorities and to democracies, so the government solves this problem.",
+    "segments": null,
+    "words": [
+      {
+        "end": 0.9800000190734863,
+        "start": 0.0,
+        "word": "Ladies"
+      },
+      {
+        "end": 1.559999942779541,
+        "start": 1.5,
+        "word": "gentlemen"
+      },
+      {
+        "end": 2.0,
+        "start": 1.840000033378601,
+        "word": "fellow"
+      },
+      {
+        "end": 2.3399999141693115,
+        "start": 2.0,
+        "word": "wizards"
+      },
+      {
+        "end": 2.619999885559082,
+        "start": 2.559999942779541,
+        "word": "and"
+      },
+      {
+        "end": 3.0799999237060547,
+        "start": 2.619999885559082,
+        "word": "muggles"
+      },
+      {
+        "end": 3.700000047683716,
+        "start": 3.619999885559082,
+        "word": "right"
+      },
+      {
+        "end": 3.940000057220459,
+        "start": 3.700000047683716,
+        "word": "wing"
+      },
+      {
+        "end": 4.440000057220459,
+        "start": 3.940000057220459,
+        "word": "populists"
+      },
+      {
+        "end": 4.699999809265137,
+        "start": 4.440000057220459,
+        "word": "and"
+      },
+      {
+        "end": 5.239999771118164,
+        "start": 4.699999809265137,
+        "word": "individual"
+      },
+      {
+        "end": 5.739999771118164,
+        "start": 5.239999771118164,
+        "word": "activists"
+      },
+      {
+        "end": 6.480000019073486,
+        "start": 5.78000020980835,
+        "word": "worldwide"
+      },
+      {
+        "end": 7.179999828338623,
+        "start": 6.480000019073486,
+        "word": "are"
+      },
+      {
+        "end": 7.440000057220459,
+        "start": 7.179999828338623,
+        "word": "a"
+      },
+      {
+        "end": 7.440000057220459,
+        "start": 7.440000057220459,
+        "word": "threat"
+      },
+      {
+        "end": 7.699999809265137,
+        "start": 7.440000057220459,
+        "word": "to"
+      },
+      {
+        "end": 8.300000190734863,
+        "start": 7.699999809265137,
+        "word": "minorities"
+      },
+      {
+        "end": 8.760000228881836,
+        "start": 8.300000190734863,
+        "word": "and"
+      },
+      {
+        "end": 9.119999885559082,
+        "start": 8.760000228881836,
+        "word": "to"
+      },
+      {
+        "end": 9.600000381469727,
+        "start": 9.119999885559082,
+        "word": "democracies"
+      },
+      {
+        "end": 10.260000228881836,
+        "start": 10.199999809265137,
+        "word": "so"
+      },
+      {
+        "end": 10.359999656677246,
+        "start": 10.260000228881836,
+        "word": "the"
+      },
+      {
+        "end": 10.739999771118164,
+        "start": 10.359999656677246,
+        "word": "government"
+      },
+      {
+        "end": 11.34000015258789,
+        "start": 10.739999771118164,
+        "word": "solves"
+      },
+      {
+        "end": 11.579999923706055,
+        "start": 11.34000015258789,
+        "word": "this"
+      },
+      {
+        "end": 11.920000076293945,
+        "start": 11.579999923706055,
+        "word": "problem"
+      }
+    ],
+    "task": "transcribe",
+    "usage": {
+      "type": "duration",
+      "seconds": 13
+    }
+  },
+  "Opposition_1st-2025-11": {
+    "date_transcribed": "16_141832",
+    "duration": 10.859999656677246,
+    "language": "english",
+    "text": "Let me be clear, this is a debate about individuals whom politics has forgotten, individuals alienated when factories closed down.",
+    "segments": null,
+    "words": [
+      {
+        "end": 1.5,
+        "start": 0.0,
+        "word": "Let"
+      },
+      {
+        "end": 1.6200000047683716,
+        "start": 1.5,
+        "word": "me"
+      },
+      {
+        "end": 2.180000066757202,
+        "start": 1.6200000047683716,
+        "word": "be"
+      },
+      {
+        "end": 2.180000066757202,
+        "start": 2.180000066757202,
+        "word": "clear"
+      },
+      {
+        "end": 2.819999933242798,
+        "start": 2.759999990463257,
+        "word": "this"
+      },
+      {
+        "end": 2.9800000190734863,
+        "start": 2.819999933242798,
+        "word": "is"
+      },
+      {
+        "end": 3.380000114440918,
+        "start": 2.9800000190734863,
+        "word": "a"
+      },
+      {
+        "end": 3.380000114440918,
+        "start": 3.380000114440918,
+        "word": "debate"
+      },
+      {
+        "end": 3.799999952316284,
+        "start": 3.380000114440918,
+        "word": "about"
+      },
+      {
+        "end": 4.579999923706055,
+        "start": 3.799999952316284,
+        "word": "individuals"
+      },
+      {
+        "end": 5.159999847412109,
+        "start": 4.579999923706055,
+        "word": "whom"
+      },
+      {
+        "end": 5.579999923706055,
+        "start": 5.159999847412109,
+        "word": "politics"
+      },
+      {
+        "end": 5.900000095367432,
+        "start": 5.579999923706055,
+        "word": "has"
+      },
+      {
+        "end": 6.300000190734863,
+        "start": 5.900000095367432,
+        "word": "forgotten"
+      },
+      {
+        "end": 7.079999923706055,
+        "start": 6.78000020980835,
+        "word": "individuals"
+      },
+      {
+        "end": 7.71999979019165,
+        "start": 7.079999923706055,
+        "word": "alienated"
+      },
+      {
+        "end": 8.140000343322754,
+        "start": 7.71999979019165,
+        "word": "when"
+      },
+      {
+        "end": 8.5600004196167,
+        "start": 8.140000343322754,
+        "word": "factories"
+      },
+      {
+        "end": 8.960000038146973,
+        "start": 8.5600004196167,
+        "word": "closed"
+      },
+      {
+        "end": 9.319999694824219,
+        "start": 8.960000038146973,
+        "word": "down"
+      }
+    ],
+    "task": "transcribe",
+    "usage": {
+      "type": "duration",
+      "seconds": 11
+    }
+  }
+}

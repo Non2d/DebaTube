@@ -1,0 +1,16 @@
+## Instruction
+The following text is a transcript from a parliamentary competitive debate. From this transcript, extract all explicit rebuttal pairs.
+
+## Rebuttal Condition
+- A rebuttal must reference the content of an argument made by the opposing team. Expressions like “They said …” are commonly used but not strictly required. The link can also be clear from context or topic.
+- A rebuttal must negate, weaken, or challenge the opposing argument. Statements that are too vague or generic can neither serve as rebuttals nor be treated as valid rebuttal targets.
+- A rebuttal can only target a statement made previously by the opposing team, and thus Proposition 1st must not rebut at all.
+
+## Transcript
+{transcript}
+
+## Output Format
+Return ONLY a JSON array of pairs in this exact format.
+Example: [[5, 2], [7, 3], [12, 8]]
+
+Do not include any other text, explanation, or formatting.

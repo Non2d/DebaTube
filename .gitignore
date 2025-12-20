@@ -6,8 +6,8 @@ data
 .DS_Store
 .claude
 storage
-fastapi/main-service/app/transcriptions/*
-fastapi/main-service/audio-save/*
+# fastapi/main-service/app/transcriptions/*
+# fastapi/main-service/audio-save/*
 fastapi/main-service/app/logs/old/*
 fastapi/main-service/app/logs/*
 fastapi/main-service/app/event-logs/*
