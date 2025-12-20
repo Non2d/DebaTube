@@ -137,7 +137,6 @@ Return the result as JSON in the following format:
       "id": 1,
       "start_sentence_index": 0,
       "end_sentence_index": 2,
-      "text": "The actual ADU text",
       "role": "independent_rebuttal/point_of_main_argument/etc",
     }}
   ]
@@ -203,13 +202,16 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
                 start_time = sentences_data[start_sentence_idx].get("start_time", -1.0)
                 end_time = sentences_data[end_sentence_idx].get("end_time", -1.0)
 
+                text = " ".join(sentences_data[i]["text"] for i in range(start_sentence_idx, end_sentence_idx + 1))
+
                 # Geminiが誤って生成してる場合の上書きするよ警告
-                keys_to_check = ["start_time", "end_time"]
+                keys_to_check = ["text", "start_time", "end_time"]
                 existing_keys = [key for key in keys_to_check if key in adu]
                 if existing_keys:
                     logger.warning(f"Overwriting existing keys in ADU {adu.get('id', '?')}: {existing_keys}")
                 adu_with_timestamp = {
                     **adu,
+                    "text": text,
                     "start_time": start_time,
                     "end_time": end_time,
                 }
