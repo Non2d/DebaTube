@@ -57,7 +57,7 @@ def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> L
         words_data: List of word-level timestamp data
 
     Returns:
-        List of sentence objects with text, start_time, end_time, start_word_index, end_word_index
+        List of sentence objects with id, text, start_time, end_time
     """
     if not words_data:
         return []
@@ -82,7 +82,7 @@ def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> L
     sentences = []
     current_word_idx = 0
 
-    for sentence_text in sentence_texts:
+    for sentence_idx, sentence_text in enumerate(sentence_texts):
         sentence_words = sentence_text.split()
         expected_word_count = len(sentence_words)
         end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
@@ -94,6 +94,7 @@ def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> L
         end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
 
         sentences.append({
+            "id": sentence_idx,
             "text": sentence_text,
             "start_time": round(start_time, 1),
             "end_time": round(end_time, 1),

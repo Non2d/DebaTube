@@ -10,30 +10,39 @@ import time
 import shutil
 
 from google import genai
-from .utils import clean_gemini_markdown_response, merge_adus_to_unified_csv, unified_csv_to_markdown, DEBATE_FORMATS, group_words_into_sentences
+from .utils import (
+    clean_gemini_markdown_response,
+    merge_adus_to_unified_csv,
+    unified_csv_to_markdown,
+    DEBATE_FORMATS,
+    group_words_into_sentences,
+)
 
 router = APIRouter()
 
 # ===== Pydantic Models =====
+
 
 class BatchTranscriptRequest(RootModel[Dict[str, Dict[str, Any]]]):
     """
     Batch transcription input - key-value pairs of speech transcriptions
     Directly accepts the output from /audio-to-transcript-batch without wrapper
     """
+
     root: Dict[str, Dict[str, Any]]
+
 
 class RebuttalStructureRequest(BaseModel):
     """Request for identifying rebuttal structure from unified CSV"""
+
     unified_csv_path: str  # Path to unified CSV file with full ADU data
 
     model_config = {
         "json_schema_extra": {
-            "example": {
-                "unified_csv_path": "/path/to/unified_adus_NA_timestamp.csv"
-            }
+            "example": {"unified_csv_path": "/path/to/unified_adus_NA_timestamp.csv"}
         }
     }
+
 
 # OpenAI client初期化
 client = OpenAI()
@@ -42,7 +51,9 @@ client_gemini = genai.Client()
 
 APP_DIR = os.path.dirname(__file__)  # /app/routers
 
-TRANSCRIPTION_DIR = os.path.join(os.path.dirname(APP_DIR), "transcriptions")  # 文字起こし保存ディレクトリ
+TRANSCRIPTION_DIR = os.path.join(
+    os.path.dirname(APP_DIR), "transcriptions"
+)  # 文字起こし保存ディレクトリ
 os.makedirs(TRANSCRIPTION_DIR, exist_ok=True)
 
 LOGS_DIR = os.path.join(os.path.dirname(APP_DIR), "logs")  # ログ保存ディレクトリ
@@ -51,15 +62,24 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 ADUS_DIR = os.path.join(TRANSCRIPTION_DIR, "adus")  # ADU保存ディレクトリ
 os.makedirs(ADUS_DIR, exist_ok=True)
 
+
 async def regroup_single_speech_sentences_to_adus(
     speech_key: str,
     transcript_data: Dict[str, Any],
     timestamp: str,
-    match_name: str = ""
-) -> tuple[str, Optional[str], Optional[str], Optional[Any], Optional[str], Optional[str], Optional[list]]:
+    match_name: str = "",
+) -> tuple[
+    str,
+    Optional[str],
+    Optional[str],
+    Optional[Any],
+    Optional[str],
+    Optional[str],
+    Optional[list],
+]:
     """
-    Process a single speech transcript to ADU conversion asynchronously
-    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message, adus_list)
+    Process a single speech transcripts (one of raw whisper responses in batch_transcription.json) to ADU conversion asynchronously
+    Returns: (speech_key, log_path, csv_path, response_object, response_text, error_message, adus_with_timestamps)
     """
     try:
         transcript_text = transcript_data.get("text", "")
@@ -75,6 +95,13 @@ async def regroup_single_speech_sentences_to_adus(
         ]
 
         sentences_data = group_words_into_sentences(transcript_text, words_data)
+        prompt_sentences_data = [
+            {
+                "id": sentence["id"],
+                "text": sentence["text"],
+            }
+            for sentence in sentences_data
+        ]
 
         GEMINI_MODEL = "gemini-2.5-flash"
 
@@ -101,11 +128,8 @@ Segmentation Guidelines:
 5. Treat any POI as a single independent ADU.
 6. Treat a response to a POI as a single ADU.
 
-Speech transcription:
-{transcript_text}
-
-Sentence-level timestamps (for reference):
-{json.dumps(sentences_data, indent=2)}
+Sentence-level transcript data:
+{json.dumps(prompt_sentences_data, indent=1)}
 
 Return the result as JSON in the following format:
 {{
@@ -116,26 +140,30 @@ Return the result as JSON in the following format:
       "end_sentence_index": 2,
       "text": "The actual ADU text",
       "role": "independent_rebuttal/point_of_main_argument/etc",
-      "start_time": 0.0,
-      "end_time": 2.5,
     }}
   ]
 }}
 
 Note: Use start_sentence_index and end_sentence_index instead of word indices.
 Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
-"""
+""",
         )
 
-        response_text = response.text if hasattr(response, 'text') else str(response)
+        response_text = response.text if hasattr(response, "text") else str(response)
 
         try:
-            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+            raw_response_dict = (
+                type(response).to_dict(response)
+                if hasattr(type(response), "to_dict")
+                else str(response)
+            )
         except:
             raw_response_dict = str(response)
 
         # Create match-specific log directory
-        match_logs_dir = os.path.join(LOGS_DIR, f"logs_{match_name}") if match_name else LOGS_DIR
+        match_logs_dir = (
+            os.path.join(LOGS_DIR, f"logs_{match_name}") if match_name else LOGS_DIR
+        )
         os.makedirs(match_logs_dir, exist_ok=True)
 
         log_filename = f"adu_conversion_{speech_key}_{timestamp}.json"
@@ -148,7 +176,7 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
             "input_transcript": transcript_data,
             "gemini_response": response_text,
             "raw_response": raw_response_dict,
-            "model": GEMINI_MODEL
+            "model": GEMINI_MODEL,
         }
 
         with open(log_path, "w", encoding="utf-8") as f:
@@ -157,23 +185,57 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
 
         csv_filename = f"{speech_key}_{timestamp}.csv"
         # Individual speech CSVs go in match-specific adus folder
-        match_adus_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}", "adus")
+        match_adus_dir = os.path.join(
+            TRANSCRIPTION_DIR, f"results_{match_name}", "adus"
+        )
         os.makedirs(match_adus_dir, exist_ok=True)
         csv_path = os.path.join(match_adus_dir, csv_filename)
 
         try:
             cleaned_response = clean_gemini_markdown_response(response_text)
             adu_json = json.loads(cleaned_response)
-            adus_list = adu_json.get("adus", [])
+            adus = adu_json.get("adus", [])  # ここでADUのリスト（start_time, end_timeなし）を取得
 
-            if adus_list:
-                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
+            print(adus)  # Debug
+            print("--------------------mario---------------------------")
+            print(sentences_data)  # Debug
+
+            adus_with_timestamps = []
+            for adu in adus:
+                start_sentence_idx = adu.get("start_sentence_index", 0)
+                end_sentence_idx = adu.get("end_sentence_index", 0)
+
+                start_time = sentences_data[start_sentence_idx].get("start_time", -1.0)
+                end_time = sentences_data[end_sentence_idx].get("end_time", -1.0)
+
+                # Geminiが誤って生成してる場合の上書きするよ警告
+                keys_to_check = ["text", "start_time", "end_time"]
+                existing_keys = [key for key in keys_to_check if key in adu]
+                if existing_keys:
+                    logger.warning(f"Overwriting existing keys in ADU {adu.get('id', '?')}: {existing_keys}")
+                adu_with_timestamp = {
+                    **adu,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                }
+                adus_with_timestamps.append(adu_with_timestamp)
+
+            if adus_with_timestamps:
+                fieldnames = [
+                    "id",
+                    "start_sentence_index",
+                    "end_sentence_index",
+                    "text",
+                    "role",
+                    "start_time",
+                    "end_time",
+                ]
 
                 with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")
                     writer.writeheader()
 
-                    for adu in adus_list:
+                    for adu in adus_with_timestamps:
                         row = {field: adu.get(field, "") for field in fieldnames}
                         writer.writerow(row)
 
@@ -183,22 +245,35 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
                 csv_path = None
 
         except json.JSONDecodeError as json_error:
-            logger.error(f"Error parsing Gemini response as JSON for {speech_key}: {str(json_error)}")
-            adus_list = []
+            logger.error(
+                f"Error parsing Gemini response as JSON for {speech_key}: {str(json_error)}"
+            )
+            adus_with_timestamps = []
             csv_path = None
         except Exception as csv_error:
             logger.error(f"Error saving CSV file for {speech_key}: {str(csv_error)}")
-            adus_list = []
+            adus_with_timestamps = []
             csv_path = None
 
-        return (speech_key, log_path, csv_path, raw_response_dict, response_text, None, adus_list)
+        return (
+            speech_key,
+            log_path,
+            csv_path,
+            raw_response_dict,
+            response_text,
+            None,
+            adus_with_timestamps,
+        )
 
     except Exception as e:
         error_msg = f"Error processing {speech_key}: {str(e)}"
         logger.error(error_msg)
         return (speech_key, None, None, None, None, error_msg, [])
 
-async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[Dict[str, Any]]]:
+
+async def transcribe_single_audio(
+    file: UploadFile,
+) -> tuple[str, str, Optional[Dict[str, Any]]]:
     """
     1つのファイルを文字起こしする
     返り値: (speech_key, date_transcribed, transcription_dict)
@@ -214,7 +289,9 @@ async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[
         date_transcribed = parts[1] if len(parts) > 1 else ""
 
         # 一時ファイルとして保存
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=os.path.splitext(file.filename)[1]
+        ) as temp_file:
             content = await file.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
@@ -227,7 +304,7 @@ async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[
                     model="whisper-1",
                     response_format="verbose_json",
                     timestamp_granularities=["word"],
-                    language="en"
+                    language="en",
                 )
         finally:
             os.unlink(temp_file_path)
@@ -237,7 +314,7 @@ async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[
             "date_transcribed": date_transcribed,
             "duration": trans_dict.get("duration", 0),
             "language": trans_dict.get("language", ""),
-            **trans_dict
+            **trans_dict,
         }
 
         logger.info(f"Transcribed: {speech_key} (from {file.filename})")
@@ -247,10 +324,10 @@ async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[
         logger.error(f"Error processing file {file.filename}: {str(file_error)}")
         return "", "", None
 
+
 @router.post("/audio-to-transcript-batch")
 async def audio_to_transcript_batch(
-    files: List[UploadFile] = File(...),
-    match_name: str = Form("default")
+    files: List[UploadFile] = File(...), match_name: str = Form("default")
 ):
     """
     複数の音声ファイルを非同期で並列に文字起こしするエンドポイント
@@ -272,7 +349,9 @@ async def audio_to_transcript_batch(
                 batch_results[speech_key] = trans_dict
 
         if not batch_results:
-            raise HTTPException(status_code=400, detail="No files were successfully processed")
+            raise HTTPException(
+                status_code=400, detail="No files were successfully processed"
+            )
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
         output_filename = f"batch_transcription_{timestamp}.json"
@@ -301,20 +380,25 @@ async def audio_to_transcript_batch(
             "saved_to": output_path,
             "transcription_dir": TRANSCRIPTION_DIR,
             "file_exists": os.path.exists(output_path),
-            "processing_time_seconds": round(elapsed_time, 2)
+            "processing_time_seconds": round(elapsed_time, 2),
         }
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        print(f"[/audio-to-transcript-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        print(
+            f"[/audio-to-transcript-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒"
+        )
         logger.error(f"Error during batch transcription: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Batch transcription failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Batch transcription failed: {str(e)}"
+        )
+
 
 @router.post("/transcript-to-adu-batch")
 async def transcript_to_adu_batch(
     batch_request: BatchTranscriptRequest,
     debate_format: str = "NA",
-    match_name: str = ""
+    match_name: str = "",
 ):
     """
     Convert multiple speech transcriptions to ADUs in parallel using Gemini API
@@ -339,7 +423,7 @@ async def transcript_to_adu_batch(
         if debate_format not in DEBATE_FORMATS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid debate_format. Must be one of: {', '.join(DEBATE_FORMATS.keys())}"
+                detail=f"Invalid debate_format. Must be one of: {', '.join(DEBATE_FORMATS.keys())}",
             )
 
         speech_order = DEBATE_FORMATS[debate_format]
@@ -353,6 +437,14 @@ async def transcript_to_adu_batch(
             for speech_key, transcript_data in transcripts.items()
         ]
 
+        # tasks = [
+        #     regroup_single_speech_sentences_to_adus(
+        #         speech_key, transcript_data, timestamp, match_name
+        #     )
+        #     for i, (speech_key, transcript_data) in enumerate(transcripts.items())
+        #     if i == 0  # Debug:最初の1つだけタスクを実行
+        # ]
+
         # Execute all tasks in parallel
         results = await asyncio.gather(*tasks)
 
@@ -364,26 +456,33 @@ async def transcript_to_adu_batch(
         all_raw_responses = {}
         adus_by_speech = {}
 
-        for speech_key, log_path, csv_path, raw_response, response_text, error_msg, adus_list in results:
+        for (
+            speech_key,
+            log_path,
+            csv_path,
+            raw_response,
+            response_text,
+            error_msg,
+            adus_with_timestamps,
+        ) in results:
             if error_msg:
-                failed_speeches.append({
-                    "speech_key": speech_key,
-                    "error": error_msg
-                })
+                failed_speeches.append({"speech_key": speech_key, "error": error_msg})
             else:
-                successful_speeches.append({
-                    "speech_key": speech_key,
-                    "log_path": log_path,
-                    "csv_path": csv_path,
-                    "csv_exists": os.path.exists(csv_path) if csv_path else False
-                })
+                successful_speeches.append(
+                    {
+                        "speech_key": speech_key,
+                        "log_path": log_path,
+                        "csv_path": csv_path,
+                        "csv_exists": os.path.exists(csv_path) if csv_path else False,
+                    }
+                )
                 if csv_path:
                     csv_files.append(csv_path)
                 if response_text:
                     all_responses[speech_key] = response_text
                 # Use pre-parsed ADUs from regroup_single_speech_sentences_to_adus
-                if adus_list:
-                    adus_by_speech[speech_key] = adus_list
+                if adus_with_timestamps:
+                    adus_by_speech[speech_key] = adus_with_timestamps
                 if raw_response:
                     all_raw_responses[speech_key] = raw_response
 
@@ -401,19 +500,22 @@ async def transcript_to_adu_batch(
                 total_adus_written = merge_adus_to_unified_csv(
                     adus_by_speech=adus_by_speech,
                     output_path=unified_csv_path,
-                    speech_order=speech_order
+                    speech_order=speech_order,
                 )
-                logger.info(f"Unified CSV created: {unified_csv_path} ({total_adus_written} ADUs)")
+                logger.info(
+                    f"Unified CSV created: {unified_csv_path} ({total_adus_written} ADUs)"
+                )
 
                 # Generate Markdown from unified CSV
                 unified_md_filename = f"unified_adus_{debate_format}_{timestamp}.md"
                 unified_md_path = os.path.join(match_results_dir, unified_md_filename)
                 try:
                     total_adus_in_md = unified_csv_to_markdown(
-                        csv_path=unified_csv_path,
-                        output_path=unified_md_path
+                        csv_path=unified_csv_path, output_path=unified_md_path
                     )
-                    logger.info(f"Unified MD created: {unified_md_path} ({total_adus_in_md} ADUs)")
+                    logger.info(
+                        f"Unified MD created: {unified_md_path} ({total_adus_in_md} ADUs)"
+                    )
                 except Exception as md_error:
                     logger.error(f"Failed to create unified MD: {str(md_error)}")
                     unified_md_path = None
@@ -436,25 +538,36 @@ async def transcript_to_adu_batch(
             "raw_responses": all_raw_responses,
             "individual_csv_files": csv_files,
             "unified_csv_path": unified_csv_path,
-            "unified_csv_exists": os.path.exists(unified_csv_path) if unified_csv_path else False,
+            "unified_csv_exists": (
+                os.path.exists(unified_csv_path) if unified_csv_path else False
+            ),
             "unified_md_path": unified_md_path,
-            "unified_md_exists": os.path.exists(unified_md_path) if unified_md_path else False,
+            "unified_md_exists": (
+                os.path.exists(unified_md_path) if unified_md_path else False
+            ),
             "total_adus_in_unified_csv": total_adus_written,
             "debate_format": debate_format,
             "speech_order": speech_order,
             "adus_dir": ADUS_DIR,
             "logs_dir": LOGS_DIR,
-            "processing_time_seconds": round(elapsed_time, 2)
+            "processing_time_seconds": round(elapsed_time, 2),
         }
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        print(f"[/transcript-to-adu-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        print(
+            f"[/transcript-to-adu-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒"
+        )
         logger.error(f"Error during batch ADU conversion: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Batch ADU conversion failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Batch ADU conversion failed: {str(e)}"
+        )
+
 
 @router.post("/identify-rebuttal-structure")
-async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_name: str = ""):
+async def identify_rebuttal_structure(
+    request: RebuttalStructureRequest, match_name: str = ""
+):
     """
     注意：csvとmdが同じディレクトリにあることを前提としています。
     Identify rebuttal structure from unified CSV file
@@ -475,7 +588,7 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_n
         # Convert relative path to absolute path based on APP_DIR
         if not os.path.isabs(csv_path):
             # If path starts with 'app/', resolve from parent of APP_DIR
-            if csv_path.startswith('app/'):
+            if csv_path.startswith("app/"):
                 csv_path = os.path.join(os.path.dirname(APP_DIR), csv_path)
             else:
                 # Otherwise, resolve from current working directory
@@ -483,7 +596,9 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_n
 
         # Validate CSV file exists
         if not os.path.exists(csv_path):
-            raise HTTPException(status_code=404, detail=f"CSV file not found: {csv_path}")
+            raise HTTPException(
+                status_code=404, detail=f"CSV file not found: {csv_path}"
+            )
 
         GEMINI_MODEL = "gemini-2.5-flash"
 
@@ -512,7 +627,7 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_n
                     "id": global_id_counter,  # グローバルID
                     "type": role,  # role -> type
                     "text": text,
-                    "start": start_time  # start_time -> start
+                    "start": start_time,  # start_time -> start
                 }
                 speeches_data[speech_key].append(adu_data)
 
@@ -530,7 +645,9 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_n
                 global_id_counter += 1  # グローバルIDをインクリメント
 
         transcript = "\n".join(markdown_lines)
-        logger.info(f"Loaded {sum(len(v) for v in speeches_data.values())} ADUs from CSV")
+        logger.info(
+            f"Loaded {sum(len(v) for v in speeches_data.values())} ADUs from CSV"
+        )
 
         # Prepare prompt for Gemini
         prompt = f"""## Instruction
@@ -552,13 +669,11 @@ Do not include any other text, explanation, or formatting."""
 
         # Call Gemini API
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=prompt
+            client_gemini.models.generate_content, model=GEMINI_MODEL, contents=prompt
         )
 
         # Extract response text
-        response_text = response.text if hasattr(response, 'text') else str(response)
+        response_text = response.text if hasattr(response, "text") else str(response)
 
         # Parse the response to extract rebuttal pairs
         try:
@@ -579,10 +694,7 @@ Do not include any other text, explanation, or formatting."""
             rebuttal_pairs = []
 
         # Build result in requested format
-        result = {
-            "speeches": speeches_data,
-            "rebuttals": rebuttal_pairs
-        }
+        result = {"speeches": speeches_data, "rebuttals": rebuttal_pairs}
 
         # Save result as JSON file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
@@ -597,7 +709,9 @@ Do not include any other text, explanation, or formatting."""
         logger.info(f"Rebuttal graph saved to {result_path}")
 
         # Save log
-        match_logs_dir = os.path.join(LOGS_DIR, f"logs_{match_name}") if match_name else LOGS_DIR
+        match_logs_dir = (
+            os.path.join(LOGS_DIR, f"logs_{match_name}") if match_name else LOGS_DIR
+        )
         os.makedirs(match_logs_dir, exist_ok=True)
 
         log_filename = f"rebuttal_structure_{timestamp}.json"
@@ -605,7 +719,11 @@ Do not include any other text, explanation, or formatting."""
 
         # Convert response object to dict for JSON serialization
         try:
-            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+            raw_response_dict = (
+                type(response).to_dict(response)
+                if hasattr(type(response), "to_dict")
+                else str(response)
+            )
         except:
             raw_response_dict = str(response)
 
@@ -616,7 +734,7 @@ Do not include any other text, explanation, or formatting."""
             "input_transcript_length": len(transcript),
             "gemini_response": response_text,
             "raw_response": raw_response_dict,
-            "model": GEMINI_MODEL
+            "model": GEMINI_MODEL,
         }
 
         with open(log_path, "w", encoding="utf-8") as f:
@@ -624,7 +742,9 @@ Do not include any other text, explanation, or formatting."""
         logger.info(f"Rebuttal structure log saved to {log_path}")
 
         elapsed_time = time.time() - start_time
-        print(f"[/identify-rebuttal-structure] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+        print(
+            f"[/identify-rebuttal-structure] 処理完了 - 処理時間: {elapsed_time:.2f}秒"
+        )
 
         return {
             "status": "success",
@@ -638,17 +758,23 @@ Do not include any other text, explanation, or formatting."""
             "log_saved_to": log_path,
             "log_exists": os.path.exists(log_path),
             "model": GEMINI_MODEL,
-            "processing_time_seconds": round(elapsed_time, 2)
+            "processing_time_seconds": round(elapsed_time, 2),
         }
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        print(f"[/identify-rebuttal-structure] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        print(
+            f"[/identify-rebuttal-structure] エラーで終了 - 処理時間: {elapsed_time:.2f}秒"
+        )
         logger.error(f"Error during rebuttal structure identification: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Rebuttal structure identification failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Rebuttal structure identification failed: {str(e)}",
+        )
 
 class AudioToDebateGraphRequest(BaseModel):
     """Request for converting audio to debate graph"""
+
     match_name: str
     debate_format: str = "NA"
 
@@ -656,7 +782,7 @@ class AudioToDebateGraphRequest(BaseModel):
 async def audio_to_debate_graph_batch(
     files: List[UploadFile] = File(...),
     match_name: str = Form("default"),
-    debate_format: str = Form("NA")
+    debate_format: str = Form("NA"),
 ):
     """
     統合エンドポイント: 音声ファイルをディベートグラフに変換
@@ -668,7 +794,9 @@ async def audio_to_debate_graph_batch(
     - 出力: audio-save/{match_name}/results/ に全ての結果を保存
     """
     start_time = time.time()
-    print(f"[/audio-to-debate-graph-batch] 処理開始 - match_name: {match_name}, format: {debate_format}")
+    print(
+        f"[/audio-to-debate-graph-batch] 処理開始 - match_name: {match_name}, format: {debate_format}"
+    )
 
     # 出力ディレクトリの作成
     RESULTS_DIR = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
@@ -693,12 +821,16 @@ async def audio_to_debate_graph_batch(
         # Step 2: ADUに変換
         print("[Step 2/3] ADU変換を開始...")
         adu_request = BatchTranscriptRequest(root=batch_results)
-        adu_response = await transcript_to_adu_batch(adu_request, debate_format, match_name)
+        adu_response = await transcript_to_adu_batch(
+            adu_request, debate_format, match_name
+        )
 
         if adu_response["status"] not in ["success", "partial_success"]:
             raise Exception(f"ADU conversion failed: {adu_response}")
 
-        print(f"[Step 2/3] ADU変換完了: {adu_response['total_adus_in_unified_csv']} ADUs")
+        print(
+            f"[Step 2/3] ADU変換完了: {adu_response['total_adus_in_unified_csv']} ADUs"
+        )
 
         # Already saved in correct location by transcript_to_adu_batch
         unified_csv_path = adu_response["unified_csv_path"]
@@ -710,12 +842,18 @@ async def audio_to_debate_graph_batch(
             raise Exception(f"Unified CSV not found: {unified_csv_path}")
 
         rebuttal_request = RebuttalStructureRequest(unified_csv_path=unified_csv_path)
-        rebuttal_response = await identify_rebuttal_structure(rebuttal_request, match_name)
+        rebuttal_response = await identify_rebuttal_structure(
+            rebuttal_request, match_name
+        )
 
         if rebuttal_response["status"] != "success":
-            raise Exception(f"Rebuttal structure identification failed: {rebuttal_response}")
+            raise Exception(
+                f"Rebuttal structure identification failed: {rebuttal_response}"
+            )
 
-        print(f"[Step 3/3] 反論構造抽出完了: {rebuttal_response['total_rebuttal_pairs']} rebuttal pairs")
+        print(
+            f"[Step 3/3] 反論構造抽出完了: {rebuttal_response['total_rebuttal_pairs']} rebuttal pairs"
+        )
 
         # Already saved in correct location by identify_rebuttal_structure
         # Copy to audio-save for frontend GET endpoint
@@ -723,14 +861,18 @@ async def audio_to_debate_graph_batch(
         if rebuttal_graph_path and os.path.exists(rebuttal_graph_path):
             graph_filename = os.path.basename(rebuttal_graph_path)
             # Copy to audio-save/{match_name}/ for frontend GET endpoint
-            audio_save_match_dir = os.path.join(os.path.dirname(APP_DIR), "audio-save", match_name)
+            audio_save_match_dir = os.path.join(
+                os.path.dirname(APP_DIR), "audio-save", match_name
+            )
             os.makedirs(audio_save_match_dir, exist_ok=True)
             audio_save_graph_dest = os.path.join(audio_save_match_dir, graph_filename)
             shutil.copy(rebuttal_graph_path, audio_save_graph_dest)
             logger.info(f"Rebuttal graph copied to {audio_save_graph_dest}")
 
         elapsed_time = time.time() - start_time
-        print(f"[/audio-to-debate-graph-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+        print(
+            f"[/audio-to-debate-graph-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒"
+        )
 
         return {
             "status": "success",
@@ -745,16 +887,20 @@ async def audio_to_debate_graph_batch(
                 "files_transcribed": len(batch_results),
                 "total_adus": adu_response["total_adus_in_unified_csv"],
                 "total_rebuttal_pairs": rebuttal_response["total_rebuttal_pairs"],
-                "speeches": rebuttal_response["total_speeches"]
+                "speeches": rebuttal_response["total_speeches"],
             },
-            "processing_time_seconds": round(elapsed_time, 2)
+            "processing_time_seconds": round(elapsed_time, 2),
         }
 
     except Exception as e:
         elapsed_time = time.time() - start_time
-        print(f"[/audio-to-debate-graph-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        print(
+            f"[/audio-to-debate-graph-batch] エラーで終了 - 処理時間: {elapsed_time:.2f}秒"
+        )
         logger.error(f"Error during audio to debate graph conversion: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Audio to debate graph conversion failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Audio to debate graph conversion failed: {str(e)}"
+        )
 
 @router.get("/rebuttal-graph/{match_name}")
 async def get_rebuttal_graph(match_name: str):
@@ -768,16 +914,28 @@ async def get_rebuttal_graph(match_name: str):
 
         # Only search in audio-save/{match_name}/
         # Docker: /app/audio-save, Local: ../audio-save
-        audio_save_dir = os.path.join(os.path.dirname(APP_DIR), "audio-save", match_name)
+        audio_save_dir = os.path.join(
+            os.path.dirname(APP_DIR), "audio-save", match_name
+        )
         if os.path.exists(audio_save_dir):
-            graph_files = sorted([f for f in os.listdir(audio_save_dir) if f.startswith('rebuttal_graph_') and f.endswith('.json')], reverse=True)
+            graph_files = sorted(
+                [
+                    f
+                    for f in os.listdir(audio_save_dir)
+                    if f.startswith("rebuttal_graph_") and f.endswith(".json")
+                ],
+                reverse=True,
+            )
             if graph_files:
                 graph_path = os.path.join(audio_save_dir, graph_files[0])
 
         if not graph_path:
-            raise HTTPException(status_code=404, detail=f"No rebuttal graph found for match: {match_name}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No rebuttal graph found for match: {match_name}",
+            )
 
-        with open(graph_path, 'r', encoding='utf-8') as f:
+        with open(graph_path, "r", encoding="utf-8") as f:
             graph_data = json.load(f)
 
         logger.info(f"Rebuttal graph loaded from {graph_path}")
@@ -786,11 +944,13 @@ async def get_rebuttal_graph(match_name: str):
             "status": "success",
             "match_name": match_name,
             "graph_file": os.path.basename(graph_path),
-            "data": graph_data
+            "data": graph_data,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to get rebuttal graph: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get rebuttal graph: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get rebuttal graph: {str(e)}"
+        )
