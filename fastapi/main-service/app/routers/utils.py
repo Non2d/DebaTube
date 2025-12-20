@@ -139,7 +139,7 @@ def merge_adus_to_unified_csv(
     Returns:
         Total number of ADUs written to the CSV
     """
-    fieldnames = ["speech_key", "id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
+    fieldnames = ["speech_key", "id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time"]
 
     total_adus = 0
 

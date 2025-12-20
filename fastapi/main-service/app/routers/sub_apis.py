@@ -21,7 +21,6 @@ from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_i
 # Define SUB_TRANSCRIPTS directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SUB_TRANSCRIPTS_DIR = os.path.join(BASE_DIR, "transcriptions", "sub-transcripts")
-os.makedirs(SUB_TRANSCRIPTS_DIR, exist_ok=True)
 
 # Initialize Gemini client
 client_gemini = genai.Client()
@@ -288,7 +287,7 @@ async def adu_json_to_csv(file: UploadFile = File(...)):
         csv_path = os.path.join(ADUS_DIR, csv_filename)
 
         # Define CSV columns
-        fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
+        fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time"]
 
         # Write CSV
         with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
@@ -643,7 +642,7 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
 
             # Write to CSV
             if adus_list:
-                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time", "confidence"]
+                fieldnames = ["id", "start_sentence_index", "end_sentence_index", "text", "role", "start_time", "end_time"]
 
                 with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, restval="")

@@ -60,7 +60,6 @@ LOGS_DIR = os.path.join(os.path.dirname(APP_DIR), "logs")  # ログ保存ディ�
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 ADUS_DIR = os.path.join(TRANSCRIPTION_DIR, "adus")  # ADU保存ディレクトリ
-os.makedirs(ADUS_DIR, exist_ok=True)
 
 
 async def regroup_single_speech_sentences_to_adus(
@@ -129,7 +128,7 @@ Segmentation Guidelines:
 6. Treat a response to a POI as a single ADU.
 
 Sentence-level transcript data:
-{json.dumps(prompt_sentences_data, indent=1)}
+{json.dumps(prompt_sentences_data, indent=None)}
 
 Return the result as JSON in the following format:
 {{
@@ -196,10 +195,6 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
             adu_json = json.loads(cleaned_response)
             adus = adu_json.get("adus", [])  # ここでADUのリスト（start_time, end_timeなし）を取得
 
-            print(adus)  # Debug
-            print("--------------------mario---------------------------")
-            print(sentences_data)  # Debug
-
             adus_with_timestamps = []
             for adu in adus:
                 start_sentence_idx = adu.get("start_sentence_index", 0)
@@ -209,7 +204,7 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
                 end_time = sentences_data[end_sentence_idx].get("end_time", -1.0)
 
                 # Geminiが誤って生成してる場合の上書きするよ警告
-                keys_to_check = ["text", "start_time", "end_time"]
+                keys_to_check = ["start_time", "end_time"]
                 existing_keys = [key for key in keys_to_check if key in adu]
                 if existing_keys:
                     logger.warning(f"Overwriting existing keys in ADU {adu.get('id', '?')}: {existing_keys}")
@@ -436,14 +431,6 @@ async def transcript_to_adu_batch(
             regroup_single_speech_sentences_to_adus(speech_key, transcript_data, timestamp, match_name)
             for speech_key, transcript_data in transcripts.items()
         ]
-
-        # tasks = [
-        #     regroup_single_speech_sentences_to_adus(
-        #         speech_key, transcript_data, timestamp, match_name
-        #     )
-        #     for i, (speech_key, transcript_data) in enumerate(transcripts.items())
-        #     if i == 0  # Debug:最初の1つだけタスクを実行
-        # ]
 
         # Execute all tasks in parallel
         results = await asyncio.gather(*tasks)
