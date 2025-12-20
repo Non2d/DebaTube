@@ -55,11 +55,24 @@ export const isGovernment = (positionName: string): boolean => {
     return governmentPositionNames.includes(positionName);
 }
 
-export const isGovernmentFromSpeechId = (speechId: number, speechLength: number): boolean => {
-    if (speechLength === 6) {
+export const isGovernmentFromSpeechId = (speechId: number, speechLength: number, debateFormat?: string): boolean => {
+    if (speechLength === 4) {
+        // Opening Half BP: Prop 1st (0), Prop 2nd (2)
+        return speechId === 0 || speechId === 2;
+    } else if (speechLength === 6) {
+        // NA: Prop 1st (0), Prop 2nd (2), Prop 3rd (5)
         return speechId === 0 || speechId === 2 || speechId === 5;
+    } else if (speechLength === 7) {
+        // BP without Opposition 4th: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (6)
+        return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 6;
     } else if (speechLength === 8) {
-        return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 7;
+        if (debateFormat === "ASIAN") {
+            // ASIAN: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (7)
+            return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 7;
+        } else {
+            // BP: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (6)
+            return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 6;
+        }
     } else {
         throw new Error("Invalid speech length");
     }

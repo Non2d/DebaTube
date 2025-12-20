@@ -6,6 +6,8 @@ const PreviewPanel = ({
   cellData, 
   selectedCell, 
   setSelectedCell, 
+  clickedCell,
+  setClickedCell,
   highlightedCell, 
   setHighlightedCell, 
   cellRefs, 
@@ -21,6 +23,7 @@ const PreviewPanel = ({
       textareaRef.current.focus();
       textareaRef.current.setSelectionRange(cell.startPosition, cell.endPosition);
       setSelectedCell(cellIndex);
+      setClickedCell(cellIndex);
     }
   };
 
@@ -71,6 +74,20 @@ const PreviewPanel = ({
           <div className="text-gray-500">
             💡 セルをクリック → エディタの該当箇所にジャンプ
           </div>
+          {clickedCell !== null && cellData[clickedCell] && (
+            <div key={`clicked-cell-${clickedCell}-${Date.now()}`} className="mt-4 p-3 border border-gray-300 rounded-lg bg-gray-50">
+              <div className="text-sm font-semibold text-gray-700 mb-2">
+                クリックされたセル:
+              </div>
+              <div className={`p-2 rounded border text-sm ${getCellColor ? getCellColor(clickedCell) : 'bg-white border-gray-200'}`}>
+                {cellData[clickedCell].isRoleHeader ? (
+                  <div className="font-bold text-lg">## {cellData[clickedCell].role}</div>
+                ) : (
+                  renderCellContent(cellData[clickedCell].content)
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

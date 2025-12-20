@@ -55,6 +55,7 @@ const InteractiveSheetApp = () => {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
   const [highlightedCell, setHighlightedCell] = useState(null);
   const [selectedCell, setSelectedCell] = useState(null);
+  const [clickedCell, setClickedCell] = useState(null);
   const [cellVersions, setCellVersions] = useState({});
   const textareaRef = useRef(null);
   const cellRefs = useRef({});
@@ -255,6 +256,8 @@ const InteractiveSheetApp = () => {
         cellData={cellData}
         selectedCell={selectedCell}
         setSelectedCell={setSelectedCell}
+        clickedCell={clickedCell}
+        setClickedCell={setClickedCell}
         highlightedCell={highlightedCell}
         setHighlightedCell={setHighlightedCell}
         cellRefs={cellRefs}
