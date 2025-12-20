@@ -76,7 +76,7 @@ async def regroup_single_speech_to_adu(
 
         sentences_data = group_words_into_sentences(transcript_text, words_data)
 
-        GEMINI_MODEL = "gemini-2.5-pro"
+        GEMINI_MODEL = "gemini-2.5-flash"
 
         response = await asyncio.to_thread(
             client_gemini.models.generate_content,
@@ -156,7 +156,10 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
         logger.info(f"ADU conversion log saved to {log_path}")
 
         csv_filename = f"{speech_key}_{timestamp}.csv"
-        csv_path = os.path.join(ADUS_DIR, csv_filename)
+        # Individual speech CSVs go in match-specific adus folder
+        match_adus_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}", "adus")
+        os.makedirs(match_adus_dir, exist_ok=True)
+        csv_path = os.path.join(match_adus_dir, csv_filename)
 
         try:
             cleaned_response = clean_gemini_markdown_response(response_text)
@@ -243,7 +246,10 @@ async def transcribe_single_audio(file: UploadFile) -> tuple[str, str, Optional[
         return "", "", None
 
 @router.post("/audio-to-transcript-batch")
-async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
+async def audio_to_transcript_batch(
+    files: List[UploadFile] = File(...),
+    match_name: str = Form("default")
+):
     """
     複数の音声ファイルを非同期で並列に文字起こしするエンドポイント
     - ファイル名形式: "Proposition_1st-2025-11-16_140426.webm"
@@ -268,7 +274,11 @@ async def audio_to_transcript_batch(files: List[UploadFile] = File(...)):
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
         output_filename = f"batch_transcription_{timestamp}.json"
-        output_path = os.path.join(TRANSCRIPTION_DIR, output_filename)
+
+        # Always save to match-specific folder
+        match_results_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
+        os.makedirs(match_results_dir, exist_ok=True)
+        output_path = os.path.join(match_results_dir, output_filename)
 
         try:
             with open(output_path, "w", encoding="utf-8") as f:
@@ -385,7 +395,10 @@ async def transcript_to_adu_batch(
         total_adus_written = 0
         if adus_by_speech:
             unified_csv_filename = f"unified_adus_{debate_format}_{timestamp}.csv"
-            unified_csv_path = os.path.join(ADUS_DIR, unified_csv_filename)
+            # Unified CSV/MD go in match-specific results folder (not adus subfolder)
+            match_results_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
+            os.makedirs(match_results_dir, exist_ok=True)
+            unified_csv_path = os.path.join(match_results_dir, unified_csv_filename)
             try:
                 total_adus_written = merge_adus_to_unified_csv(
                     adus_by_speech=adus_by_speech,
@@ -396,7 +409,7 @@ async def transcript_to_adu_batch(
 
                 # Generate Markdown from unified CSV
                 unified_md_filename = f"unified_adus_{debate_format}_{timestamp}.md"
-                unified_md_path = os.path.join(ADUS_DIR, unified_md_filename)
+                unified_md_path = os.path.join(match_results_dir, unified_md_filename)
                 try:
                     total_adus_in_md = unified_csv_to_markdown(
                         csv_path=unified_csv_path,
@@ -474,7 +487,7 @@ async def identify_rebuttal_structure(request: RebuttalStructureRequest, match_n
         if not os.path.exists(csv_path):
             raise HTTPException(status_code=404, detail=f"CSV file not found: {csv_path}")
 
-        GEMINI_MODEL = "gemini-2.5-pro"
+        GEMINI_MODEL = "gemini-2.5-flash"
 
         # Read CSV file to get full ADU data and build markdown for Gemini
         speeches_data = {}
@@ -576,7 +589,10 @@ Do not include any other text, explanation, or formatting."""
         # Save result as JSON file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
         result_filename = f"rebuttal_graph_{timestamp}.json"
-        result_path = os.path.join(ADUS_DIR, result_filename)
+        # Rebuttal graph goes in match-specific results folder (not adus subfolder)
+        match_results_dir = os.path.join(TRANSCRIPTION_DIR, f"results_{match_name}")
+        os.makedirs(match_results_dir, exist_ok=True)
+        result_path = os.path.join(match_results_dir, result_filename)
 
         with open(result_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
@@ -664,7 +680,7 @@ async def audio_to_debate_graph_batch(
     try:
         # Step 1: 音声を文字起こし
         print("[Step 1/3] 音声の文字起こしを開始...")
-        transcription_response = await audio_to_transcript_batch(files)
+        transcription_response = await audio_to_transcript_batch(files, match_name)
 
         if transcription_response["status"] != "success":
             raise Exception(f"Transcription failed: {transcription_response}")
@@ -672,11 +688,8 @@ async def audio_to_debate_graph_batch(
         batch_results = transcription_response["batch_results"]
         print(f"[Step 1/3] 文字起こし完了: {len(batch_results)} ファイル")
 
-        # 文字起こし結果をファイルに保存
-        transcript_filename = f"batch_transcription_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-5]}.json"
-        transcript_path = os.path.join(RESULTS_DIR, transcript_filename)
-        with open(transcript_path, "w", encoding="utf-8") as f:
-            json.dump(batch_results, f, ensure_ascii=False, indent=2)
+        # Already saved by audio_to_transcript_batch
+        transcript_path = transcription_response["saved_to"]
         logger.info(f"Transcription results saved to {transcript_path}")
 
         # Step 2: ADUに変換
@@ -689,24 +702,9 @@ async def audio_to_debate_graph_batch(
 
         print(f"[Step 2/3] ADU変換完了: {adu_response['total_adus_in_unified_csv']} ADUs")
 
-        # ADU結果をコピーして結果ディレクトリに配置
+        # Already saved in correct location by transcript_to_adu_batch
         unified_csv_path = adu_response["unified_csv_path"]
         unified_md_path = adu_response["unified_md_path"]
-
-        if unified_csv_path and os.path.exists(unified_csv_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
-            csv_filename = f"unified_adus_{debate_format}_{timestamp}.csv"
-            csv_dest = os.path.join(RESULTS_DIR, csv_filename)
-            shutil.copy(unified_csv_path, csv_dest)
-            logger.info(f"Unified CSV copied to {csv_dest}")
-            unified_csv_path = csv_dest
-
-        if unified_md_path and os.path.exists(unified_md_path):
-            md_filename = f"unified_adus_{debate_format}_{timestamp}.md"
-            md_dest = os.path.join(RESULTS_DIR, md_filename)
-            shutil.copy(unified_md_path, md_dest)
-            logger.info(f"Unified MD copied to {md_dest}")
-            unified_md_path = md_dest
 
         # Step 3: 反論構造を抽出
         print("[Step 3/3] 反論構造の抽出を開始...")
@@ -721,22 +719,17 @@ async def audio_to_debate_graph_batch(
 
         print(f"[Step 3/3] 反論構造抽出完了: {rebuttal_response['total_rebuttal_pairs']} rebuttal pairs")
 
-        # 反論構造グラフを結果ディレクトリにコピー
+        # Already saved in correct location by identify_rebuttal_structure
+        # Copy to audio-save for frontend GET endpoint
         rebuttal_graph_path = rebuttal_response["result_saved_to"]
         if rebuttal_graph_path and os.path.exists(rebuttal_graph_path):
-            graph_filename = f"rebuttal_graph_{timestamp}.json"
-            graph_dest = os.path.join(RESULTS_DIR, graph_filename)
-            shutil.copy(rebuttal_graph_path, graph_dest)
-            logger.info(f"Rebuttal graph copied to {graph_dest}")
-
-            # audio-save/{match_name}/ にもコピー
+            graph_filename = os.path.basename(rebuttal_graph_path)
+            # Copy to audio-save/{match_name}/ for frontend GET endpoint
             audio_save_match_dir = os.path.join(os.path.dirname(APP_DIR), "audio-save", match_name)
             os.makedirs(audio_save_match_dir, exist_ok=True)
             audio_save_graph_dest = os.path.join(audio_save_match_dir, graph_filename)
             shutil.copy(rebuttal_graph_path, audio_save_graph_dest)
             logger.info(f"Rebuttal graph copied to {audio_save_graph_dest}")
-
-            rebuttal_graph_path = graph_dest
 
         elapsed_time = time.time() - start_time
         print(f"[/audio-to-debate-graph-batch] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
