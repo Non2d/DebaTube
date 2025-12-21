@@ -129,6 +129,7 @@ Segmentation Guidelines:
 4. Group sentences discussing the same specific argumentative point into one ADU
 5. Treat any POI as a single independent ADU.
 6. Treat a response to a POI as a single ADU.
+7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
 
 Sentence-level transcript data:
 {json.dumps(prompt_sentences_data, indent=None)}
@@ -146,8 +147,6 @@ Return the result as JSON in the following format:
   ]
 }}
 
-Note: Use start_sentence_index and end_sentence_index instead of word indices.
-Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
 IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
 """,
         )
@@ -219,8 +218,9 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
 
                 start_time = sentences_data[start_sentence_idx].get("start_time", -1.0)
                 end_time = sentences_data[end_sentence_idx].get("end_time", -1.0)
+                text = " ".join(sentences_data[i]["text"] for i in range(start_sentence_idx, end_sentence_idx + 1))
 
-                # Geminiが誤って生成してる場合の上書きするよ警告
+                # Geminiが誤って生成してる場合の上書きするよ警告．なお，textは常に上書きする．
                 keys_to_check = ["start_time", "end_time"]
                 existing_keys = [key for key in keys_to_check if key in adu]
                 if existing_keys:
@@ -231,6 +231,7 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
                     **adu,
                     "start_time": start_time,
                     "end_time": end_time,
+                    "text": text,
                 }
                 adus_with_timestamps.append(adu_with_timestamp)
 
@@ -449,11 +450,11 @@ async def transcript_to_adu_batch(
         tasks = [
             regroup_single_speech_sentences_to_adus(k, v, timestamp, match_name)
             for idx, (k, v) in enumerate(transcripts.items())
-            if idx == 0 # Prop1のみ処理
+            # if idx == 0 # Prop1のみ処理
         ]
 
         # Execute all tasks in parallel
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Collect results
         successful_speeches = []

@@ -231,13 +231,10 @@ def unified_csv_to_markdown(csv_path: str, output_path: str) -> int:
 
     Format:
     ## Proposition_1st
-
     id:1, text content...
-
     id:2, text content...
 
     ## Opposition_1st
-
     id:3, text content...
 
     Args:
