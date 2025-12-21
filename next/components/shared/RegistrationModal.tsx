@@ -5,6 +5,7 @@ import { X, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { getAPIRoot } from '../lib/utils';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface RegistrationModalProps {
 
 export default function RegistrationModal({ isOpen, onClose, onSuccess }: RegistrationModalProps) {
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+  const { t } = useTranslation();
 
   const [input, setInput] = useState({
     youtubeUrl: '',
@@ -72,7 +74,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
 
     // バリデーション
     if (!input.youtubeUrl && !input.audioFile) {
-      toast.error('YouTube URLまたは音声ファイルを選択してください');
+      toast.error(t('dashboard.modal.messages.selectUrlOrFile'));
       return;
     }
 
@@ -90,7 +92,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
       });
 
       if (!roundRes.ok) {
-        throw new Error('Failed to create round');
+        throw new Error(t('dashboard.modal.messages.failedCreate'));
       }
 
       const roundData = await roundRes.json();
@@ -100,7 +102,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
       const roundId = roundData.id || roundData.round_id || roundData.data?.id;
 
       if (!roundId) {
-        throw new Error('Round ID not found in response');
+        throw new Error(t('dashboard.modal.messages.idNotFound'));
       }
 
       // 2. 音声処理APIを呼び出し
@@ -132,10 +134,10 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
       }
 
       if (!processRes?.ok) {
-        throw new Error('Failed to process audio');
+        throw new Error(t('dashboard.modal.messages.failedProcess'));
       }
 
-      toast.success('登録が完了しました！');
+      toast.success(t('dashboard.modal.messages.success'));
 
       // リセットして閉じる
       resetForm();
@@ -144,7 +146,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
 
     } catch (error: any) {
       console.error('Error:', error);
-      toast.error(error.message || 'エラーが発生しました');
+      toast.error(error.message || t('dashboard.modal.messages.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,7 +171,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         {/* ヘッダー */}
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold">Register new round</h2>
+          <h2 className="text-2xl font-bold">{t('dashboard.modal.title')}</h2>
           <button
             onClick={handleClose}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -184,12 +186,12 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
           {/* タイトル */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              タイトル
+              {t('dashboard.modal.labels.title')}
             </label>
             <textarea
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               rows={1}
-              placeholder="タイトルを入力..."
+              placeholder={t('dashboard.modal.placeholders.title')}
               value={input.title || videoInfo.title}
               onChange={(e) => setInput(prev => ({ ...prev, title: e.target.value }))}
               disabled={isSubmitting}
@@ -199,11 +201,11 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
           {/* YouTube URL入力 */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              YouTube URL
+              {t('dashboard.modal.labels.youtubeUrl')}
             </label>
             <input
               type="text"
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder={t('dashboard.modal.placeholders.youtubeUrl')}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               value={input.youtubeUrl}
               onChange={(e) => handleYoutubeUrlChange(e.target.value)}
@@ -227,7 +229,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
           {/* ファイルアップロード */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              音声ファイル
+              {t('dashboard.modal.labels.audioFile')}
             </label>
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
               <input
@@ -240,7 +242,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
               {!input.audioFile ? (
                 <>
                   <Upload className="w-8 h-8 mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">クリックしてファイルを選択</p>
+                  <p className="text-sm text-gray-600">{t('dashboard.modal.labels.selectFile')}</p>
                 </>
               ) : (
                 <div className="text-center">
@@ -250,7 +252,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
                     onClick={() => setInput(prev => ({ ...prev, audioFile: null }))}
                     className="text-sm text-blue-500 hover:underline mt-1"
                   >
-                    削除
+                    {t('dashboard.modal.labels.delete')}
                   </button>
                 </div>
               )}
@@ -265,14 +267,14 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
               className="px-4 py-2 text-gray-600 hover:text-gray-800"
               disabled={isSubmitting}
             >
-              キャンセル
+              {t('dashboard.modal.buttons.cancel')}
             </button>
             <button
               type="submit"
               className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
               disabled={isSubmitting || (!input.youtubeUrl && !input.audioFile)}
             >
-              {isSubmitting ? '処理中...' : '登録'}
+              {isSubmitting ? t('dashboard.modal.buttons.processing') : t('dashboard.modal.buttons.register')}
             </button>
           </div>
         </form>

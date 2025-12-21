@@ -1,7 +1,9 @@
+
 import { useMemo } from 'react';
 import { Play, Pause, Download } from 'lucide-react';
 import AudioPlayer from './AudioPlayer';
 import { logPlaybackEvent } from '../../../utils/userLogger';
+import { useTranslation } from '../../../context/LanguageContext';
 
 interface Speech {
   name: string;
@@ -65,28 +67,29 @@ export default function RecordingCard({
     [recordings, recording]
   );
 
+  const { t } = useTranslation();
+  const displayName = t(`recordPage.speechNames.${speech.name}`);
+
   return (
     <div
-      className={`rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-        isCurrentSpeech
-          ? speech.team === 'proposition'
-            ? 'border-2 border-red-500 bg-red-50'
-            : 'border-2 border-blue-500 bg-blue-50'
-          : hasRecording
-            ? 'bg-gray-50 hover:bg-gray-100'
-            : 'bg-gray-100 border-2 border-dashed border-gray-300 hover:bg-gray-200'
-      }`}
+      className={`rounded-lg p-4 cursor-pointer transition-all duration-200 ${isCurrentSpeech
+        ? speech.team === 'proposition'
+          ? 'border-2 border-red-500 bg-red-50'
+          : 'border-2 border-blue-500 bg-blue-50'
+        : hasRecording
+          ? 'bg-gray-50 hover:bg-gray-100'
+          : 'bg-gray-100 border-2 border-dashed border-gray-300 hover:bg-gray-200'
+        }`}
       onClick={() => onClick(index)}
     >
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h4 className={`font-medium text-sm ${
-            speech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
-          }`}>
-            {speech.name}
+          <h4 className={`font-medium text-sm ${speech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
+            }`}>
+            {displayName}
           </h4>
           {recordings && recordings.length > 1 && (
-            <span className="text-xs text-gray-500">({recordings.length} recordings)</span>
+            <span className="text-xs text-gray-500">({recordings.length} {t('recordingCard.recordings')})</span>
           )}
         </div>
         {hasRecording && (
@@ -100,7 +103,7 @@ export default function RecordingCard({
                 logPlaybackEvent(isCurrentlyPlaying ? 'pause' : 'play', index, 0);
               }}
               className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              title={currentPlayingSpeech === index && isPlaying ? '停止' : '再生'}
+              title={currentPlayingSpeech === index && isPlaying ? t('recordingCard.stop') : t('recordingCard.play')}
             >
               {currentPlayingSpeech === index && isPlaying ? (
                 <Pause size={12} />
@@ -115,7 +118,7 @@ export default function RecordingCard({
                   onDownload(index);
                 }}
                 className="p-2 bg-green-500 text-white rounded hover:bg-green-600"
-                title="ダウンロード"
+                title={t('recordingCard.download')}
               >
                 <Download size={12} />
               </button>
@@ -136,7 +139,7 @@ export default function RecordingCard({
         />
       ) : (
         <div className="text-gray-400 text-sm text-center py-4">
-          No recording
+          {t('recordingCard.noRecording')}
         </div>
       )}
     </div>

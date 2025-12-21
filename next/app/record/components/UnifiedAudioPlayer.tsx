@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useMemo } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { buildSpeechSegments, globalToLocalTime, getTotalDuration, SpeechSegment } from '../utils/speechTimeline';
 import { logPlaybackEvent } from '../../../utils/userLogger';
+import { useTranslation } from '../../../context/LanguageContext';
 
 interface UnifiedAudioPlayerProps {
   speechRecordings: { [key: number]: { blob: Blob; duration: number; timestamp: string }[] };
@@ -32,6 +33,7 @@ export default function UnifiedAudioPlayer({
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [currentBlobIndexInSegment, setCurrentBlobIndexInSegment] = useState(0);
   const [blobUrls, setBlobUrls] = useState<string[][]>([]); // Array of blob URL arrays (one per segment)
+  const { t } = useTranslation();
 
   // Ref to track the target local time for a pending seek operation
   const pendingSeekRef = useRef<number | null>(null);
@@ -238,7 +240,7 @@ export default function UnifiedAudioPlayer({
   if (segments.length === 0) {
     return (
       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-        <p className="text-gray-600">音声ファイルがありません</p>
+        <p className="text-gray-600">{t('unifiedPlayer.noAudio')}</p>
       </div>
     );
   }
@@ -249,7 +251,7 @@ export default function UnifiedAudioPlayer({
         <button
           onClick={onPlayPause}
           className="p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors"
-          title={isPlaying ? '一時停止' : '再生'}
+          title={isPlaying ? t('unifiedPlayer.pause') : t('unifiedPlayer.play')}
         >
           {isPlaying ? <Pause size={24} /> : <Play size={24} />}
         </button>
@@ -293,8 +295,8 @@ export default function UnifiedAudioPlayer({
               })}
             </div>
             <div className="flex justify-between mt-1 text-xs text-gray-500">
-              <span>Prop</span>
-              <span>Opp</span>
+              <span>{t('unifiedPlayer.prop')}</span>
+              <span>{t('unifiedPlayer.opp')}</span>
             </div>
           </div>
         </div>

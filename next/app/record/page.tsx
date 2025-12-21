@@ -11,6 +11,7 @@ import Header from '../../components/shared/Header';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
 import { logTabSwitch, logPlaybackEvent, logGraphNodeClick } from '../../utils/userLogger';
 import { localToGlobalTime, buildSpeechSegments } from './utils/speechTimeline';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface GraphData {
   speeches: { [key: string]: any[] };
@@ -53,6 +54,7 @@ export default function RecordPage() {
     }
     return true;
   });
+  const { t } = useTranslation();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -327,7 +329,7 @@ export default function RecordPage() {
           console.log('Audio saved successfully:', result);
         } catch (error) {
           console.error('Failed to save recording to API:', error);
-          alert('Failed to save recording. Please try again.');
+          alert(t('recordPage.messages.failedSave'));
         }
 
         stream.getTracks().forEach(track => track.stop());
@@ -347,7 +349,7 @@ export default function RecordPage() {
       }, 1000);
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('Microphone access denied. Please check your browser settings.');
+      alert(t('recordPage.messages.micDenied'));
     }
   };
 
@@ -435,19 +437,18 @@ export default function RecordPage() {
   // 音声からディベートグラフを生成
   const generateDebateGraph = async () => {
     if (!matchName) {
-      setGenerationError('Please enter round ID');
+      setGenerationError(t('recordPage.messages.enterRoundId'));
       return;
     }
 
     if (!areAllAudioFilesReady()) {
-      setGenerationError('All audio files required');
+      setGenerationError(t('recordPage.messages.allAudioRequired'));
       return;
     }
 
     // 確認ダイアログ
     const confirmed = window.confirm(
-      'Generate graph?\n\n' +
-      'This may take several minutes to complete.'
+      t('recordPage.messages.confirmGenerate')
     );
 
     if (!confirmed) {
@@ -510,17 +511,17 @@ export default function RecordPage() {
           });
 
           setGenerationSuccess(
-            `Graph generated successfully! (${result.processing_time_seconds}s)\n` +
-            `- Transcribed: ${result.summary.files_transcribed} files\n` +
-            `- ADUs: ${result.summary.total_adus}\n` +
-            `- Rebuttal pairs: ${result.summary.total_rebuttal_pairs}\n` +
-            `Results saved to: ${result.results_directory}`
+            t('recordPage.status.success', { seconds: result.processing_time_seconds }) + '\n' +
+            t('recordPage.status.transcribed', { files: result.summary.files_transcribed }) + '\n' +
+            t('recordPage.status.adus', { total: result.summary.total_adus }) + '\n' +
+            t('recordPage.status.rebuttalPairs', { total: result.summary.total_rebuttal_pairs }) + '\n' +
+            t('recordPage.status.savedTo', { path: result.results_directory })
           );
         } catch (error) {
           console.error('Failed to load graph data:', error);
           setGenerationSuccess(
-            `Graph generated successfully! (${result.processing_time_seconds}s)\n` +
-            `Results saved to: ${result.results_directory}`
+            t('recordPage.status.success', { seconds: result.processing_time_seconds }) + '\n' +
+            t('recordPage.status.savedTo', { path: result.results_directory })
           );
         }
       }
@@ -700,10 +701,10 @@ export default function RecordPage() {
           // Feedback (Ctrl) でも表示されるように
           setAutoLoadedGraphData(json);
         } else {
-          alert('Invalid JSON format. Please ensure it contains "speeches" and "rebuttals" properties.');
+          alert(t('recordPage.messages.invalidJson'));
         }
       } catch (error) {
-        alert('Failed to parse JSON file: ' + (error instanceof Error ? error.message : String(error)));
+        alert(t('recordPage.messages.failedJson', { error: error instanceof Error ? error.message : String(error) }));
       }
     };
     reader.readAsText(file);
@@ -734,7 +735,7 @@ export default function RecordPage() {
                   : 'text-gray-500 hover:text-gray-900'
                   }`}
               >
-                Home
+                {t('recordPage.tabs.home')}
               </button>
               <button
                 onClick={() => {
@@ -747,7 +748,7 @@ export default function RecordPage() {
                   : 'text-gray-500 hover:text-gray-900'
                   }`}
               >
-                Feedback
+                {t('recordPage.tabs.feedback')}
               </button>
             </div>
           </div>
@@ -819,19 +820,19 @@ export default function RecordPage() {
                         <select
                           value={debateFormat}
                           onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
-                          className="h-12 w-full pl-10 pr-10 bg-slate-50 border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-100/50"
+                          className="h-12 w-full pl-10 pr-10 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-50/50"
                         >
-                          <option value="NA">NA (6 speeches)</option>
-                          <option value="ASIAN">ASIAN (8 speeches)</option>
-                          <option value="BP">BP (8 speeches)</option>
-                          <option value="OPENING_HALF_BP_ORDER">Opening Half BP (4 speeches)</option>
+                          <option value="NA">{t('recordPage.formatOptions.na')}</option>
+                          <option value="ASIAN">{t('recordPage.formatOptions.asian')}</option>
+                          <option value="BP">{t('recordPage.formatOptions.bp')}</option>
+                          <option value="OPENING_HALF_BP_ORDER">{t('recordPage.formatOptions.openingHalfBp')}</option>
                         </select>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                           <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="transition-transform group-focus-within:rotate-180">
                             <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         </div>
-                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Format</label>
+                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.format')}</label>
                       </div>
                     </div>
 
@@ -845,10 +846,10 @@ export default function RecordPage() {
                           type="text"
                           value={matchName}
                           onChange={(e) => setMatchName(e.target.value)}
-                          className="h-12 w-full pl-10 pr-4 bg-slate-50 border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-100/50"
-                          placeholder="Enter Round ID..."
+                          className="h-12 w-full pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                          placeholder={t('recordPage.controls.enterRoundId')}
                         />
-                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Round ID</label>
+                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.roundId')}</label>
                       </div>
                     </div>
 
@@ -865,7 +866,7 @@ export default function RecordPage() {
                           }`}
                       >
                         <Zap size={18} className={isGeneratingGraph ? "animate-pulse" : "fill-current"} />
-                        <span>{isGeneratingGraph ? 'PROCESSING...' : 'GENERATE GRAPH'}</span>
+                        <span>{isGeneratingGraph ? t('recordPage.controls.processing') : t('recordPage.controls.generateGraph')}</span>
                       </button>
                     </div>
                   </div>
@@ -880,7 +881,7 @@ export default function RecordPage() {
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                             </span>
-                            Processing: {generationElapsedTime}s
+                            {t('recordPage.status.processing', { seconds: generationElapsedTime })}
                           </div>
                         )}
                         {generationError && (
@@ -915,7 +916,7 @@ export default function RecordPage() {
               )}
               {!autoLoadedGraphData && (
                 <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                  <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
+                  <p className="text-gray-600">{t('recordPage.messages.noGraphData')}</p>
                 </div>
               )}
 
@@ -944,10 +945,10 @@ export default function RecordPage() {
                         type="text"
                         value={matchName}
                         onChange={(e) => setMatchName(e.target.value)}
-                        className="h-12 w-full lg:w-96 pl-10 pr-4 bg-slate-50 border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-100/50"
-                        placeholder="Search Round ID..."
+                        className="h-12 w-full lg:w-96 pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                        placeholder={t('recordPage.controls.searchRoundId')}
                       />
-                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Round ID</label>
+                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.roundId')}</label>
                     </div>
 
                     {/* Display Options Toggles */}
@@ -955,7 +956,7 @@ export default function RecordPage() {
                       <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 px-6 py-3 rounded-xl ring-1 ring-slate-200/80">
                         {/* POI Toggle */}
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-slate-600">POI Color</span>
+                          <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.poiColor')}</span>
                           <button
                             onClick={() => setShowPoiColors(!showPoiColors)}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showPoiColors ? 'bg-indigo-600' : 'bg-slate-300'
@@ -972,7 +973,7 @@ export default function RecordPage() {
 
                         {/* Node ID Toggle */}
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-slate-600">Node ID</span>
+                          <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.nodeId')}</span>
                           <button
                             onClick={() => setShowNodeIds(!showNodeIds)}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showNodeIds ? 'bg-indigo-600' : 'bg-slate-300'
@@ -994,7 +995,7 @@ export default function RecordPage() {
         </div>
 
 
-      </div>
+      </div >
     </>
   );
 }

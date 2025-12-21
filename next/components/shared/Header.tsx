@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-import { Moon, Sun, Menu, X } from 'lucide-react';
+import { Moon, Sun, Menu, X, Globe } from 'lucide-react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../store/userAtom';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface HeaderProps {
   title?: string;
@@ -12,9 +13,14 @@ interface HeaderProps {
 export default function Header({ title = "DebaTube" }: HeaderProps) {
   const [isDark, setIsDark] = useAtom(themeAtom);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { t, language, setLanguage } = useTranslation();
 
   const toggleTheme = () => {
     setIsDark(!isDark);
+  };
+
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'ja' : 'en');
   };
 
   const navBg = isDark ? 'bg-gray-900/80' : 'bg-white/80';
@@ -28,14 +34,23 @@ export default function Header({ title = "DebaTube" }: HeaderProps) {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <a href="/landing" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:text-blue-600 transition-colors">
-              {title}
+              {t('header.title')}
             </a>
           </div>
-          
+
           <div className="hidden md:flex items-center space-x-8">
-            <a href="/" className="hover:text-blue-600 transition-colors">Explore</a>
-            <a href="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</a>
-            <a href="/record" className="hover:text-blue-600 transition-colors">Record</a>
+            <a href="/" className="hover:text-blue-600 transition-colors">{t('header.explore')}</a>
+            <a href="/dashboard" className="hover:text-blue-600 transition-colors">{t('header.dashboard')}</a>
+            <a href="/record" className="hover:text-blue-600 transition-colors">{t('header.record')}</a>
+
+            <button
+              onClick={toggleLanguage}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${btnBg} ${btnHover} transition-colors text-sm font-medium`}
+            >
+              <Globe size={16} />
+              {language === 'en' ? 'EN' : 'JP'}
+            </button>
+
             {/* <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg ${btnBg} ${btnHover} transition-colors`}

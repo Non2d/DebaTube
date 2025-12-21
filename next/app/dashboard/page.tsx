@@ -7,11 +7,13 @@ import { themeAtom } from '../../components/store/userAtom';
 import Header from '../../components/shared/Header';
 import RegistrationModal from '../../components/shared/RegistrationModal';
 import { useRounds } from './hooks/useRoundsSummary';
+import { useTranslation } from '../../context/LanguageContext';
 
 export default function Dashboard() {
   const [isDark] = useAtom(themeAtom);
   const { rounds, loading, error } = useRounds();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { t } = useTranslation();
 
   const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
   const textColor = isDark ? 'text-white' : 'text-gray-900';
@@ -30,9 +32,9 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8 flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+              <h1 className="text-3xl font-bold mb-2">{t('dashboard.title')}</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                Overview of all debate rounds and their statistics
+                {t('dashboard.description')}
               </p>
             </div>
             <button
@@ -40,13 +42,13 @@ export default function Dashboard() {
               className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors shadow-md"
             >
               <Plus className="w-5 h-5" />
-              Register New Round
+              {t('dashboard.registerNewRound')}
             </button>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
-              <h3 className="text-lg font-semibold mb-4">Total Rounds</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRounds')}</h3>
               <div className="text-3xl font-bold text-blue-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -57,7 +59,7 @@ export default function Dashboard() {
             </div>
 
             <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
-              <h3 className="text-lg font-semibold mb-4">Total POIs</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalPois')}</h3>
               <div className="text-3xl font-bold text-green-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -68,7 +70,7 @@ export default function Dashboard() {
             </div>
 
             <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
-              <h3 className="text-lg font-semibold mb-4">Total Rebuttals</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRebuttals')}</h3>
               <div className="text-3xl font-bold text-purple-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -79,7 +81,7 @@ export default function Dashboard() {
             </div>
 
             <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
-              <h3 className="text-lg font-semibold mb-4">Argument Units</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.argumentUnits')}</h3>
               <div className="text-3xl font-bold text-orange-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -91,10 +93,10 @@ export default function Dashboard() {
           </div>
 
           <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
-            <h3 className="text-lg font-semibold mb-4">All Rounds</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('dashboard.table.title')}</h3>
             {error ? (
               <div className="text-center py-8">
-                <div className="text-red-500 mb-2">Error loading rounds</div>
+                <div className="text-red-500 mb-2">{t('dashboard.table.error')}</div>
                 <div className="text-gray-500 text-sm">{error}</div>
               </div>
             ) : (
@@ -102,13 +104,13 @@ export default function Dashboard() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-2 px-4">Title</th>
-                      <th className="text-left py-2 px-4">Motion</th>
-                      <th className="text-left py-2 px-4">POIs</th>
-                      <th className="text-left py-2 px-4">Rebuttals</th>
-                      <th className="text-left py-2 px-4">Speeches</th>
-                      <th className="text-left py-2 px-4">Arguments</th>
-                      <th className="text-left py-2 px-4">Tag</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.title')}</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.pois')}</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.rebuttals')}</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.speeches')}</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.arguments')}</th>
+                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.tag')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -141,7 +143,7 @@ export default function Dashboard() {
                     ) : rounds.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-8 text-center text-gray-500">
-                          No rounds found
+                          {t('dashboard.table.noRounds')}
                         </td>
                       </tr>
                     ) : (

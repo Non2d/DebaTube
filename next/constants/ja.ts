@@ -1,0 +1,229 @@
+
+import { LocaleType } from './en';
+
+export const ja: LocaleType = {
+    header: {
+        title: "DebaTube Live",
+        explore: "試合をさがす",
+        dashboard: "試合一覧をみる",
+        record: "試合を録音する",
+    },
+    timer: {
+        overTime: "時間超過中",
+        recording: "録音中",
+    },
+    recordingCard: {
+        recordings: "録音",
+        play: "再生",
+        pause: "一時停止",
+        stop: "停止",
+        download: "ダウンロード",
+        noRecording: "録音なし",
+        proposition: "肯定側",
+        opposition: "否定側",
+    },
+    unifiedPlayer: {
+        noAudio: "音声ファイルがありません",
+        play: "再生",
+        pause: "一時停止",
+        prop: "肯定",
+        opp: "否定",
+    },
+    recordPage: {
+        tabs: {
+            home: "録音",
+            feedback: "可視化",
+        },
+        controls: {
+            format: "フォーマット",
+            roundId: "ラウンドID",
+            enterRoundId: "ラウンドIDを入力...",
+            searchRoundId: "ラウンドIDを検索...",
+            generateGraph: "グラフ作成",
+            processing: "処理中...",
+        },
+        status: {
+            processing: "処理中: {seconds}秒",
+            success: "グラフ生成完了! ({seconds}秒)",
+            error: "エラー: {message}",
+            transcribed: "- 文字起こし: {files} ファイル",
+            adus: "- ADU数: {total}",
+            rebuttalPairs: "- 反論ペア数: {total}",
+            savedTo: "保存先: {path}",
+        },
+        messages: {
+            enterRoundId: "ラウンドIDを入力してください",
+            allAudioRequired: "全ての音声ファイルが必要です",
+            confirmGenerate: "グラフを生成しますか？\n\nこれには数分かかる場合があります。",
+            invalidJson: "無効なJSON形式です。「speeches」と「rebuttals」が含まれているか確認してください。",
+            failedJson: "JSONの解析に失敗しました: {error}",
+            micDenied: "マイクへのアクセスが拒否されました。ブラウザの設定を確認してください。",
+            failedSave: "録音の保存に失敗しました。もう一度お試しください。",
+            noGraphData: "グラフデータがありません。ホームタブで生成してください。",
+        },
+        toggles: {
+            poiColor: "POIカラー",
+            nodeId: "ノードID",
+        },
+        formatOptions: {
+            na: "NA (6スピーチ)",
+            asian: "ASIAN (8スピーチ)",
+            bp: "BP (8スピーチ)",
+            openingHalfBp: "Opening Half BP (4スピーチ)",
+        },
+        speechNames: {
+            Proposition_1st: "肯定側1人目",
+            Opposition_1st: "否定側1人目",
+            Proposition_2nd: "肯定側2人目",
+            Opposition_2nd: "否定側2人目",
+            Proposition_3rd: "肯定側3人目",
+            Opposition_3rd: "否定側3人目",
+            Proposition_4th: "肯定側4人目",
+            Opposition_4th: "否定側4人目",
+        }
+    },
+    landingPage: {
+        hero: {
+            titlePart1: "LLMが可視化する",
+            titlePart2: "パーラメンタリーディベート",
+            description: "最新のLLM技術で競技ディベートの分析を変革します。議論の流れを可視化し、反論を分析し、かつてないほど深くディベート構造を理解しましょう。",
+            getStarted: "はじめる",
+            watchDemo: "デモを見る",
+        },
+        features: {
+            titlePart1: "ディベート分析のための",
+            titlePart2: "強力な機能",
+            description: "最先端のAIプラットフォームが、競技ディベートの分析と可視化のための包括的なツールを提供します。",
+            items: {
+                llmAnalysis: {
+                    title: "LLMによる分析",
+                    desc: "高度なLLM技術が、ディベートの論点と反論を精密に分析します"
+                },
+                visualization: {
+                    title: "リアルタイム可視化",
+                    desc: "動的なフローチャートで、議論の構造と反論関係を瞬時に表示します"
+                },
+                structureMapping: {
+                    title: "ディベート構造マッピング",
+                    desc: "肯定側と否定側の立論位置を包括的にマッピングします"
+                },
+                endToEnd: {
+                    title: "エンドツーエンド処理",
+                    desc: "ディベートの録音から自動で文字起こしと反論判定を行います"
+                }
+            }
+        },
+        benefits: {
+            titlePart1: "なぜ",
+            titlePart2: "DebaTubeなのか？",
+            description: "コーチ、学生、研究者向けに設計された包括的なプラットフォームで、ディベート分析の未来を体験してください。",
+            items: {
+                item1: "議論構造の即時可視化",
+                item2: "AIによる反論検出",
+                item3: "マルチフォーマット出力",
+                item4: "リアルタイム共同編集",
+                item5: "包括的なディベートアーカイブ",
+                item6: "パフォーマンス分析"
+            }
+        },
+        parliamentaryDebate: {
+            titlePart1: "パーラメンタリーディベート",
+            titlePart2: "とは？",
+            description: "パーラメンタリーディベートは、チームが論題に対して賛成・反対の立場から主張を行い、批判的思考力と説得力のあるコミュニケーションスキルを養う動的なフォーマットです。",
+            keyFeaturesTitle: "パーラメンタリーディベートの主な特徴",
+            features: {
+                govVsOpp: {
+                    title: "肯定側 vs 否定側",
+                    desc: "肯定側（Government）は論題を支持し、否定側（Opposition）はそれに挑戦するという、構造化された対立形式で議論します。"
+                },
+                strategicArgs: {
+                    title: "戦略的な議論",
+                    desc: "成功には、個々の議論の強さだけでなく、ディベート全体を通して議論がどのように相互作用し、衝突し、積み重なっていくかを理解することが求められます。"
+                }
+            },
+            visualizationTitle: "なぜ可視化が重要なのか",
+            visualizations: {
+                complexStructure: {
+                    title: "複雑な議論構造:",
+                    desc: "パーラメンタリーディベートは、主張、根拠、反論が複雑に絡み合うため、頭の中だけで追うのは困難です。"
+                },
+                realTime: {
+                    title: "リアルタイム分析:",
+                    desc: "リアルタイムで議論の衝突とつながりを理解することで、ディベートのパフォーマンスとジャッジの精度が向上します。"
+                },
+                educational: {
+                    title: "教育的価値:",
+                    desc: "視覚的な表現は、学生が議論のパターンを学び、戦略的な機会を特定するのに役立ちます。"
+                },
+                postRound: {
+                    title: "ラウンド後の分析:",
+                    desc: "包括的な視覚的サマリーにより、詳細なフィードバックとパフォーマンスの改善が可能になります。"
+                }
+            }
+        },
+        cta: {
+            title: "パラダイムシフトを受け入れる準備はできましたか？",
+            description: "何千ものディベーター、ジャッジ、研究者がDebaTubeを活用してパーラメンタリーディベートのスキルを向上させています。あなたも今すぐ参加しましょう。",
+            button: "はじめる"
+        },
+        footer: {
+            description: "AIによる可視化でディベートに革命を",
+            privacy: "プライバシー",
+            terms: "利用規約",
+            support: "サポート",
+            copyright: "© 2024 DebaTube. All rights reserved."
+        }
+    },
+    dashboard: {
+        title: "ダッシュボード",
+        description: "全ディベートラウンドの概要と統計",
+        registerNewRound: "新規ラウンド登録",
+        stats: {
+            totalRounds: "総ラウンド数",
+            totalPois: "総POI数",
+            totalRebuttals: "総反論数",
+            argumentUnits: "議論単位数"
+        },
+        table: {
+            title: "全ラウンド",
+            error: "ラウンドの読み込みエラー",
+            noRounds: "ラウンドが見つかりません",
+            headers: {
+                title: "タイトル",
+                motion: "論題",
+                pois: "POI",
+                rebuttals: "反論",
+                speeches: "スピーチ",
+                arguments: "議論",
+                tag: "タグ"
+            }
+        },
+        modal: {
+            title: "新規ラウンド登録",
+            labels: {
+                title: "タイトル",
+                youtubeUrl: "YouTube URL",
+                audioFile: "音声ファイル",
+                selectFile: "クリックしてファイルを選択",
+                delete: "削除"
+            },
+            placeholders: {
+                title: "タイトルを入力...",
+                youtubeUrl: "https://www.youtube.com/watch?v=..."
+            },
+            buttons: {
+                cancel: "キャンセル",
+                register: "登録",
+                processing: "処理中..."
+            },
+            messages: {
+                selectUrlOrFile: "YouTube URLまたは音声ファイルを選択してください",
+                success: "登録が完了しました！",
+                error: "エラーが発生しました",
+                failedCreate: "ラウンドの作成に失敗しました",
+                failedProcess: "音声処理に失敗しました",
+                idNotFound: "レスポンスにRound IDが見つかりません"
+            }
+        }
+    }
+};

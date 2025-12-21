@@ -9,15 +9,19 @@ export const metadata = {
   description: 'Created for Competitive Debaters',
 };
 
+import { LanguageProvider } from '../context/LanguageContext';
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="jp">
       <body>
         <Provider>
           <Toaster position="top-right" />
-          <AppProvider>
-            {children}
-          </AppProvider>
+          <LanguageProvider>
+            <AppProvider>
+              {children}
+            </AppProvider>
+          </LanguageProvider>
         </Provider>
       </body>
     </html>
