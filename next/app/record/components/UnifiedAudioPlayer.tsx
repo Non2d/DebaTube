@@ -273,31 +273,30 @@ export default function UnifiedAudioPlayer({
               appearance: 'none',
             }}
           />
-        </div>
-      </div>
-
-      {/* Speech timeline visualization */}
-      <div className="mt-4">
-        <div className="flex gap-1">
-          {segments.map((segment, index) => {
-            const percentage = (segment.duration / totalDuration) * 100;
-            return (
-              <div
-                key={segment.speechIndex}
-                className="h-2 rounded"
-                style={{
-                  width: `${percentage}%`,
-                  backgroundColor: index % 2 === 0 ? '#ef4444' : '#3b82f6',
-                  opacity: currentSegmentIndex === index ? 1 : 0.5,
-                }}
-                title={`Speech ${segment.speechIndex + 1}: ${formatTime(segment.duration)}`}
-              />
-            );
-          })}
-        </div>
-        <div className="flex justify-between mt-1 text-xs text-gray-500">
-          <span>Prop</span>
-          <span>Opp</span>
+          {/* Speech timeline visualization */}
+          <div className="mt-2">
+            <div className="flex gap-1">
+              {segments.map((segment, index) => {
+                const percentage = (segment.duration / totalDuration) * 100;
+                return (
+                  <div
+                    key={segment.speechIndex}
+                    className="h-2 rounded"
+                    style={{
+                      width: `${percentage}%`,
+                      backgroundColor: index % 2 === 0 ? '#ef4444' : '#3b82f6',
+                      opacity: currentSegmentIndex === index ? 1 : 0.5,
+                    }}
+                    title={`Speech ${segment.speechIndex + 1}: ${formatTime(segment.duration)}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-1 text-xs text-gray-500">
+              <span>Prop</span>
+              <span>Opp</span>
+            </div>
+          </div>
         </div>
       </div>
 
