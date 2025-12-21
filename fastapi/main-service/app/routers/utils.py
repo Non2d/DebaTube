@@ -46,64 +46,162 @@ def clean_gemini_markdown_response(response_text: str) -> str:
     # Strip whitespace and newlines
     return cleaned_response.strip()
 
+import re
 
-def group_words_into_sentences(text: str, words_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def group_words_into_sentences(text: str, words_data: list) -> list:
     """
-    Group word-level timestamps into sentence-level data to reduce token usage.
-    Sentences are split by punctuation marks (. ? !)
-
-    Args:
-        text: Full transcript text with punctuation
-        words_data: List of word-level timestamp data
-
-    Returns:
-        List of sentence objects with id, text, start_time, end_time
+    textの句読点情報とwords_dataのタイムスタンプを組み合わせて分割する。
     """
     if not words_data:
         return []
-
-    # Split text into sentences using common punctuation, preserving the punctuation
-    sentence_pattern = r'([.!?]+)'
-    parts = re.split(sentence_pattern, text)
-
-    # Combine text parts with their punctuation
-    sentence_texts = []
-    for i in range(0, len(parts) - 1, 2):
-        if parts[i].strip():
-            sentence_with_punct = parts[i].strip()
-            if i + 1 < len(parts):
-                sentence_with_punct += parts[i + 1]
-            sentence_texts.append(sentence_with_punct)
-
-    # Handle last part if it doesn't end with punctuation
-    if len(parts) % 2 == 1 and parts[-1].strip():
-        sentence_texts.append(parts[-1].strip())
-
-    sentences = []
-    current_word_idx = 0
-
-    for sentence_idx, sentence_text in enumerate(sentence_texts):
-        sentence_words = sentence_text.split()
-        expected_word_count = len(sentence_words)
-        end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
-
-        if current_word_idx >= len(words_data):
-            break
-
-        start_time = words_data[current_word_idx].get("start", 0)
-        end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
-
-        sentences.append({
-            "id": sentence_idx,
-            "text": sentence_text,
-            "start_time": round(start_time, 1),
-            "end_time": round(end_time, 1),
+    
+    # 設定
+    MIN_WORDS_PER_SEGMENT = 8
+    MAX_WORDS_PER_SEGMENT = 40
+    PAUSE_THRESHOLD = 0.8
+    
+    # textから単語と句読点の情報を抽出
+    # 例: "Hello, world." -> [("Hello", ","), ("world", ".")]
+    token_pattern = r"(\S+?)([.,!?;:]*)\s*"
+    text_tokens = []
+    for match in re.finditer(token_pattern, text):
+        word = match.group(1)
+        punctuation = match.group(2)
+        text_tokens.append((word, punctuation))
+    
+    # words_dataと text_tokensを対応付ける
+    # words_dataの単語にpunctuationを付与
+    words_with_punct = []
+    text_idx = 0
+    
+    for word_info in words_data:
+        word = word_info.get("word", "").strip()
+        if not word:
+            continue
+        
+        # text_tokensから対応する単語を探す
+        punctuation = ""
+        if text_idx < len(text_tokens):
+            text_word, text_punct = text_tokens[text_idx]
+            # 単語が一致するか確認（大文字小文字無視、句読点除去）
+            word_clean = re.sub(r'[.,!?;:\'"]+', '', word.lower())
+            text_word_clean = re.sub(r'[.,!?;:\'"]+', '', text_word.lower())
+            
+            if word_clean == text_word_clean:
+                punctuation = text_punct
+                text_idx += 1
+            elif text_word_clean in word_clean or word_clean in text_word_clean:
+                # 部分一致の場合も進める
+                punctuation = text_punct
+                text_idx += 1
+        
+        words_with_punct.append({
+            "word": word,
+            "punctuation": punctuation,
+            "start": word_info.get("start", 0),
+            "end": word_info.get("end", 0)
         })
-
-        current_word_idx = end_word_idx
-
-    return sentences
-
+    
+    # 強い区切りになる接続詞
+    strong_connectors = {'so', 'because', 'therefore', 'however', 'but', 'although', 'since'}
+    weak_connectors = {'and', 'or'}
+    
+    # 文末記号
+    sentence_enders = {'.', '!', '?'}
+    
+    segments = []
+    current_segment = []
+    current_start_time = None
+    
+    for i, item in enumerate(words_with_punct):
+        word = item["word"]
+        punct = item["punctuation"]
+        start = item["start"]
+        end = item["end"]
+        
+        if current_start_time is None:
+            current_start_time = start
+        
+        # 前の単語との間（pause）
+        pause_before = 0
+        if i > 0 and current_segment:
+            pause_before = start - words_with_punct[i - 1]["end"]
+        
+        word_lower = word.lower().rstrip('.,!?')
+        word_count = len(current_segment)
+        
+        should_break = False
+        
+        # 条件1: 前の単語が文末句読点を持っていて、十分な長さ
+        if current_segment:
+            prev_punct = current_segment[-1]["punctuation"]
+            if any(p in prev_punct for p in sentence_enders):
+                if word_count >= MIN_WORDS_PER_SEGMENT:
+                    should_break = True
+        
+        # 条件2: 強い接続詞 + 十分な長さ + pause
+        if word_lower in strong_connectors:
+            if word_count >= MIN_WORDS_PER_SEGMENT and pause_before >= 0.2:
+                should_break = True
+        
+        # 条件3: 長いpause + 十分な長さ
+        if pause_before >= PAUSE_THRESHOLD and word_count >= MIN_WORDS_PER_SEGMENT:
+            should_break = True
+        
+        # 条件4: 最大長を超えそう
+        if word_count >= MAX_WORDS_PER_SEGMENT:
+            # カンマや接続詞で区切る
+            if current_segment:
+                prev_punct = current_segment[-1]["punctuation"]
+                if ',' in prev_punct or word_lower in strong_connectors | weak_connectors:
+                    should_break = True
+                elif pause_before >= 0.2:
+                    should_break = True
+        
+        # 区切りを入れる
+        if should_break and current_segment:
+            segments.append({
+                "items": current_segment.copy(),
+                "start_time": current_start_time,
+                "end_time": current_segment[-1]["end"]
+            })
+            current_segment = []
+            current_start_time = start
+        
+        current_segment.append(item)
+    
+    # 最後のセグメント
+    if current_segment:
+        segments.append({
+            "items": current_segment.copy(),
+            "start_time": current_start_time,
+            "end_time": current_segment[-1]["end"]
+        })
+    
+    # 短すぎるセグメントを結合
+    merged_segments = []
+    for seg in segments:
+        if merged_segments and len(seg["items"]) < MIN_WORDS_PER_SEGMENT // 2:
+            merged_segments[-1]["items"].extend(seg["items"])
+            merged_segments[-1]["end_time"] = seg["end_time"]
+        else:
+            merged_segments.append(seg)
+    
+    # 出力形式に変換（句読点も含めてテキストを構築）
+    result = []
+    for idx, seg in enumerate(merged_segments):
+        text_parts = []
+        for item in seg["items"]:
+            text_parts.append(item["word"] + item["punctuation"])
+        
+        result.append({
+            "id": idx,
+            "text": " ".join(text_parts),
+            "start_time": round(seg["start_time"], 1),
+            "end_time": round(seg["end_time"], 1)
+        })
+    
+    return result
 
 def parse_gemini_adu_response(response_text: str) -> Optional[List[Dict[str, Any]]]:
     """

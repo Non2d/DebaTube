@@ -156,77 +156,77 @@ async def audio_to_transcript(files: List[UploadFile] = File(...)):
 
 
 
-@router.post("/group-sentences", response_model=SentenceGroupResponse)
-async def group_sentences(request: SentenceGroupRequest):
-    """
-    Group word-level timestamps into sentence-level data.
-    Sentences are split by punctuation marks (. ? !)
+# @router.post("/group-sentences", response_model=SentenceGroupResponse)
+# async def group_sentences(request: SentenceGroupRequest):
+#     """
+#     Group word-level timestamps into sentence-level data.
+#     Sentences are split by punctuation marks (. ? !)
 
-    Args:
-        request: Contains full text with punctuation and word-level timestamp data
+#     Args:
+#         request: Contains full text with punctuation and word-level timestamp data
 
-    Returns:
-        SentenceGroupResponse: List of sentences with timing information
-    """
-    try:
-        text = request.text
-        words_data = [word.model_dump() for word in request.words]
+#     Returns:
+#         SentenceGroupResponse: List of sentences with timing information
+#     """
+#     try:
+#         text = request.text
+#         words_data = [word.model_dump() for word in request.words]
 
-        if not words_data:
-            return SentenceGroupResponse(sentences=[])
+#         if not words_data:
+#             return SentenceGroupResponse(sentences=[])
 
-        # Split text into sentences using common punctuation, preserving the punctuation
-        sentence_pattern = r'([.!?]+)'
-        parts = re.split(sentence_pattern, text)
+#         # Split text into sentences using common punctuation, preserving the punctuation
+#         sentence_pattern = r'([.!?]+)'
+#         parts = re.split(sentence_pattern, text)
 
-        # Combine text parts with their punctuation
-        sentence_texts = []
-        for i in range(0, len(parts) - 1, 2):
-            if parts[i].strip():
-                # Combine sentence text with its punctuation
-                sentence_with_punct = parts[i].strip()
-                if i + 1 < len(parts):
-                    sentence_with_punct += parts[i + 1]
-                sentence_texts.append(sentence_with_punct)
+#         # Combine text parts with their punctuation
+#         sentence_texts = []
+#         for i in range(0, len(parts) - 1, 2):
+#             if parts[i].strip():
+#                 # Combine sentence text with its punctuation
+#                 sentence_with_punct = parts[i].strip()
+#                 if i + 1 < len(parts):
+#                     sentence_with_punct += parts[i + 1]
+#                 sentence_texts.append(sentence_with_punct)
 
-        # Handle last part if it doesn't end with punctuation
-        if len(parts) % 2 == 1 and parts[-1].strip():
-            sentence_texts.append(parts[-1].strip())
+#         # Handle last part if it doesn't end with punctuation
+#         if len(parts) % 2 == 1 and parts[-1].strip():
+#             sentence_texts.append(parts[-1].strip())
 
-        sentences = []
-        current_word_idx = 0
+#         sentences = []
+#         current_word_idx = 0
 
-        for sentence_text in sentence_texts:
-            # Count words in this sentence (approximate by splitting on whitespace)
-            sentence_words = sentence_text.split()
-            expected_word_count = len(sentence_words)
+#         for sentence_text in sentence_texts:
+#             # Count words in this sentence (approximate by splitting on whitespace)
+#             sentence_words = sentence_text.split()
+#             expected_word_count = len(sentence_words)
 
-            # Find the end index for this sentence
-            end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
+#             # Find the end index for this sentence
+#             end_word_idx = min(current_word_idx + expected_word_count, len(words_data))
 
-            # Skip if no words in range
-            if current_word_idx >= len(words_data):
-                break
+#             # Skip if no words in range
+#             if current_word_idx >= len(words_data):
+#                 break
 
-            # Get start and end times from the word data
-            start_time = words_data[current_word_idx].get("start", 0)
-            end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
+#             # Get start and end times from the word data
+#             start_time = words_data[current_word_idx].get("start", 0)
+#             end_time = words_data[min(end_word_idx - 1, len(words_data) - 1)].get("end", start_time)
 
-            sentences.append(SentenceInfo(
-                text=sentence_text,
-                start_time=round(start_time, 1),
-                end_time=round(end_time, 1),
-                start_word_index=current_word_idx,
-                end_word_index=end_word_idx - 1
-            ))
+#             sentences.append(SentenceInfo(
+#                 text=sentence_text,
+#                 start_time=round(start_time, 1),
+#                 end_time=round(end_time, 1),
+#                 start_word_index=current_word_idx,
+#                 end_word_index=end_word_idx - 1
+#             ))
 
-            current_word_idx = end_word_idx
+#             current_word_idx = end_word_idx
 
-        return SentenceGroupResponse(sentences=sentences)
+#         return SentenceGroupResponse(sentences=sentences)
 
-    except Exception as e:
-        logger.error(f"Error processing sentences: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing sentences: {str(e)}")
+#     except Exception as e:
+#         logger.error(f"Error processing sentences: {str(e)}")
+#         raise HTTPException(status_code=500, detail=f"Error processing sentences: {str(e)}")
 
 @router.post("/adu-jsonlog-to-csv")
 async def adu_json_to_csv(file: UploadFile = File(...)):
@@ -689,3 +689,22 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
         print(f"[/transcript-to-adu] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during ADU conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")
+
+@router.post("/group_words_into_sentences")
+async def group_sentences(request: SentenceGroupRequest):
+    """
+    Group word-level timestamps into sentence-level data usin group_words_into_sentences().
+    Sentences are split by punctuation marks (. ? !)
+
+    Args:
+        request: Contains full text with punctuation and word-level timestamp data
+
+    Returns:
+        List of sentences with timing information
+    """
+    text = request.text
+    words_data = [word.model_dump() for word in request.words]
+
+    sentences = group_words_into_sentences(text, words_data)
+
+    return sentences
