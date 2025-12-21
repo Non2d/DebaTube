@@ -16,7 +16,7 @@ router = APIRouter()
 
 # Import shared directories
 from .audio2adu import ADUS_DIR, LOGS_DIR
-from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences
+from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences, merge_adus_to_unified_csv, unified_csv_to_markdown
 
 # Define SUB_TRANSCRIPTS directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
