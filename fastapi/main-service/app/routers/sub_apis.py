@@ -550,7 +550,7 @@ async def transcript_to_adu(transcript: TranscriptRequest):
         # Group words into sentences to reduce token usage
         sentences_data = group_words_into_sentences(transcript_text, words_data)
 
-        GEMINI_MODEL = "gemini-2.5-pro"
+        GEMINI_MODEL = "gemini-2.5-flash"
 
         # Prepare prompt for Gemini with sentence-level data
         response = client_gemini.models.generate_content(
@@ -569,7 +569,7 @@ ADU Role Definitions:
 Segmentation Guidelines:
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
 2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
+3. One rebuttal is always an considered as one independent ADU regardless of length
 4. Group sentences discussing the same specific argumentative point into one ADU
 
 Speech transcription:
@@ -586,14 +586,12 @@ Return the result as JSON in the following format:
       "start_sentence_index": 0,
       "end_sentence_index": 2,
       "text": "The actual ADU text",
-      "role": "independent_rebuttal/point_of_main_argument/etc",
-      "start_time": 0.0,
-      "end_time": 2.5,
+      "role": "independent_rebuttal/point_of_main_argument/etc"
     }}
   ]
 }}
 
-Note: Use start_sentence_index and end_sentence_index instead of word indices.
+Note:
 Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
 """
         )
