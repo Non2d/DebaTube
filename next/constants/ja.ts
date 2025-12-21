@@ -31,8 +31,8 @@ export const ja: LocaleType = {
     },
     recordPage: {
         tabs: {
-            home: "録音",
-            feedback: "可視化",
+            audio: "音声",
+            visualization: "可視化",
         },
         controls: {
             format: "フォーマット",

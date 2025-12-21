@@ -18,10 +18,11 @@ interface GraphData {
   rebuttals: [number, number][];
 }
 
-type TabType = 'home' | 'baseline' | 'baseline2' | 'ctrl' | 'ctrl2';
+
+type TabType = 'audio' | 'visualization';
 
 export default function RecordPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [activeTab, setActiveTab] = useState<TabType>('audio');
   const [matchName, setMatchName] = useState('');
   const [debateFormat, setDebateFormat] = useState<DebateFormatType>('BP'); // Default format
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
@@ -727,36 +728,36 @@ export default function RecordPage() {
             <div className="bg-gray-100 p-1 rounded-lg inline-flex shadow-inner">
               <button
                 onClick={() => {
-                  setActiveTab('home');
-                  logTabSwitch('home', matchName);
+                  setActiveTab('audio');
+                  logTabSwitch('audio', matchName);
                 }}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'home'
+                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'audio'
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-500 hover:text-gray-900'
                   }`}
               >
-                {t('recordPage.tabs.home')}
+                {t('recordPage.tabs.audio')}
               </button>
               <button
                 onClick={() => {
-                  setActiveTab('ctrl2');
-                  logTabSwitch('ctrl2', matchName);
+                  setActiveTab('visualization');
+                  logTabSwitch('visualization', matchName);
                   if (matchName) autoLoadGraphData(matchName);
                 }}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'ctrl2'
+                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'visualization'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-900'
                   }`}
               >
-                {t('recordPage.tabs.feedback')}
+                {t('recordPage.tabs.visualization')}
               </button>
             </div>
           </div>
 
           {/* Tab content */}
 
-          {/* Home Tab */}
-          {activeTab === 'home' && (
+          {/* Audio Tab */}
+          {activeTab === 'audio' && (
             <div>
               <div className="text-center mb-8">
                 <div className="flex items-center justify-center gap-8 mb-6">
@@ -905,7 +906,7 @@ export default function RecordPage() {
 
 
           {/* Feedback Tab */}
-          {activeTab === 'ctrl2' && (
+          {activeTab === 'visualization' && (
             <div>
               {autoLoadedGraphData && (
                 <div className="mb-12">

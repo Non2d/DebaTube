@@ -29,8 +29,8 @@ export const en = {
     },
     recordPage: {
         tabs: {
-            home: "Record",
-            feedback: "Visualization",
+            audio: "Audio",
+            visualization: "Visualization",
         },
         controls: {
             format: "Format",
