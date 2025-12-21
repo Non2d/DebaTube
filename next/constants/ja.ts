@@ -177,7 +177,7 @@ export const ja: LocaleType = {
     dashboard: {
         title: "ダッシュボード",
         description: "全ディベートラウンドの概要と統計",
-        registerNewRound: "新規ラウンド登録",
+        registerNewRound: "新しい試合を登録",
         stats: {
             totalRounds: "総ラウンド数",
             totalPois: "総POI数",
@@ -199,7 +199,7 @@ export const ja: LocaleType = {
             }
         },
         modal: {
-            title: "新規ラウンド登録",
+            title: "新しい試合を登録",
             labels: {
                 title: "タイトル",
                 youtubeUrl: "YouTube URL",
