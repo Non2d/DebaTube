@@ -16,7 +16,7 @@ router = APIRouter()
 
 # Import shared directories
 from .audio2adu import ADUS_DIR, LOGS_DIR
-from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences, group_words_into_sentences_old, merge_adus_to_unified_csv, unified_csv_to_markdown
+from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences, merge_adus_to_unified_csv, unified_csv_to_markdown
 
 # Define SUB_TRANSCRIPTS directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -705,7 +705,6 @@ def group_sentences(request: SentenceGroupRequest):
     text = request.text
     words_data = [word.model_dump() for word in request.words]
 
-    # sentences = group_words_into_sentences(text, words_data)
-    sentences = group_words_into_sentences(text, words_data, debug=True)
+    sentences = group_words_into_sentences(text, words_data)
 
     return sentences

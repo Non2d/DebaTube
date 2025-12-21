@@ -94,7 +94,7 @@ async def regroup_single_speech_sentences_to_adus(
         ]
 
         sentences_data = group_words_into_sentences(
-            transcript_text, words_data, debug=True
+            transcript_text, words_data
         )
         total_sentences = len(sentences_data)
         prompt_sentences_data = [
@@ -105,64 +105,54 @@ async def regroup_single_speech_sentences_to_adus(
             for sentence in sentences_data
         ]
 
-        logger.info(f"======INPUTS===========")
-        logger.info(f"transcript_text: {transcript_text}")
-        logger.info(f"words_data: {words_data}")
-        logger.info(f"======OUTPUTS===========")
-        logger.info(f"sentences_data: {sentences_data}")
-        logger.info(f"FINAL PRONPUTO DATA: {prompt_sentences_data}")
-
-
         GEMINI_MODEL = "gemini-2.5-flash"
 
-#         response = await asyncio.to_thread(
-#             client_gemini.models.generate_content,
-#             model=GEMINI_MODEL,
-#             contents=f"""
-# Please segment the following debate speech into Argument Discourse Units.
-# Each ADU represents a single argument or discourse unit with a specific role below:
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=f"""
+Please segment the following debate speech into Argument Discourse Units.
+Each ADU represents a single argument or discourse unit with a specific role below:
 
-# ADU Role Definitions:
-# - introduction: Opening statement that typically explains the team's stance and framework
-# - definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-# - independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-# - point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-# - point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-# - poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
 
-# Segmentation Guidelines:
-# 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-# 2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-# 3. Rebuttals are always independent ADUs regardless of length
-# 4. Group sentences discussing the same specific argumentative point into one ADU
-# 5. Treat any POI as a single independent ADU.
-# 6. Treat a response to a POI as a single ADU.
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+5. Treat any POI as a single independent ADU.
+6. Treat a response to a POI as a single ADU.
 
-# Sentence-level transcript data:
-# {json.dumps(prompt_sentences_data, indent=None)}
+Sentence-level transcript data:
+{json.dumps(prompt_sentences_data, indent=None)}
 
-# Return the result as JSON in the following format:
-# {{
-#   "adus": [
-#     {{
-#       "id": 1,
-#       "start_sentence_index": 0,
-#       "end_sentence_index": 2,
-#       "text": "The actual ADU text",
-#       "role": "independent_rebuttal/point_of_main_argument/etc",
-#     }}
-#   ]
-# }}
+Return the result as JSON in the following format:
+{{
+  "adus": [
+    {{
+      "id": 1,
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
+      "text": "The actual ADU text",
+      "role": "independent_rebuttal/point_of_main_argument/etc",
+    }}
+  ]
+}}
 
-# Note: Use start_sentence_index and end_sentence_index instead of word indices.
-# Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
-# IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
-# """,
-#         )
+Note: Use start_sentence_index and end_sentence_index instead of word indices.
+Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
+IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
+""",
+        )
 
-#         response_text = response.text if hasattr(response, "text") else str(response)
-        response = {"adus": []}
-        response_text = "nth"
+        response_text = response.text if hasattr(response, "text") else str(response)
 
         try:
             raw_response_dict = (
