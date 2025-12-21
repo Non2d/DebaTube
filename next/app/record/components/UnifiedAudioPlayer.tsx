@@ -124,14 +124,14 @@ export default function UnifiedAudioPlayer({
       setCurrentBlobIndexInSegment(blobIndex);
       setCurrentGlobalTime(seekToGlobalTime); // Optimistic update
 
-      logPlaybackEvent('seek_segment_switch', localInfo.speechIndex, seekToGlobalTime);
+      logPlaybackEvent('seek', localInfo.speechIndex, seekToGlobalTime);
     } else {
       // Same segment/blob, just seek via ref
       if (audioRef.current) {
         audioRef.current.currentTime = targetLocalTime;
       }
       setCurrentGlobalTime(seekToGlobalTime);
-      logPlaybackEvent('seek_same_segment', localInfo.speechIndex, seekToGlobalTime);
+      logPlaybackEvent('seek', localInfo.speechIndex, seekToGlobalTime);
     }
 
   }, [seekToGlobalTime, segments, speechRecordings]);

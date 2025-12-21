@@ -674,7 +674,6 @@ export default function RecordPage() {
 
       // Unified Audio Playerにシーク
       setUnifiedSeekTime(globalTime);
-      setIsUnifiedPlaying(true);
 
       console.log(`[handleGraphNodeClickCtrl2] Speech ${speechIndex} at local ${foundStartTime}s -> global ${globalTime}s`);
     } catch (error) {
