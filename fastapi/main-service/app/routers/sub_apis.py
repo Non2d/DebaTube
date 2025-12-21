@@ -16,7 +16,7 @@ router = APIRouter()
 
 # Import shared directories
 from .audio2adu import ADUS_DIR, LOGS_DIR
-from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences, merge_adus_to_unified_csv, unified_csv_to_markdown
+from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_into_sentences, group_words_into_sentences_old, merge_adus_to_unified_csv, unified_csv_to_markdown
 
 # Define SUB_TRANSCRIPTS directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -691,7 +691,7 @@ Focus on semantic units of argumentation. Be precise with sentence indices and t
         raise HTTPException(status_code=500, detail=f"ADU conversion failed: {str(e)}")
 
 @router.post("/group_words_into_sentences")
-async def group_sentences(request: SentenceGroupRequest):
+def group_sentences(request: SentenceGroupRequest):
     """
     Group word-level timestamps into sentence-level data usin group_words_into_sentences().
     Sentences are split by punctuation marks (. ? !)
@@ -705,6 +705,7 @@ async def group_sentences(request: SentenceGroupRequest):
     text = request.text
     words_data = [word.model_dump() for word in request.words]
 
-    sentences = group_words_into_sentences(text, words_data)
+    # sentences = group_words_into_sentences(text, words_data)
+    sentences = group_words_into_sentences(text, words_data, debug=True)
 
     return sentences
