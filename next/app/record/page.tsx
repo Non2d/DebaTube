@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Upload, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload, Zap, List, Hash, Check, Tags, Eye, Search } from 'lucide-react';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
 import RecordingCard from './components/RecordingCard';
@@ -721,6 +721,37 @@ export default function RecordPage() {
       <Header title="DebaTube Live" />
       <div className="min-h-screen bg-white flex flex-col pt-16">
         <div className="flex-1 max-w-4xl mx-auto px-4 py-4 w-full">
+          {/* Top Navigation */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-gray-100 p-1 rounded-lg inline-flex shadow-inner">
+              <button
+                onClick={() => {
+                  setActiveTab('home');
+                  logTabSwitch('home', matchName);
+                }}
+                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'home'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
+                  }`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('ctrl2');
+                  logTabSwitch('ctrl2', matchName);
+                  if (matchName) autoLoadGraphData(matchName);
+                }}
+                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'ctrl2'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
+                  }`}
+              >
+                Feedback
+              </button>
+            </div>
+          </div>
+
           {/* Tab content */}
 
           {/* Home Tab */}
@@ -728,30 +759,12 @@ export default function RecordPage() {
             <div>
               <div className="text-center mb-8">
                 <div className="flex items-center justify-center gap-8 mb-6">
-                  <button
-                    onClick={prevSpeech}
-                    disabled={currentSpeechIndex === 0}
-                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
-                  >
-                    <ChevronLeft size={16} />
-                    <span className="font-medium">Prev</span>
-                  </button>
-
                   <div className="text-center px-8">
                     <h2 className={`text-2xl font-bold ${currentSpeech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
                       }`}>
                       {currentSpeech.name}
                     </h2>
                   </div>
-
-                  <button
-                    onClick={nextSpeech}
-                    disabled={currentSpeechIndex === DEBATE_SPEECHES.length - 1}
-                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-full hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
-                  >
-                    <span className="font-medium">Next</span>
-                    <ChevronRight size={16} />
-                  </button>
                 </div>
 
                 <TimerDisplay
@@ -791,238 +804,108 @@ export default function RecordPage() {
               </div>
 
               {/* Match Name and Format Selection */}
-              <div className="mt-8 flex justify-center gap-4">
-                {/* Debate Format Selection */}
-                <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
-                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                    Format:
-                  </label>
-                  <select
-                    value={debateFormat}
-                    onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
-                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                  >
-                    <option value="NA">NA (6 speeches)</option>
-                    <option value="ASIAN">ASIAN (8 speeches)</option>
-                    <option value="BP">BP (8 speeches)</option>
-                    <option value="OPENING_HALF_BP_ORDER">Opening Half BP (4 speeches)</option>
-                  </select>
-                </div>
+              {/* Settings & Actions Area */}
+              {/* Modern Control Bar */}
+              <div className="mt-12">
+                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
 
-                {/* Match Name Input */}
-                <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-md">
-                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                    Round ID:
-                  </label>
-                  <input
-                    type="text"
-                    value={matchName}
-                    onChange={(e) => setMatchName(e.target.value)}
-                    className="w-64 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="e.g., 2025-01-17-session_143052"
-                  />
-                </div>
-              </div>
-
-              {/* Generate Graph and JSON Upload Section */}
-              <div className="mt-8 space-y-4">
-                {/* Generate Debate Graph */}
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Generate Debate Graph from Audio</h3>
-                      <p className="text-sm text-gray-600">At least one audio file required to generate</p>
-                    </div>
-                    <button
-                      onClick={generateDebateGraph}
-                      disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!areAllAudioFilesReady() || !matchName
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : isGeneratingGraph
-                          ? 'bg-amber-500 text-white cursor-wait'
-                          : 'bg-amber-600 text-white hover:bg-amber-700'
-                        }`}
-                    >
-                      <Zap size={16} />
-                      <span>{isGeneratingGraph ? 'Generating...' : 'Generate Graph'}</span>
-                    </button>
-                  </div>
-                  {isGeneratingGraph && (
-                    <div className="mt-2 text-sm text-amber-700 bg-amber-100 p-2 rounded">
-                      ⏱ Processing: {generationElapsedTime}s
-                    </div>
-                  )}
-                  {generationError && (
-                    <div className="mt-2 text-sm text-red-700 bg-red-100 p-2 rounded">
-                      ✗ {generationError}
-                    </div>
-                  )}
-                  {generationSuccess && (
-                    <div className="mt-2 text-sm text-green-700 bg-green-100 p-2 rounded whitespace-pre-line">
-                      ✓ {generationSuccess}
-                    </div>
-                  )}
-                </div>
-
-
-              </div>
-            </div>
-          )}
-
-          {/* Baseline Tab */}
-          {activeTab === 'baseline' && (
-            <div>
-              {/* Recording Cards */}
-              <div className="mb-12">
-                <div className="grid grid-cols-4 gap-4">
-                  {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
-                    const recordings = speechRecordings[index];
-
-                    return (
-                      <RecordingCard
-                        key={index}
-                        speech={speech}
-                        index={index}
-                        recordings={recordings}
-                        currentPlayingSpeech={currentPlayingSpeech}
-                        isPlaying={isPlaying}
-                        isCurrentSpeech={false}
-                        onPlayPause={handlePlayPause}
-                        onDownload={downloadAudio}
-                        onClick={() => { }}
-                        hideDownload={true}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Match Name - Bottom */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-gray-700">
-                  ID: <span className="font-semibold">{matchName}</span>
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Baseline-2 Tab */}
-          {activeTab === 'baseline2' && (
-            <div>
-              {/* Unified Audio Player */}
-              <div className="mb-12">
-                <UnifiedAudioPlayer
-                  speechRecordings={speechRecordings}
-                  speechCount={DEBATE_SPEECHES.length}
-                  isPlaying={isUnifiedPlaying}
-                  onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
-                  seekToGlobalTime={unifiedSeekTime}
-                />
-              </div>
-
-              {/* Match Name - Bottom */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-gray-700">
-                  ID: <span className="font-semibold">{matchName}</span>
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Ctrl Tab */}
-          {activeTab === 'ctrl' && (
-            <div>
-              {/* Rebuttal Graph Section for Ctrl - Top */}
-              {autoLoadedGraphData && (
-                <div className="mb-12">
-
-
-                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                    <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
-                  </div>
-                </div>
-              )}
-              {!autoLoadedGraphData && (
-                <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                  <p className="text-gray-600">Graph data not available. Please generate graph in Home tab.</p>
-                </div>
-              )}
-
-              {/* Recording Cards - Middle */}
-              <div className="mt-8 mb-12">
-                <div className="grid grid-cols-4 gap-4">
-                  {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
-                    const recordings = speechRecordings[index];
-                    const shouldSeek = currentPlayingSpeech === index && seekTargetTime !== null;
-
-                    return (
-                      <RecordingCard
-                        key={index}
-                        speech={speech}
-                        index={index}
-                        recordings={recordings}
-                        currentPlayingSpeech={currentPlayingSpeech}
-                        isPlaying={isPlaying}
-                        isCurrentSpeech={false}
-                        onPlayPause={handlePlayPause}
-                        onDownload={downloadAudio}
-                        onClick={() => { }}
-                        hideDownload={true}
-                        seekTime={shouldSeek ? seekTargetTime : undefined}
-                        onTimeJump={(time: number) => handleGraphNodeTimeJump(index, time)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Match Name - Bottom */}
-              {/* Match Name - Bottom */}
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    ID: <span className="font-semibold">{matchName}</span>
-                  </p>
-                </div>
-
-                {autoLoadedGraphData && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 mb-1">Graph Display Options</h3>
-                        <p className="text-sm text-gray-600">Toggle POI colors and node IDs visibility</p>
-                      </div>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showPoiColors}
-                            onChange={(e) => setShowPoiColors(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-medium text-gray-700">Show POI Colors</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showNodeIds}
-                            onChange={(e) => setShowNodeIds(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-medium text-gray-700">Show Node IDs</span>
-                        </label>
+                    {/* Format Input Group */}
+                    <div className="lg:col-span-3">
+                      <div className="relative group h-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                          <List size={18} strokeWidth={2} />
+                        </div>
+                        <select
+                          value={debateFormat}
+                          onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
+                          className="h-12 w-full pl-10 pr-10 bg-slate-50 border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-100/50"
+                        >
+                          <option value="NA">NA (6 speeches)</option>
+                          <option value="ASIAN">ASIAN (8 speeches)</option>
+                          <option value="BP">BP (8 speeches)</option>
+                          <option value="OPENING_HALF_BP_ORDER">Opening Half BP (4 speeches)</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="transition-transform group-focus-within:rotate-180">
+                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Format</label>
                       </div>
                     </div>
+
+                    {/* Round ID Input Group */}
+                    <div className="lg:col-span-6">
+                      <div className="relative group h-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                          <Search size={18} strokeWidth={2} />
+                        </div>
+                        <input
+                          type="text"
+                          value={matchName}
+                          onChange={(e) => setMatchName(e.target.value)}
+                          className="h-12 w-full pl-10 pr-4 bg-slate-50 border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-100/50"
+                          placeholder="Enter Round ID..."
+                        />
+                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Round ID</label>
+                      </div>
+                    </div>
+
+                    {/* Primary Action Button */}
+                    <div className="lg:col-span-3">
+                      <button
+                        onClick={generateDebateGraph}
+                        disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
+                        className={`h-12 w-full flex items-center justify-center gap-2.5 rounded-xl text-sm font-bold tracking-wide transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
+                          ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
+                          : !matchName
+                            ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
+                          }`}
+                      >
+                        <Zap size={18} className={isGeneratingGraph ? "animate-pulse" : "fill-current"} />
+                        <span>{isGeneratingGraph ? 'PROCESSING...' : 'GENERATE GRAPH'}</span>
+                      </button>
+                    </div>
                   </div>
-                )}
+
+                  {/* Status Messages Area */}
+                  {(isGeneratingGraph || generationError || generationSuccess) && (
+                    <div className="mt-4 pt-4 border-t border-slate-200/60 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex justify-center">
+                        {isGeneratingGraph && (
+                          <div className="flex items-center gap-2 text-xs font-mono text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                            </span>
+                            Processing: {generationElapsedTime}s
+                          </div>
+                        )}
+                        {generationError && (
+                          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                            <span className="font-bold">Error:</span> {generationError}
+                          </div>
+                        )}
+                        {generationSuccess && (
+                          <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 shadow-sm">
+                            <Check size={16} className="text-emerald-500" />
+                            <span className="whitespace-pre-line font-medium">{generationSuccess}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Ctrl-2 Tab */}
+
+          {/* Feedback Tab */}
           {activeTab === 'ctrl2' && (
             <div>
-              {/* Rebuttal Graph Section for Ctrl-2 - Top */}
               {autoLoadedGraphData && (
                 <div className="mb-12">
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
@@ -1047,87 +930,70 @@ export default function RecordPage() {
                 />
               </div>
 
-              {/* Match Name - Bottom */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-gray-700">
-                  ID: <span className="font-semibold">{matchName}</span>
-                </p>
+              {/* Modern Action Footer */}
+              <div className="mt-8">
+                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5">
+                  <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+
+                    {/* Round ID Badge (Editable) */}
+                    <div className="w-full lg:w-auto relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                        <Search size={18} strokeWidth={2} />
+                      </div>
+                      <input
+                        type="text"
+                        value={matchName}
+                        onChange={(e) => setMatchName(e.target.value)}
+                        className="h-12 w-full lg:w-96 pl-10 pr-4 bg-slate-50 border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-100/50"
+                        placeholder="Search Round ID..."
+                      />
+                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Round ID</label>
+                    </div>
+
+                    {/* Display Options Toggles */}
+                    {autoLoadedGraphData && (
+                      <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 px-6 py-3 rounded-xl ring-1 ring-slate-200/80">
+                        {/* POI Toggle */}
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-slate-600">POI Color</span>
+                          <button
+                            onClick={() => setShowPoiColors(!showPoiColors)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showPoiColors ? 'bg-indigo-600' : 'bg-slate-300'
+                              }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showPoiColors ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="w-px h-6 bg-slate-300 mx-2"></div>
+
+                        {/* Node ID Toggle */}
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-slate-600">Node ID</span>
+                          <button
+                            onClick={() => setShowNodeIds(!showNodeIds)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showNodeIds ? 'bg-indigo-600' : 'bg-slate-300'
+                              }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showNodeIds ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Tab Navigation - Bottom */}
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  setActiveTab('home');
-                  logTabSwitch('home', matchName);
-                }}
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'home'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                Home
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('baseline');
-                  logTabSwitch('baseline', matchName);
-                  if (matchName) autoLoadGraphData(matchName);
-                }}
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'baseline'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                FB (Baseline)
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('baseline2');
-                  logTabSwitch('baseline2', matchName);
-                  if (matchName) autoLoadGraphData(matchName);
-                }}
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'baseline2'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                FB (Baseline-2)
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('ctrl');
-                  logTabSwitch('ctrl', matchName);
-                  if (matchName) autoLoadGraphData(matchName);
-                }}
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'ctrl'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                FB (Ctrl)
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('ctrl2');
-                  logTabSwitch('ctrl2', matchName);
-                  if (matchName) autoLoadGraphData(matchName);
-                }}
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'ctrl2'
-                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                FB (Ctrl-2)
-              </button>
-            </div>
-          </div>
-        </div>
+
       </div>
     </>
   );

@@ -46,7 +46,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
         const oppMatch = key.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
 
         const ordinalToNumber = (ordinal: string): number => {
-          const map: {[key: string]: number} = {
+          const map: { [key: string]: number } = {
             '1st': 1, '2nd': 2, '3rd': 3, '4th': 4,
             '1': 1, '2': 2, '3': 3, '4': 4
           };
@@ -246,7 +246,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
       console.error("Error converting graph data:", error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, debateFormat]);
+  }, [data, debateFormat, showNodeIds, showPoiColors]);
 
   const proOptions = { hideAttribution: true };
 
