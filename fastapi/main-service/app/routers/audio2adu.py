@@ -88,12 +88,14 @@ async def regroup_single_speech_sentences_to_adus(
             {
                 **word,
                 "start": round(word.get("start", 0), 1),
-                "end": round(word.get("end", 0), 1)
+                "end": round(word.get("end", 0), 1),
             }
             for word in words_data_raw
         ]
 
-        sentences_data = group_words_into_sentences(transcript_text, words_data)
+        sentences_data = group_words_into_sentences(
+            transcript_text, words_data, debug=True
+        )
         total_sentences = len(sentences_data)
         prompt_sentences_data = [
             {
@@ -103,54 +105,64 @@ async def regroup_single_speech_sentences_to_adus(
             for sentence in sentences_data
         ]
 
+        logger.info(f"======INPUTS===========")
+        logger.info(f"transcript_text: {transcript_text}")
+        logger.info(f"words_data: {words_data}")
+        logger.info(f"======OUTPUTS===========")
+        logger.info(f"sentences_data: {sentences_data}")
+        logger.info(f"FINAL PRONPUTO DATA: {prompt_sentences_data}")
+
+
         GEMINI_MODEL = "gemini-2.5-flash"
 
-        response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=f"""
-Please segment the following debate speech into Argument Discourse Units.
-Each ADU represents a single argument or discourse unit with a specific role below:
+#         response = await asyncio.to_thread(
+#             client_gemini.models.generate_content,
+#             model=GEMINI_MODEL,
+#             contents=f"""
+# Please segment the following debate speech into Argument Discourse Units.
+# Each ADU represents a single argument or discourse unit with a specific role below:
 
-ADU Role Definitions:
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+# ADU Role Definitions:
+# - introduction: Opening statement that typically explains the team's stance and framework
+# - definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+# - independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+# - point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+# - point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+# - poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
 
-Segmentation Guidelines:
-1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-5. Treat any POI as a single independent ADU.
-6. Treat a response to a POI as a single ADU.
+# Segmentation Guidelines:
+# 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+# 2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+# 3. Rebuttals are always independent ADUs regardless of length
+# 4. Group sentences discussing the same specific argumentative point into one ADU
+# 5. Treat any POI as a single independent ADU.
+# 6. Treat a response to a POI as a single ADU.
 
-Sentence-level transcript data:
-{json.dumps(prompt_sentences_data, indent=None)}
+# Sentence-level transcript data:
+# {json.dumps(prompt_sentences_data, indent=None)}
 
-Return the result as JSON in the following format:
-{{
-  "adus": [
-    {{
-      "id": 1,
-      "start_sentence_index": 0,
-      "end_sentence_index": 2,
-      "text": "The actual ADU text",
-      "role": "independent_rebuttal/point_of_main_argument/etc",
-    }}
-  ]
-}}
+# Return the result as JSON in the following format:
+# {{
+#   "adus": [
+#     {{
+#       "id": 1,
+#       "start_sentence_index": 0,
+#       "end_sentence_index": 2,
+#       "text": "The actual ADU text",
+#       "role": "independent_rebuttal/point_of_main_argument/etc",
+#     }}
+#   ]
+# }}
 
-Note: Use start_sentence_index and end_sentence_index instead of word indices.
-Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
-IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
-""",
-        )
+# Note: Use start_sentence_index and end_sentence_index instead of word indices.
+# Focus on semantic units of argumentation. Be precise with sentence indices and timestamps.
+# IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
+# """,
+#         )
 
-        response_text = response.text if hasattr(response, "text") else str(response)
+#         response_text = response.text if hasattr(response, "text") else str(response)
+        response = {"adus": []}
+        response_text = "nth"
 
         try:
             raw_response_dict = (
@@ -195,7 +207,9 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
         try:
             cleaned_response = clean_gemini_markdown_response(response_text)
             adu_json = json.loads(cleaned_response)
-            adus = adu_json.get("adus", [])  # ここでADUのリスト（start_time, end_timeなし）を取得
+            adus = adu_json.get(
+                "adus", []
+            )  # ここでADUのリスト（start_time, end_timeなし）を取得
 
             adus_with_timestamps = []
             for adu in adus:
@@ -203,7 +217,9 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
                 end_sentence_idx = adu.get("end_sentence_index", 0)
 
                 # Validate sentence indices
-                if start_sentence_idx >= len(sentences_data) or end_sentence_idx >= len(sentences_data):
+                if start_sentence_idx >= len(sentences_data) or end_sentence_idx >= len(
+                    sentences_data
+                ):
                     logger.warning(
                         f"Invalid sentence indices for ADU {adu.get('id', '?')}: "
                         f"start={start_sentence_idx}, end={end_sentence_idx}, "
@@ -218,7 +234,9 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
                 keys_to_check = ["start_time", "end_time"]
                 existing_keys = [key for key in keys_to_check if key in adu]
                 if existing_keys:
-                    logger.warning(f"Overwriting existing keys in ADU {adu.get('id', '?')}: {existing_keys}")
+                    logger.warning(
+                        f"Overwriting existing keys in ADU {adu.get('id', '?')}: {existing_keys}"
+                    )
                 adu_with_timestamp = {
                     **adu,
                     "start_time": start_time,
@@ -439,8 +457,9 @@ async def transcript_to_adu_batch(
 
         # Create tasks for parallel processing
         tasks = [
-            regroup_single_speech_sentences_to_adus(speech_key, transcript_data, timestamp, match_name)
-            for speech_key, transcript_data in transcripts.items()
+            regroup_single_speech_sentences_to_adus(k, v, timestamp, match_name)
+            for idx, (k, v) in enumerate(transcripts.items())
+            if idx == 0 # Prop1のみ処理
         ]
 
         # Execute all tasks in parallel
@@ -770,11 +789,13 @@ Do not include any other text, explanation, or formatting."""
             detail=f"Rebuttal structure identification failed: {str(e)}",
         )
 
+
 class AudioToDebateGraphRequest(BaseModel):
     """Request for converting audio to debate graph"""
 
     match_name: str
     debate_format: str = "NA"
+
 
 @router.post("/audio-to-debate-graph-batch")
 async def audio_to_debate_graph_batch(
@@ -899,6 +920,7 @@ async def audio_to_debate_graph_batch(
         raise HTTPException(
             status_code=500, detail=f"Audio to debate graph conversion failed: {str(e)}"
         )
+
 
 @router.get("/rebuttal-graph/{match_name}")
 async def get_rebuttal_graph(match_name: str):
