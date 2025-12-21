@@ -834,10 +834,10 @@ export default function RecordPage() {
                       onClick={generateDebateGraph}
                       disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${!areAllAudioFilesReady() || !matchName
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : isGeneratingGraph
-                            ? 'bg-amber-500 text-white cursor-wait'
-                            : 'bg-amber-600 text-white hover:bg-amber-700'
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : isGeneratingGraph
+                          ? 'bg-amber-500 text-white cursor-wait'
+                          : 'bg-amber-600 text-white hover:bg-amber-700'
                         }`}
                     >
                       <Zap size={16} />
@@ -861,35 +861,7 @@ export default function RecordPage() {
                   )}
                 </div>
 
-                {/* Graph Display Options */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Graph Display Options</h3>
-                      <p className="text-sm text-gray-600">Toggle POI colors and node IDs visibility</p>
-                    </div>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showPoiColors}
-                          onChange={(e) => setShowPoiColors(e.target.checked)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Show POI Colors</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showNodeIds}
-                          onChange={(e) => setShowNodeIds(e.target.checked)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Show Node IDs</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
+
               </div>
             </div>
           )}
@@ -960,6 +932,8 @@ export default function RecordPage() {
               {/* Rebuttal Graph Section for Ctrl - Top */}
               {autoLoadedGraphData && (
                 <div className="mb-12">
+
+
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
                     <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClick} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
                   </div>
@@ -1000,10 +974,44 @@ export default function RecordPage() {
               </div>
 
               {/* Match Name - Bottom */}
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-gray-700">
-                  ID: <span className="font-semibold">{matchName}</span>
-                </p>
+              {/* Match Name - Bottom */}
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    ID: <span className="font-semibold">{matchName}</span>
+                  </p>
+                </div>
+
+                {autoLoadedGraphData && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Graph Display Options</h3>
+                        <p className="text-sm text-gray-600">Toggle POI colors and node IDs visibility</p>
+                      </div>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showPoiColors}
+                            onChange={(e) => setShowPoiColors(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Show POI Colors</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showNodeIds}
+                            onChange={(e) => setShowNodeIds(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Show Node IDs</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1056,8 +1064,8 @@ export default function RecordPage() {
                   logTabSwitch('home', matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${activeTab === 'home'
-                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 Home
@@ -1069,8 +1077,8 @@ export default function RecordPage() {
                   if (matchName) autoLoadGraphData(matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${activeTab === 'baseline'
-                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 FB (Baseline)
@@ -1082,8 +1090,8 @@ export default function RecordPage() {
                   if (matchName) autoLoadGraphData(matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${activeTab === 'baseline2'
-                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 FB (Baseline-2)
@@ -1095,8 +1103,8 @@ export default function RecordPage() {
                   if (matchName) autoLoadGraphData(matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${activeTab === 'ctrl'
-                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 FB (Ctrl)
@@ -1108,8 +1116,8 @@ export default function RecordPage() {
                   if (matchName) autoLoadGraphData(matchName);
                 }}
                 className={`px-6 py-3 font-medium transition-colors ${activeTab === 'ctrl2'
-                    ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-blue-600 border-b-2 border-blue-600 -mb-px'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 FB (Ctrl-2)
