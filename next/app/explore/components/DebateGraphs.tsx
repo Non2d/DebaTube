@@ -5,8 +5,19 @@ import { getAPIRoot } from '../../../components/lib/utils';
 import MacroStructure from './MacroStructure';
 import Youtube from 'react-youtube';
 import Header from '../../../components/shared/Header';
-import { useAtom } from 'jotai';
-import { themeAtom } from '../../../components/store/userAtom';
+import { useTranslation } from '../../../context/LanguageContext';
+
+interface MacroStructuralFeatures {
+  distance: number;
+  interval: number;
+  order: number;
+  rally: number;
+}
+//...
+// (Keep intervening interfaces - wait, replace_file_content needs exact match or smartness.)
+// I will target the imports and the hook usage separately or using a large chunk if stable.
+// Let's use simple separate replacements if possible, or one chunk if I am sure.
+// The interfaces are long. I will target Top imports first.
 
 interface MacroStructuralFeatures {
   distance: number;
@@ -49,7 +60,7 @@ interface Round { //取得時のバリデーション
 }
 
 const DebateGraphs = () => {
-  const [isDark] = useAtom(themeAtom);
+  const { isDark } = useTranslation();
   const [ytPlayer, setYtPlayer] = useState<YT.Player | null>(null);
   const [ytId, setYtId] = useState('');
   const [ytTitle, setYtTitle] = useState('');
@@ -119,7 +130,7 @@ const DebateGraphs = () => {
             rebuttals: round.rebuttals,
           }
         }));
-        
+
         setDebateItems(debateItems);
         setIsLoading(false);
       })
@@ -172,7 +183,7 @@ const DebateGraphs = () => {
 
   useEffect(() => {
     const sortedItems: DebateItem[] = [...selectedDebateItems];
-    
+
     const getSortValue = (item: DebateItem) => {
       switch (sortOption) {
         case 'Date': return new Date(item.publishedAt).getTime();
@@ -183,11 +194,11 @@ const DebateGraphs = () => {
         default: return item.id;
       }
     };
-    
+
     sortedItems.sort((a, b) => {
       const valueA = getSortValue(a);
       const valueB = getSortValue(b);
-      
+
       if (sortOrder === 'asc') {
         return valueA - valueB;
       } else {
@@ -203,10 +214,10 @@ const DebateGraphs = () => {
 
   const onMovieItemClicked = (id: number) => async () => {
     setPinnedItems((prev) => {
-      const newPinnedItems = prev.includes(id) 
+      const newPinnedItems = prev.includes(id)
         ? prev.filter((item) => item !== id)
         : [...prev, id];
-      
+
       return newPinnedItems;
     });
 
@@ -299,72 +310,71 @@ const DebateGraphs = () => {
               </TabsList>
             </Tabs>
           </div>
-        
-        <div className="flex items-center gap-4">
-          {/* ピン留め情報を表示 */}
-          {pinnedItems.length > 0 && (
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 shadow-sm">
-              <div className="p-1 bg-amber-100 rounded-lg">
-                <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2L3 9h4v9h6v-9h4l-7-7z" />
-                </svg>
-              </div>
-              <span className="text-sm font-semibold text-amber-800">
-                {pinnedItems.length} pinned
-              </span>
-            </div>
-          )}
 
-          {/* ソート選択ドロップダウン */}
-          <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors w-32"
-            >
-              <span className="text-sm font-medium text-gray-700">
-                {sortOrder === 'desc' ? 'Largest First' : 'Smallest First'}
-              </span>
-            </button>
-            <div className="h-4 w-px bg-gray-300"></div>
-            
-            {/* カスタムドロップダウン */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors min-w-[120px]"
-              >
-                <span>{sortOptions.find(opt => opt.value === sortOption)?.label}</span>
-                <svg className={`w-4 h-4 text-gray-600 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              
-              {isDropdownOpen && (
-                <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setSortOption(option.value);
-                        setIsDropdownOpen(false);
-                        logOperation('SortChanged', {
-                          sort_option: option.value,
-                        });
-                      }}
-                      className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                        sortOption === option.value ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                      }`}
-                    >
-                      <div className="font-medium text-gray-900 mb-1">{option.label}</div>
-                      <div className="text-sm text-gray-600">{option.description}</div>
-                    </button>
-                  ))}
+          <div className="flex items-center gap-4">
+            {/* ピン留め情報を表示 */}
+            {pinnedItems.length > 0 && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 shadow-sm">
+                <div className="p-1 bg-amber-100 rounded-lg">
+                  <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 2L3 9h4v9h6v-9h4l-7-7z" />
+                  </svg>
                 </div>
-              )}
+                <span className="text-sm font-semibold text-amber-800">
+                  {pinnedItems.length} pinned
+                </span>
+              </div>
+            )}
+
+            {/* ソート選択ドロップダウン */}
+            <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors w-32"
+              >
+                <span className="text-sm font-medium text-gray-700">
+                  {sortOrder === 'desc' ? 'Largest First' : 'Smallest First'}
+                </span>
+              </button>
+              <div className="h-4 w-px bg-gray-300"></div>
+
+              {/* カスタムドロップダウン */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors min-w-[120px]"
+                >
+                  <span>{sortOptions.find(opt => opt.value === sortOption)?.label}</span>
+                  <svg className={`w-4 h-4 text-gray-600 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortOption(option.value);
+                          setIsDropdownOpen(false);
+                          logOperation('SortChanged', {
+                            sort_option: option.value,
+                          });
+                        }}
+                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${sortOption === option.value ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                          }`}
+                      >
+                        <div className="font-medium text-gray-900 mb-1">{option.label}</div>
+                        <div className="text-sm text-gray-600">{option.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
         <>
 
@@ -417,7 +427,7 @@ const DebateGraphs = () => {
                           <div className="flex items-center gap-2 mt-1">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                               {sortOption}: {
-                                sortOption === 'Date' 
+                                sortOption === 'Date'
                                   ? new Date(item.publishedAt).toISOString().split('T')[0]
                                   : item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
                               }

@@ -1,16 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import { useAtom } from 'jotai';
 import { Plus } from 'lucide-react';
-import { themeAtom } from '../../components/store/userAtom';
 import Header from '../../components/shared/Header';
 import RegistrationModal from '../../components/shared/RegistrationModal';
 import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../context/LanguageContext';
 
 export default function Dashboard() {
-  const [isDark] = useAtom(themeAtom);
+  const { isDark } = useTranslation();
   const { rounds, loading, error } = useRounds();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { t } = useTranslation();

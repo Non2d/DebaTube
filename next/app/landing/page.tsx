@@ -1,15 +1,11 @@
 "use client";
 
 import { Play, BarChart3, MessageSquare, Users, ArrowRight, Check } from 'lucide-react';
-import { useAtom } from 'jotai';
-import { themeAtom } from '../../components/store/userAtom';
 import Header from '../../components/shared/Header';
 import { useTranslation } from '../../context/LanguageContext';
 
 export default function LandingPage() {
-  const [isDark] = useAtom(themeAtom);
-
-  const { t } = useTranslation();
+  const { t, isDark } = useTranslation();
 
   const features = [
     {

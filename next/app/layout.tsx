@@ -11,9 +11,11 @@ export const metadata = {
 
 import { LanguageProvider } from '../context/LanguageContext';
 
+
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="jp">
+    <html lang="jp" suppressHydrationWarning>
       <body>
         <Provider>
           <Toaster position="top-right" />
