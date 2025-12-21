@@ -33,6 +33,11 @@ export default function UnifiedAudioPlayer({
   const [currentBlobIndexInSegment, setCurrentBlobIndexInSegment] = useState(0);
   const [blobUrls, setBlobUrls] = useState<string[][]>([]); // Array of blob URL arrays (one per segment)
 
+  // Ref to track the target local time for a pending seek operation
+  const pendingSeekRef = useRef<number | null>(null);
+  // Ref to suppress time updates during seek/load operations
+  const isSeekingRef = useRef<boolean>(false);
+
   // Build speech segments from recordings
   const segments = useMemo(() => {
     return buildSpeechSegments(speechRecordings, speechCount);
@@ -60,164 +65,152 @@ export default function UnifiedAudioPlayer({
     };
   }, [segments]);
 
-  // Load current blob
-  useEffect(() => {
-    if (segments.length === 0 || blobUrls.length === 0 || !audioRef.current) {
-      return;
-    }
-
-    const currentSegment = segments[currentSegmentIndex];
-    if (!currentSegment) {
-      return;
-    }
-
+  // Determine current source URL
+  const currentSrc = useMemo(() => {
+    if (segments.length === 0 || blobUrls.length === 0) return '';
     const currentSegmentUrls = blobUrls[currentSegmentIndex];
-    if (!currentSegmentUrls || currentBlobIndexInSegment >= currentSegmentUrls.length) {
-      return;
-    }
+    if (!currentSegmentUrls || currentBlobIndexInSegment >= currentSegmentUrls.length) return '';
+    return currentSegmentUrls[currentBlobIndexInSegment];
+  }, [segments, blobUrls, currentSegmentIndex, currentBlobIndexInSegment]);
 
-    audioRef.current.src = currentSegmentUrls[currentBlobIndexInSegment];
 
-    const handleTimeUpdate = () => {
-      if (!audioRef.current) return;
-
-      const localTime = audioRef.current.currentTime || 0;
-
-      // Calculate accumulated time from previous blobs in current segment
-      const recordings = speechRecordings[currentSegment.speechIndex];
-      const accumulatedLocalTime = recordings
-        .slice(0, currentBlobIndexInSegment)
-        .reduce((sum, r) => sum + r.duration, 0);
-
-      // Calculate global time
-      const globalTime = currentSegment.startTime + accumulatedLocalTime + localTime;
-      setCurrentGlobalTime(globalTime);
-    };
-
-    const handleEnded = () => {
-      const currentSegmentRecordings = speechRecordings[currentSegment.speechIndex];
-
-      // Check if there are more blobs in current segment
-      if (currentBlobIndexInSegment < currentSegmentRecordings.length - 1) {
-        // Move to next blob in same segment
-        setCurrentBlobIndexInSegment(prev => prev + 1);
-      } else if (currentSegmentIndex < segments.length - 1) {
-        // Move to next segment
-        setCurrentSegmentIndex(prev => prev + 1);
-        setCurrentBlobIndexInSegment(0);
-      } else {
-        // All segments finished
-        onPlayPause(); // Stop playing
-        setCurrentSegmentIndex(0);
-        setCurrentBlobIndexInSegment(0);
-        setCurrentGlobalTime(0);
-      }
-    };
-
-    const handleError = (e: Event) => {
-      console.error('UnifiedAudioPlayer: Audio error event:', e, audioRef.current?.error);
-    };
-
-    audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
-    audioRef.current.addEventListener('ended', handleEnded);
-    audioRef.current.addEventListener('error', handleError);
-    audioRef.current.load();
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
-        audioRef.current.removeEventListener('ended', handleEnded);
-        audioRef.current.removeEventListener('error', handleError);
-      }
-    };
-  }, [segments, blobUrls, currentSegmentIndex, currentBlobIndexInSegment, speechRecordings, onPlayPause]);
-
-  // Handle play/pause state
+  // Handle Play/Pause
   useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying && audioRef.current.paused) {
-        audioRef.current.play().catch(err => {
-          console.error('UnifiedAudioPlayer: Play failed', err);
-        });
-      } else if (!isPlaying && !audioRef.current.paused) {
-        audioRef.current.pause();
-      }
+    if (!audioRef.current) return;
+    if (isPlaying && audioRef.current.paused) {
+      audioRef.current.play().catch(err => console.error('Play failed:', err));
+    } else if (!isPlaying && !audioRef.current.paused) {
+      audioRef.current.pause();
     }
   }, [isPlaying]);
 
-  // Handle external seek request (from graph node click)
+  // Handle external seek request
   useEffect(() => {
-    if (seekToGlobalTime === undefined || segments.length === 0 || !audioRef.current) {
-      return;
-    }
+    if (seekToGlobalTime === undefined || segments.length === 0) return;
 
     const localInfo = globalToLocalTime(seekToGlobalTime, segments);
-    if (!localInfo) {
-      console.warn('UnifiedAudioPlayer: Invalid seek time', seekToGlobalTime);
-      return;
-    }
+    if (!localInfo) return;
 
-    // Find the segment index
+    // Find segment
     const segmentIndex = segments.findIndex(s => s.speechIndex === localInfo.speechIndex);
-    if (segmentIndex === -1) {
-      console.warn('UnifiedAudioPlayer: Segment not found for speech', localInfo.speechIndex);
-      return;
-    }
+    if (segmentIndex === -1) return;
 
-    // Find the blob index within the segment
+    // Find blob within segment
     const recordings = speechRecordings[localInfo.speechIndex];
     let accumulatedTime = 0;
     let blobIndex = 0;
     for (let i = 0; i < recordings.length; i++) {
+      // If the seek target is within this recording (or it's the last one)
       if (accumulatedTime + recordings[i].duration > localInfo.localTime) {
         blobIndex = i;
         break;
       }
       accumulatedTime += recordings[i].duration;
     }
-
-    // Switch to the correct segment and blob if needed
-    if (segmentIndex !== currentSegmentIndex || blobIndex !== currentBlobIndexInSegment) {
-      setCurrentSegmentIndex(segmentIndex);
-      setCurrentBlobIndexInSegment(blobIndex);
-      // Will be set after blob loads
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = localInfo.localTime - accumulatedTime;
-          setCurrentGlobalTime(seekToGlobalTime);
-        }
-      }, 100);
-    } else {
-      audioRef.current.currentTime = localInfo.localTime - accumulatedTime;
-      setCurrentGlobalTime(seekToGlobalTime);
+    // Handle edge case where it might be slightly past the last blob due to floating point
+    if (blobIndex >= recordings.length && recordings.length > 0) {
+      blobIndex = recordings.length - 1;
+      accumulatedTime -= recordings[blobIndex].duration; // Undo add
     }
 
-    // Log the seek event
-    logPlaybackEvent('seek', localInfo.speechIndex, seekToGlobalTime);
-  }, [seekToGlobalTime, segments, speechRecordings, currentSegmentIndex, currentBlobIndexInSegment]);
+    const targetLocalTime = Math.max(0, localInfo.localTime - accumulatedTime);
 
-  // Reset to beginning when segments change
-  useEffect(() => {
-    setCurrentSegmentIndex(0);
-    setCurrentBlobIndexInSegment(0);
-    setCurrentGlobalTime(0);
-  }, [segments]);
+    // If we need to switch segment or blob
+    if (segmentIndex !== currentSegmentIndex || blobIndex !== currentBlobIndexInSegment) {
+      isSeekingRef.current = true;
+      pendingSeekRef.current = targetLocalTime;
+
+      setCurrentSegmentIndex(segmentIndex);
+      setCurrentBlobIndexInSegment(blobIndex);
+      setCurrentGlobalTime(seekToGlobalTime); // Optimistic update
+
+      logPlaybackEvent('seek_segment_switch', localInfo.speechIndex, seekToGlobalTime);
+    } else {
+      // Same segment/blob, just seek via ref
+      if (audioRef.current) {
+        audioRef.current.currentTime = targetLocalTime;
+      }
+      setCurrentGlobalTime(seekToGlobalTime);
+      logPlaybackEvent('seek_same_segment', localInfo.speechIndex, seekToGlobalTime);
+    }
+
+  }, [seekToGlobalTime, segments, speechRecordings]);
+
+
+  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    if (pendingSeekRef.current !== null || isSeekingRef.current) return;
+
+    const audio = e.currentTarget;
+    const localTime = audio.currentTime;
+
+    // Safety check - make sure we have current segment
+    const currentSegment = segments[currentSegmentIndex];
+    if (!currentSegment) return;
+
+    // Calculate accumulated time
+    const recordings = speechRecordings[currentSegment.speechIndex];
+    const accumulatedLocalTime = recordings
+      .slice(0, currentBlobIndexInSegment)
+      .reduce((sum, r) => sum + r.duration, 0);
+
+    const globalTime = currentSegment.startTime + accumulatedLocalTime + localTime;
+    setCurrentGlobalTime(globalTime);
+  };
+
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const audio = e.currentTarget;
+
+    if (pendingSeekRef.current !== null) {
+      // Execute the pending seek
+      audio.currentTime = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+
+      // Small delay to let the seek 'settle' before resuming time updates
+      // This prevents the 'jump to 0' issue
+      setTimeout(() => {
+        isSeekingRef.current = false;
+      }, 100);
+    } else {
+      isSeekingRef.current = false;
+    }
+
+    if (isPlaying) {
+      audio.play().catch(err => console.error('Play on loaded failed:', err));
+    }
+  };
+
+  const handleEnded = () => {
+    const currentSegmentRecordings = speechRecordings[segments[currentSegmentIndex].speechIndex];
+
+    if (currentBlobIndexInSegment < currentSegmentRecordings.length - 1) {
+      // Next blob in segment
+      setCurrentBlobIndexInSegment(prev => prev + 1);
+    } else if (currentSegmentIndex < segments.length - 1) {
+      // Next segment
+      setCurrentSegmentIndex(prev => prev + 1);
+      setCurrentBlobIndexInSegment(0);
+    } else {
+      // End of all playback
+      onPlayPause(); // Pause
+      setCurrentSegmentIndex(0);
+      setCurrentBlobIndexInSegment(0);
+      setCurrentGlobalTime(0);
+      if (audioRef.current) audioRef.current.currentTime = 0;
+    }
+  };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newGlobalTime = parseFloat(e.target.value);
+    const time = parseFloat(e.target.value);
+    // We reusing the same logic as external search by updating calling parent if possible
+    // But here we can just do internal seek logic to match:
+    // For now, simpler to just treat strictly logic:
 
-    const localInfo = globalToLocalTime(newGlobalTime, segments);
-    if (!localInfo || !audioRef.current) {
-      return;
-    }
+    const localInfo = globalToLocalTime(time, segments);
+    if (!localInfo) return;
 
-    // Find the segment index
     const segmentIndex = segments.findIndex(s => s.speechIndex === localInfo.speechIndex);
-    if (segmentIndex === -1) {
-      return;
-    }
+    if (segmentIndex === -1) return;
 
-    // Find the blob index within the segment
     const recordings = speechRecordings[localInfo.speechIndex];
     let accumulatedTime = 0;
     let blobIndex = 0;
@@ -229,23 +222,17 @@ export default function UnifiedAudioPlayer({
       accumulatedTime += recordings[i].duration;
     }
 
-    // Switch to the correct segment and blob if needed
+    const targetLocalTime = localInfo.localTime - accumulatedTime;
+
     if (segmentIndex !== currentSegmentIndex || blobIndex !== currentBlobIndexInSegment) {
+      isSeekingRef.current = true;
+      pendingSeekRef.current = targetLocalTime;
       setCurrentSegmentIndex(segmentIndex);
       setCurrentBlobIndexInSegment(blobIndex);
-      // Will be set after blob loads
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = localInfo.localTime - accumulatedTime;
-        }
-      }, 100);
     } else {
-      audioRef.current.currentTime = localInfo.localTime - accumulatedTime;
-      setCurrentGlobalTime(newGlobalTime);
+      if (audioRef.current) audioRef.current.currentTime = targetLocalTime;
     }
-
-    // Log the seek event
-    logPlaybackEvent('seek', localInfo.speechIndex, newGlobalTime);
+    setCurrentGlobalTime(time);
   };
 
   if (segments.length === 0) {
@@ -314,7 +301,15 @@ export default function UnifiedAudioPlayer({
         </div>
       </div>
 
-      <audio ref={audioRef} className="hidden" />
+      <audio
+        ref={audioRef}
+        src={currentSrc}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={handleEnded}
+        onError={(e) => console.error("Audio error", e)}
+        className="hidden"
+      />
     </div>
   );
 }

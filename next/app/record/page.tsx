@@ -628,7 +628,6 @@ export default function RecordPage() {
     console.log(`[handleGraphNodeTimeJump] Speech ${speechIndex} jump to ${time}s`);
   };
 
-  // ハンドラー: Ctrl-2タブでのグラフノードクリック（累積時間計算）
   const handleGraphNodeClickCtrl2 = (globalNodeId: number) => {
     if (!autoLoadedGraphData) return;
 
@@ -681,6 +680,11 @@ export default function RecordPage() {
     } catch (error) {
       console.error('[handleGraphNodeClickCtrl2] Error:', error);
     }
+  };
+
+  // Memoized handler for UnifiedAudioPlayer play/pause
+  const handleUnifiedPlayPause = () => {
+    setIsUnifiedPlaying(prev => !prev);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1039,7 +1043,7 @@ export default function RecordPage() {
                   speechRecordings={speechRecordings}
                   speechCount={DEBATE_SPEECHES.length}
                   isPlaying={isUnifiedPlaying}
-                  onPlayPause={() => setIsUnifiedPlaying(!isUnifiedPlaying)}
+                  onPlayPause={handleUnifiedPlayPause}
                   seekToGlobalTime={unifiedSeekTime}
                 />
               </div>
