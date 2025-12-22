@@ -3,7 +3,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 
-from models.round import Round, Speech, Adu, Rebuttal
+from models.round import Round, Speech, Adu, Rebuttal, Word, Sentence
 
 
 # ==================== Round CRUD ====================
@@ -116,6 +116,80 @@ async def update_speech_transcription(
     return speech
 
 
+# ==================== Word & Sentence CRUD ====================
+
+async def create_words_batch(
+    db: AsyncSession,
+    words_data: List[Dict[str, Any]]
+) -> List[Word]:
+    """
+    複数の単語を一括作成
+    """
+    words = [
+        Word(
+            speech_id=w["speech_id"],
+            index=w["index"],
+            text=w["text"],
+            start_time=w["start_time"],
+            end_time=w["end_time"],
+            confidence=w.get("confidence")
+        )
+        for w in words_data
+    ]
+    db.add_all(words)
+    await db.commit()
+    return words
+
+
+async def create_sentences_batch(
+    db: AsyncSession,
+    sentences_data: List[Dict[str, Any]]
+) -> List[Sentence]:
+    """
+    複数の文を一括作成
+    """
+    sentences = [
+        Sentence(
+            speech_id=s["speech_id"],
+            index=s["index"],
+            text=s["text"],
+            start_word_index=s["start_word_index"],
+            end_word_index=s["end_word_index"]
+        )
+        for s in sentences_data
+    ]
+    db.add_all(sentences)
+    await db.commit()
+    # Refresh to get IDs
+    for s in sentences:
+        await db.refresh(s)
+    return sentences
+
+
+async def get_sentences_by_speech(db: AsyncSession, speech_id: int) -> List[Sentence]:
+    """
+    スピーチIDで文一覧を取得（インデックス順）
+    """
+    result = await db.execute(
+        select(Sentence)
+        .where(Sentence.speech_id == speech_id)
+        .order_by(Sentence.index)
+    )
+    return result.scalars().all()
+
+
+async def get_words_by_speech(db: AsyncSession, speech_id: int) -> List[Word]:
+    """
+    スピーチIDで単語一覧を取得（インデックス順）
+    """
+    result = await db.execute(
+        select(Word)
+        .where(Word.speech_id == speech_id)
+        .order_by(Word.index)
+    )
+    return result.scalars().all()
+
+
 # ==================== ADU CRUD ====================
 
 async def create_adu(
@@ -124,9 +198,7 @@ async def create_adu(
     start_sentence_index: int,
     end_sentence_index: int,
     text: str,
-    role: str,
-    start_time: float,
-    end_time: float
+    role: str
 ) -> Adu:
     """
     新しいADUを作成
@@ -136,9 +208,7 @@ async def create_adu(
         start_sentence_index=start_sentence_index,
         end_sentence_index=end_sentence_index,
         text=text,
-        role=role,
-        start_time=start_time,
-        end_time=end_time
+        role=role
     )
     db.add(adu)
     await db.commit()
@@ -159,9 +229,7 @@ async def create_adus_batch(
             start_sentence_index=adu_data["start_sentence_index"],
             end_sentence_index=adu_data["end_sentence_index"],
             text=adu_data["text"],
-            role=adu_data["role"],
-            start_time=adu_data["start_time"],
-            end_time=adu_data["end_time"]
+            role=adu_data["role"]
         )
         for adu_data in adus_data
     ]

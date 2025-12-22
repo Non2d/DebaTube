@@ -151,6 +151,8 @@ def group_words_into_sentences(
             "text": sent,
             "start_time": round(words_data[w_idx].get("start", 0), 1),
             "end_time": round(words_data[end_idx].get("end", 0), 1),
+            "start_word_index": w_idx,
+            "end_word_index": end_idx
         })
     return result
 

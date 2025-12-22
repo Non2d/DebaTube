@@ -218,12 +218,14 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
             response_text,
             None,
             adus_with_timestamps,
+            sentences_data,
+            words_data,
         )
 
     except Exception as e:
         error_msg = f"Error processing {speech_key}: {str(e)}"
         logger.error(error_msg)
-        return (speech_key, None, None, None, None, error_msg, [])
+        return (speech_key, None, None, None, None, error_msg, [], [], [])
 
 
 async def transcribe_single_audio(
@@ -412,6 +414,8 @@ async def transcript_to_adu_batch(
             response_text,
             error_msg,
             adus_with_timestamps,
+            _,
+            _,
         ) in results:
             if error_msg:
                 failed_speeches.append({"speech_key": speech_key, "error": error_msg})
@@ -545,36 +549,56 @@ async def identify_rebuttal_structure(
         speeches_data = {}
         markdown_lines = []
         position_order = []  # スピーチの順序を保持
+        
+        # Mapping for sequential ID (1-based) to DB ID
+        local_id_to_db_id = {}
+        global_adu_index = 0
 
         for speech in speeches:
             speech_key = speech.position
             position_order.append(speech_key)
             speeches_data[speech_key] = []
 
-            # そのスピーチのADUを取得
+            # そのスピーチのADU、文、単語を取得
             adus = await round_crud.get_adus_by_speech(db, speech.id)
+            sentences = await round_crud.get_sentences_by_speech(db, speech.id)
+            words = await round_crud.get_words_by_speech(db, speech.id)
+
+            sentences_map = {s.index: s for s in sentences}
+            words_map = {w.index: w for w in words}
 
             if adus:
                 markdown_lines.append(f"## {speech_key}")
                 markdown_lines.append("")
 
             for adu in adus:
+                # Increment global sequential ID
+                global_adu_index += 1
+                local_id_to_db_id[global_adu_index] = adu.id
+
+                # Calculate timestamp
+                start_time = 0.0
+                if adu.start_sentence_index in sentences_map:
+                    sent = sentences_map[adu.start_sentence_index]
+                    if sent.start_word_index in words_map:
+                        start_time = words_map[sent.start_word_index].start_time
+
                 # Format: {id, type, text, start}
                 adu_data = {
-                    "id": adu.id,  # DBの自動生成ID
+                    "id": adu.id,  # DBの自動生成ID (Client/API still sees DB ID)
                     "type": adu.role,
                     "text": adu.text,
-                    "start": round(adu.start_time, 1),  # 小数第1位に丸める
+                    "start": round(start_time, 1),  # 小数第1位に丸める
                 }
                 speeches_data[speech_key].append(adu_data)
 
-                # Build markdown for Gemini
-                markdown_lines.append(f"id:{adu.id}, {adu.text}")
+                # Build markdown for Gemini using Sequential ID
+                markdown_lines.append(f"id:{global_adu_index}, {adu.text}")
                 markdown_lines.append("")
 
         transcript = "\n".join(markdown_lines)
         total_adus = sum(len(v) for v in speeches_data.values())
-        logger.info(f"Loaded {total_adus} ADUs from database")
+        logger.info(f"Loaded {total_adus} ADUs from database. Max sequential ID: {global_adu_index}")
 
         # Prepare prompt for Gemini
         prompt = f"""## Instruction
@@ -603,17 +627,40 @@ Do not include any other text, explanation, or formatting."""
         response_text = response.text if hasattr(response, "text") else str(response)
 
         # Parse the response to extract rebuttal pairs
+        rebuttal_pairs = [] # Final list with DB IDs
         try:
             cleaned_response = clean_gemini_markdown_response(response_text)
-            rebuttal_pairs = json.loads(cleaned_response)
+            raw_local_pairs = json.loads(cleaned_response)
 
-            if not isinstance(rebuttal_pairs, list):
+            if not isinstance(raw_local_pairs, list):
                 raise ValueError("Response is not a list")
 
-            # Validate format
-            for pair in rebuttal_pairs:
+            # Validate format and convert back to DB IDs
+            mapped_count = 0
+            skipped_count = 0
+            formatted_pairs = []
+            
+            for pair in raw_local_pairs:
                 if not isinstance(pair, list) or len(pair) != 2:
-                    raise ValueError(f"Invalid pair format: {pair}")
+                    logger.warning(f"Invalid pair format skipped: {pair}")
+                    continue
+                
+                local_src = pair[0]
+                local_tgt = pair[1]
+
+                # Map back to DB IDs
+                if local_src in local_id_to_db_id and local_tgt in local_id_to_db_id:
+                     db_src = local_id_to_db_id[local_src]
+                     db_tgt = local_id_to_db_id[local_tgt]
+                     rebuttal_pairs.append([db_src, db_tgt])
+                     formatted_pairs.append(f"{local_src}->{local_tgt}({db_src}->{db_tgt})")
+                     mapped_count += 1
+                else:
+                    logger.warning(f"Skipping pair with unknown sequential IDs: {pair}. Max seq ID: {global_adu_index}")
+                    skipped_count += 1
+
+            logger.info(f"Rebuttal Mapping Result: Mapped {mapped_count}, Skipped {skipped_count}. Pairs: {', '.join(formatted_pairs[:10])}...")
+
 
         except (json.JSONDecodeError, ValueError) as parse_error:
             logger.error(f"Error parsing rebuttal pairs: {str(parse_error)}")
@@ -749,7 +796,7 @@ async def audio_to_debate_graph_batch(
 
         # ADUをDBに保存
         total_adus_saved = 0
-        for (speech_key, log_path, csv_path, raw_response, response_text, error_msg, adus_with_timestamps) in results:
+        for (speech_key, log_path, csv_path, raw_response, response_text, error_msg, adus_with_timestamps, sentences_data, words_data) in results:
             if error_msg:
                 logger.error(f"Failed to process {speech_key}: {error_msg}")
                 continue
@@ -763,16 +810,41 @@ async def audio_to_debate_graph_batch(
                 logger.error(f"No speech_id found for {speech_key}")
                 continue
 
-            # ADUをDB保存用に変換
+            # Save Words
+            words_to_create = [
+                {
+                    "speech_id": speech_id,
+                    "index": i,
+                    "text": w.get("word", w.get("text", "")),
+                    "start_time": w["start"],
+                    "end_time": w["end"],
+                    "confidence": w.get("probability", w.get("confidence"))
+                }
+                for i, w in enumerate(words_data)
+            ]
+            await round_crud.create_words_batch(db, words_to_create)
+
+            # Save Sentences
+            sentences_to_create = [
+                {
+                    "speech_id": speech_id,
+                    "index": s["id"],
+                    "text": s["text"],
+                    "start_word_index": s["start_word_index"],
+                    "end_word_index": s["end_word_index"]
+                }
+                for s in sentences_data
+            ]
+            await round_crud.create_sentences_batch(db, sentences_to_create)
+
+            # Save ADUs
             adus_data = [
                 {
                     "speech_id": speech_id,
                     "start_sentence_index": adu.get("start_sentence_index"),
                     "end_sentence_index": adu.get("end_sentence_index"),
                     "text": adu.get("text"),
-                    "role": adu.get("role"),
-                    "start_time": adu.get("start_time"),
-                    "end_time": adu.get("end_time"),
+                    "role": adu.get("role")
                 }
                 for adu in adus_with_timestamps
             ]
@@ -780,7 +852,7 @@ async def audio_to_debate_graph_batch(
             # バッチでDB保存
             saved_adus = await round_crud.create_adus_batch(db, adus_data)
             total_adus_saved += len(saved_adus)
-            logger.info(f"Saved {len(saved_adus)} ADUs for {speech_key}")
+            logger.info(f"Saved {len(words_to_create)} words, {len(sentences_to_create)} sentences, {len(saved_adus)} ADUs for {speech_key}")
 
         print(f"[Step 4/5] ADU変換完了: {total_adus_saved} ADUs")
 
@@ -840,16 +912,28 @@ async def get_rebuttal_graph(round_name: str, db: AsyncSession = Depends(get_db)
             speech_key = speech.position
             speeches_data[speech_key] = []
 
-            # そのスピーチのADUを取得
+            # そのスピーチのADU、文、単語を取得
             adus = await round_crud.get_adus_by_speech(db, speech.id)
+            sentences = await round_crud.get_sentences_by_speech(db, speech.id)
+            words = await round_crud.get_words_by_speech(db, speech.id)
+
+            sentences_map = {s.index: s for s in sentences}
+            words_map = {w.index: w for w in words}
 
             for adu in adus:
+                # Calculate timestamp
+                start_time = 0.0
+                if adu.start_sentence_index in sentences_map:
+                    sent = sentences_map[adu.start_sentence_index]
+                    if sent.start_word_index in words_map:
+                        start_time = words_map[sent.start_word_index].start_time
+
                 # Format: {id, type, text, start}
                 adu_data = {
                     "id": adu.id,
                     "type": adu.role,
                     "text": adu.text,
-                    "start": round(adu.start_time, 1),  # 小数第1位に丸める
+                    "start": round(start_time, 1),  # 小数第1位に丸める
                 }
                 speeches_data[speech_key].append(adu_data)
 

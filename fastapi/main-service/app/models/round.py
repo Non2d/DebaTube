@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON, DateTime, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -37,9 +37,60 @@ class Speech(Base):
     # リレーション
     round = relationship("Round", back_populates="speeches")
     adus = relationship("Adu", back_populates="speech", cascade="all, delete-orphan")
+    words = relationship("Word", back_populates="speech", cascade="all, delete-orphan")
+    sentences = relationship("Sentence", back_populates="speech", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Speech(id={self.id}, round_name={self.round_name}, position={self.position})>"
+
+
+class Word(Base):
+    """
+    スピーチ内の単語を表すテーブル
+    """
+    __tablename__ = "words"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False, index=True)
+    index = Column(Integer, nullable=False)  # 0-indexed position in speech
+    text = Column(String(255), nullable=False)
+    start_time = Column(Float, nullable=False)
+    end_time = Column(Float, nullable=False)
+    confidence = Column(Float, nullable=True)
+
+    # リレーション
+    speech = relationship("Speech", back_populates="words")
+
+    __table_args__ = (
+        Index('idx_words_speech_id_index', 'speech_id', 'index'),
+    )
+
+    def __repr__(self):
+        return f"<Word(id={self.id}, speech_id={self.speech_id}, index={self.index}, text={self.text})>"
+
+
+class Sentence(Base):
+    """
+    スピーチ内の文を表すテーブル（Wordのグループ）
+    """
+    __tablename__ = "sentences"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False, index=True)
+    index = Column(Integer, nullable=False)  # 0-indexed position in speech
+    text = Column(Text, nullable=False)  # Cached text for convenience
+    start_word_index = Column(Integer, nullable=False)
+    end_word_index = Column(Integer, nullable=False)
+
+    # リレーション
+    speech = relationship("Speech", back_populates="sentences")
+
+    __table_args__ = (
+        Index('idx_sentences_speech_id_index', 'speech_id', 'index'),
+    )
+
+    def __repr__(self):
+        return f"<Sentence(id={self.id}, speech_id={self.speech_id}, index={self.index})>"
 
 
 class Adu(Base):
@@ -55,8 +106,7 @@ class Adu(Base):
     end_sentence_index = Column(Integer, nullable=False)
     text = Column(Text, nullable=False)
     role = Column(String(64), nullable=False)  # introduction, definition, claim, rebuttal, etc.
-    start_time = Column(Float, nullable=False)  # 開始タイムスタンプ（秒）
-    end_time = Column(Float, nullable=False)  # 終了タイムスタンプ（秒）
+    # start_time / end_time are removed, derived from sentences -> words
 
     # リレーション
     speech = relationship("Speech", back_populates="adus")

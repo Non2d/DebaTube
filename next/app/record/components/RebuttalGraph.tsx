@@ -107,6 +107,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
           const globalId = isLocalIdFormat ? localIdToGlobalId[key][id] : id;
           return {
             sequence_id: globalId,
+            original_id: id, // Store original DB ID
             start: segment.start || 0,
             type: segment.type || '',
           };
@@ -152,6 +153,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
             position: { x: originX + xposOpp * +!isGovernment, y: nodeY },
             data: {
               sequence_id: argumentUnit.sequence_id,
+              original_id: argumentUnit.original_id, // Store original ID in node data
               label: argumentUnit.sequence_id.toString(),
               time: argumentUnit.start,
               isBackground: false,
@@ -252,8 +254,9 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
 
   const handleNodeClick = (event: React.MouseEvent, node: any) => {
     if (!node.data.isBackground && onNodeClick) {
-      const nodeId = node.data.sequence_id;
-      const startTime = nodeDataRef.current[nodeId]?.startTime || 0;
+      // Use original_id (DB ID) if available, otherwise fallback to sequence_id
+      const nodeId = node.data.original_id !== undefined ? node.data.original_id : node.data.sequence_id;
+      const startTime = nodeDataRef.current[node.data.sequence_id]?.startTime || 0;
       onNodeClick(nodeId, startTime);
     }
   };

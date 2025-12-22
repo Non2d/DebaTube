@@ -1,0 +1,166 @@
+2025-12-22 18:06:38,954 INFO sqlalchemy.engine.Engine SELECT DATABASE()
+INFO:sqlalchemy.engine.Engine:SELECT DATABASE()
+2025-12-22 18:06:38,954 INFO sqlalchemy.engine.Engine [raw sql] ()
+INFO:sqlalchemy.engine.Engine:[raw sql] ()
+2025-12-22 18:06:38,955 INFO sqlalchemy.engine.Engine SELECT @@sql_mode
+INFO:sqlalchemy.engine.Engine:SELECT @@sql_mode
+2025-12-22 18:06:38,956 INFO sqlalchemy.engine.Engine [raw sql] ()
+INFO:sqlalchemy.engine.Engine:[raw sql] ()
+2025-12-22 18:06:38,956 INFO sqlalchemy.engine.Engine SELECT @@lower_case_table_names
+INFO:sqlalchemy.engine.Engine:SELECT @@lower_case_table_names
+2025-12-22 18:06:38,963 INFO sqlalchemy.engine.Engine [raw sql] ()
+INFO:sqlalchemy.engine.Engine:[raw sql] ()
+2025-12-22 18:06:38,963 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2025-12-22 18:06:38,965 INFO sqlalchemy.engine.Engine DELETE FROM rounds WHERE rounds.name = %s
+INFO:sqlalchemy.engine.Engine:DELETE FROM rounds WHERE rounds.name = %s
+2025-12-22 18:06:38,966 INFO sqlalchemy.engine.Engine [generated in 0.00080s] ('TEST_ROUND_VERIFY',)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00080s] ('TEST_ROUND_VERIFY',)
+2025-12-22 18:06:38,966 INFO sqlalchemy.engine.Engine COMMIT
+INFO:sqlalchemy.engine.Engine:COMMIT
+INFO:__main__:Creating Round...
+2025-12-22 18:06:38,974 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2025-12-22 18:06:38,975 INFO sqlalchemy.engine.Engine INSERT INTO rounds (name) VALUES (%s)
+INFO:sqlalchemy.engine.Engine:INSERT INTO rounds (name) VALUES (%s)
+2025-12-22 18:06:38,976 INFO sqlalchemy.engine.Engine [generated in 0.00061s] ('TEST_ROUND_VERIFY',)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00061s] ('TEST_ROUND_VERIFY',)
+2025-12-22 18:06:38,979 INFO sqlalchemy.engine.Engine COMMIT
+INFO:sqlalchemy.engine.Engine:COMMIT
+2025-12-22 18:06:38,984 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2025-12-22 18:06:38,986 INFO sqlalchemy.engine.Engine SELECT rounds.name, rounds.created_at 
+FROM rounds 
+WHERE rounds.name = %s
+INFO:sqlalchemy.engine.Engine:SELECT rounds.name, rounds.created_at 
+FROM rounds 
+WHERE rounds.name = %s
+2025-12-22 18:06:38,986 INFO sqlalchemy.engine.Engine [generated in 0.00042s] ('TEST_ROUND_VERIFY',)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00042s] ('TEST_ROUND_VERIFY',)
+INFO:__main__:Creating Speech...
+2025-12-22 18:06:38,989 INFO sqlalchemy.engine.Engine INSERT INTO speeches (round_name, position, audio_path, duration, raw_transcription) VALUES (%s, %s, %s, %s, %s)
+INFO:sqlalchemy.engine.Engine:INSERT INTO speeches (round_name, position, audio_path, duration, raw_transcription) VALUES (%s, %s, %s, %s, %s)
+2025-12-22 18:06:38,989 INFO sqlalchemy.engine.Engine [generated in 0.00060s] ('TEST_ROUND_VERIFY', 'Prop_1st', None, None, 'null')
+INFO:sqlalchemy.engine.Engine:[generated in 0.00060s] ('TEST_ROUND_VERIFY', 'Prop_1st', None, None, 'null')
+2025-12-22 18:06:38,991 INFO sqlalchemy.engine.Engine COMMIT
+INFO:sqlalchemy.engine.Engine:COMMIT
+2025-12-22 18:06:38,993 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2025-12-22 18:06:38,995 INFO sqlalchemy.engine.Engine SELECT speeches.id, speeches.round_name, speeches.position, speeches.audio_path, speeches.duration, speeches.raw_transcription 
+FROM speeches 
+WHERE speeches.id = %s
+INFO:sqlalchemy.engine.Engine:SELECT speeches.id, speeches.round_name, speeches.position, speeches.audio_path, speeches.duration, speeches.raw_transcription 
+FROM speeches 
+WHERE speeches.id = %s
+2025-12-22 18:06:38,995 INFO sqlalchemy.engine.Engine [generated in 0.00062s] (10,)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00062s] (10,)
+INFO:__main__:Creating Words...
+2025-12-22 18:06:38,998 INFO sqlalchemy.engine.Engine INSERT INTO words (speech_id, `index`, text, start_time, end_time, confidence) VALUES (%s, %s, %s, %s, %s, %s)
+INFO:sqlalchemy.engine.Engine:INSERT INTO words (speech_id, `index`, text, start_time, end_time, confidence) VALUES (%s, %s, %s, %s, %s, %s)
+2025-12-22 18:06:38,998 INFO sqlalchemy.engine.Engine [generated in 0.00041s] (10, 0, 'Hello', 0.0, 0.5, None)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00041s] (10, 0, 'Hello', 0.0, 0.5, None)
+2025-12-22 18:06:38,999 INFO sqlalchemy.engine.Engine INSERT INTO words (speech_id, `index`, text, start_time, end_time, confidence) VALUES (%s, %s, %s, %s, %s, %s)
+INFO:sqlalchemy.engine.Engine:INSERT INTO words (speech_id, `index`, text, start_time, end_time, confidence) VALUES (%s, %s, %s, %s, %s, %s)
+2025-12-22 18:06:39,000 INFO sqlalchemy.engine.Engine [cached since 0.001836s ago] (10, 1, 'world', 0.5, 1.0, None)
+INFO:sqlalchemy.engine.Engine:[cached since 0.001836s ago] (10, 1, 'world', 0.5, 1.0, None)
+2025-12-22 18:06:39,001 INFO sqlalchemy.engine.Engine COMMIT
+INFO:sqlalchemy.engine.Engine:COMMIT
+INFO:__main__:Creating Sentences...
+2025-12-22 18:06:39,004 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2025-12-22 18:06:39,005 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:sqlalchemy.engine.Engine:ROLLBACK
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1815, in _execute_context
+    context = constructor(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 1438, in _init_compiled
+    self.cursor = self.create_cursor()
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 1777, in create_cursor
+    return self.create_default_cursor()
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 1783, in create_default_cursor
+    return self._dbapi_connection.cursor()
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/pool/base.py", line 1486, in cursor
+    return self.dbapi_connection.cursor(*args, **kwargs)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/connectors/asyncio.py", line 353, in cursor
+    return self._cursor_cls(self)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/connectors/asyncio.py", line 153, in __init__
+    self._cursor = self._aenter_cursor(cursor)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/connectors/asyncio.py", line 159, in _aenter_cursor
+    return self.await_(cursor.__aenter__())  # type: ignore[no-any-return]
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 123, in await_only
+    raise exc.MissingGreenlet(
+sqlalchemy.exc.MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/verify_schema.py", line 103, in <module>
+    asyncio.run(main())
+  File "/usr/local/lib/python3.9/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/usr/local/lib/python3.9/asyncio/base_events.py", line 647, in run_until_complete
+    return future.result()
+  File "/app/verify_schema.py", line 58, in main
+    {"speech_id": s.id, "index": 0, "text": "Hello world", "start_word_index": 0, "end_word_index": 1}
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/attributes.py", line 569, in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/attributes.py", line 1126, in _fire_loader_callables
+    return state._load_expired(state, passive)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/state.py", line 828, in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/loading.py", line 1674, in load_scalar_attributes
+    result = load_on_ident(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/loading.py", line 510, in load_on_ident
+    return load_on_pk_identity(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/loading.py", line 695, in load_on_pk_identity
+    session.execute(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1821, in _execute_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/base.py", line 1815, in _execute_context
+    context = constructor(
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 1438, in _init_compiled
+    self.cursor = self.create_cursor()
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 1777, in create_cursor
+    return self.create_default_cursor()
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/engine/default.py", line 1783, in create_default_cursor
+    return self._dbapi_connection.cursor()
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/pool/base.py", line 1486, in cursor
+    return self.dbapi_connection.cursor(*args, **kwargs)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/connectors/asyncio.py", line 353, in cursor
+    return self._cursor_cls(self)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/connectors/asyncio.py", line 153, in __init__
+    self._cursor = self._aenter_cursor(cursor)
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/connectors/asyncio.py", line 159, in _aenter_cursor
+    return self.await_(cursor.__aenter__())  # type: ignore[no-any-return]
+  File "/usr/local/lib/python3.9/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 123, in await_only
+    raise exc.MissingGreenlet(
+sqlalchemy.exc.StatementError: (sqlalchemy.exc.MissingGreenlet) greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place?
+[SQL: SELECT speeches.id AS speeches_id, speeches.round_name AS speeches_round_name, speeches.position AS speeches_position, speeches.audio_path AS speeches_audio_path, speeches.duration AS speeches_duration, speeches.raw_transcription AS speeches_raw_transcription 
+FROM speeches 
+WHERE speeches.id = %s]
+[parameters: [{'pk_1': 10}]]
+(Background on this error at: https://sqlalche.me/e/20/xd2s)
+Exception ignored in: <function Connection.__del__ at 0x7f028ba91dc0>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.9/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.9/asyncio/selector_events.py", line 698, in close
+  File "/usr/local/lib/python3.9/asyncio/base_events.py", line 751, in call_soon
+  File "/usr/local/lib/python3.9/asyncio/base_events.py", line 515, in _check_closed
+RuntimeError: Event loop is closed

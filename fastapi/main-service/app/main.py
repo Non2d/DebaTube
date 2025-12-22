@@ -5,7 +5,39 @@ from routers import round, audio2adu, sub_apis, audio_save
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+import asyncio
+from sqlalchemy import text
+from db import async_engine
+from log_config import logger
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Wait for DB connection
+    retries = 30
+    wait_seconds = 2
+    logger.info(f"Waiting for database connection... (max retries: {retries})")
+    
+    for i in range(retries):
+        try:
+            async with async_engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            logger.info("Database connection established!")
+            break
+        except Exception as e:
+            if i < retries - 1:
+                logger.info(f"Database not ready yet, retrying in {wait_seconds}s... ({i+1}/{retries})")
+                await asyncio.sleep(wait_seconds)
+            else:
+                logger.error("Could not connect to database after maximum retries.")
+                raise e
+    
+    yield
+    
+    # Shutdown (if needed)
+    pass
+
+app = FastAPI(lifespan=lifespan)
 
 
 origins = [
@@ -35,3 +67,7 @@ app.include_router(round.router, tags=["round"])
 app.include_router(audio2adu.router, tags=["audio2adu"])
 app.include_router(sub_apis.router, tags=["sub-api"])
 app.include_router(audio_save.router, tags=["audio-save"])
+
+# Import logs router inside function or at top, here we do at top but for replace convenience:
+from routers import logs
+app.include_router(logs.router, prefix="/logs", tags=["logs"])

@@ -562,42 +562,33 @@ export default function RecordPage() {
   }, [roundName]);
 
   // ノードクリック時のハンドラー - グローバルIDとstart_timeからスピーチを特定し、seekbarをジャンプ
-  const handleGraphNodeClick = (globalNodeId: number) => {
+  const handleGraphNodeClick = (nodeId: number) => {
     if (!autoLoadedGraphData) return;
 
     // ログを記録
-    logGraphNodeClick(globalNodeId);
+    logGraphNodeClick(nodeId);
 
     try {
-      // グローバルIDをローカルIDとスピーチキーに逆引き
-      // ローカルIDは各スピーチで1から始まるので、グローバルIDを割り当てた順序で逆引き
-
+      // グローバルID(DB ID)をローカルIDとスピーチキーに逆引き
       let speechKey: string | null = null;
+      let foundStartTime: number | null = null;
 
-      // グローバルIDマッピングを再構築（グラフデータの順序をそのまま使用）
-      let globalIdCounter = 1;
-      const globalIdToInfo: { [globalId: number]: { speechKey: string, localId: number, startTime: number } } = {};
+      // Search for the node with this ID in the graph data
+      for (const key of Object.keys(autoLoadedGraphData.speeches)) {
+        const segments = autoLoadedGraphData.speeches[key] || [];
+        const foundSegment = segments.find((segment: any) => segment.id === nodeId);
 
-      Object.keys(autoLoadedGraphData.speeches).forEach((key) => {
-        (autoLoadedGraphData.speeches[key] || []).forEach((segment: any) => {
-          const localSegmentId = segment.id !== undefined ? segment.id : 1;
-          globalIdToInfo[globalIdCounter] = {
-            speechKey: key,
-            localId: localSegmentId,
-            startTime: segment.start || 0
-          };
-          globalIdCounter++;
-        });
-      });
-
-      if (!globalIdToInfo[globalNodeId]) {
-        console.warn(`[handleGraphNodeClick] Global ID not found: ${globalNodeId}`);
-        console.warn(`[handleGraphNodeClick] Available global IDs:`, Object.keys(globalIdToInfo));
-        return;
+        if (foundSegment) {
+          speechKey = key;
+          foundStartTime = foundSegment.start || 0;
+          break;
+        }
       }
 
-      const { speechKey: foundSpeechKey, startTime: foundStartTime } = globalIdToInfo[globalNodeId];
-      speechKey = foundSpeechKey;
+      if (!speechKey || foundStartTime === null) {
+        console.warn(`[handleGraphNodeClick] Node ID not found in graph data: ${nodeId}`);
+        return;
+      }
 
       // スピーチキーからspeech_indexを抽出
       let speechIndex = DEBATE_SPEECHES.findIndex(
@@ -630,43 +621,40 @@ export default function RecordPage() {
     console.log(`[handleGraphNodeTimeJump] Speech ${speechIndex} jump to ${time}s`);
   };
 
-  const handleGraphNodeClickCtrl2 = (globalNodeId: number) => {
+  const handleGraphNodeClickCtrl2 = (nodeId: number) => {
     if (!autoLoadedGraphData) return;
 
     // ログを記録
-    logGraphNodeClick(globalNodeId);
+    logGraphNodeClick(nodeId);
 
     try {
-      // グローバルIDをローカルIDとスピーチキーに逆引き
-      let globalIdCounter = 1;
-      const globalIdToInfo: { [globalId: number]: { speechKey: string, localId: number, startTime: number } } = {};
+      // Find segment with this ID
+      let speechKey: string | null = null;
+      let foundStartTime: number | null = null;
 
-      Object.keys(autoLoadedGraphData.speeches).forEach((key) => {
-        (autoLoadedGraphData.speeches[key] || []).forEach((segment: any) => {
-          const localSegmentId = segment.id !== undefined ? segment.id : 1;
-          globalIdToInfo[globalIdCounter] = {
-            speechKey: key,
-            localId: localSegmentId,
-            startTime: segment.start || 0
-          };
-          globalIdCounter++;
-        });
-      });
+      for (const key of Object.keys(autoLoadedGraphData.speeches)) {
+        const segments = autoLoadedGraphData.speeches[key] || [];
+        const foundSegment = segments.find((segment: any) => segment.id === nodeId);
 
-      if (!globalIdToInfo[globalNodeId]) {
-        console.warn(`[handleGraphNodeClickCtrl2] Global ID not found: ${globalNodeId}`);
+        if (foundSegment) {
+          speechKey = key;
+          foundStartTime = foundSegment.start || 0;
+          break;
+        }
+      }
+
+      if (!speechKey || foundStartTime === null) {
+        console.warn(`[handleGraphNodeClickCtrl2] Node ID not found: ${nodeId}`);
         return;
       }
 
-      const { speechKey: foundSpeechKey, startTime: foundStartTime } = globalIdToInfo[globalNodeId];
-
       // スピーチキーからspeech_indexを抽出
       let speechIndex = DEBATE_SPEECHES.findIndex(
-        (speech: SpeechFormat) => speech.name.toLowerCase().replace(/ /g, '_') === foundSpeechKey.toLowerCase()
+        (speech: SpeechFormat) => speech.name.toLowerCase().replace(/ /g, '_') === speechKey!.toLowerCase()
       );
 
       if (speechIndex === -1) {
-        console.warn(`[handleGraphNodeClickCtrl2] Speech index not found for: ${foundSpeechKey}`);
+        console.warn(`[handleGraphNodeClickCtrl2] Speech index not found for: ${speechKey}`);
         return;
       }
 
