@@ -1,73 +1,97 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from db import Base
 
+
 class Round(Base):
+    """
+    議論ラウンド（試合）を表すテーブル
+    """
     __tablename__ = "rounds"
-    id = Column(Integer, primary_key=True, index=True)
 
-    video_id = Column(String(1024))
-    title = Column(String(1024))
-    description = Column(String(1024))
-    motion = Column(String(1024))
-    date_uploaded = Column(String(1024))
-    channel_id = Column(String(1024))
-    tag = Column(String(1024))
+    name = Column(String(255), primary_key=True, index=True)  # 主キー
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    pois = relationship("Poi", back_populates="round", cascade="all, delete-orphan")
-    rebuttals = relationship("Rebuttal", back_populates="round", cascade="all, delete-orphan")
+    # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
 
+    def __repr__(self):
+        return f"<Round(name={self.name}, created_at={self.created_at})>"
+
+
 class Speech(Base):
+    """
+    個別のスピーチを表すテーブル
+    """
     __tablename__ = "speeches"
-    id = Column(Integer, primary_key=True, index=True)
 
-    argument_units = relationship("ArgumentUnit", back_populates="speech", cascade="all, delete-orphan")
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    round_name = Column(String(255), ForeignKey("rounds.name", ondelete="CASCADE"), nullable=False, index=True)
+    position = Column(String(64), nullable=False)  # Proposition_1st, Opposition_1st, etc.
+    audio_path = Column(String(512), nullable=True)  # 音声ファイルのパス
+    duration = Column(Float, nullable=True)  # 音声の長さ（秒）
+    raw_transcription = Column(JSON, nullable=True)  # Whisperの生出力をそのまま格納
 
-    round_id = Column(Integer, ForeignKey("rounds.id"))
+    # リレーション
     round = relationship("Round", back_populates="speeches")
-
-    # ログを見やすく
-    def __repr__(self):
-        return f"<Speech(id={self.id}, round_id={self.round_id}, argument_units={self.argument_units})>"
-
-class ArgumentUnit(Base):
-    __tablename__ = "argument_units"
-    id = Column(Integer, primary_key=True, index=True)
-
-    sequence_id = Column(Integer)
-    start = Column(Float)
-    end = Column(Float)
-    text = Column(Text)
-
-    speech_id = Column(Integer, ForeignKey("speeches.id"))
-    speech = relationship("Speech", back_populates="argument_units")
+    adus = relationship("Adu", back_populates="speech", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<ArgumentUnit(id={self.id}, sequence_id={self.sequence_id}, start={self.start}, end={self.end}, text={self.text})>"
+        return f"<Speech(id={self.id}, round_name={self.round_name}, position={self.position})>"
 
-class Poi(Base):
-    __tablename__ = "pois"
-    id = Column(Integer, primary_key=True, index=True)
-    argument_unit_id = Column(Integer) # segmentのidではないことに注意
 
-    round_id = Column(Integer, ForeignKey("rounds.id"))
-    round = relationship("Round", back_populates="pois")
+class Adu(Base):
+    """
+    ADU（Argumentative Discourse Unit）を表すテーブル
+    全スピーチ通しの連番idを持つ
+    """
+    __tablename__ = "adus"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 全スピーチ通しの連番
+    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False, index=True)
+    start_sentence_index = Column(Integer, nullable=False)
+    end_sentence_index = Column(Integer, nullable=False)
+    text = Column(Text, nullable=False)
+    role = Column(String(64), nullable=False)  # introduction, definition, claim, rebuttal, etc.
+    start_time = Column(Float, nullable=False)  # 開始タイムスタンプ（秒）
+    end_time = Column(Float, nullable=False)  # 終了タイムスタンプ（秒）
+
+    # リレーション
+    speech = relationship("Speech", back_populates="adus")
+    # 反論関係（src側）
+    rebuttals_as_source = relationship(
+        "Rebuttal",
+        foreign_keys="Rebuttal.src_adu_id",
+        back_populates="source_adu",
+        cascade="all, delete-orphan"
+    )
+    # 反論関係（tgt側）
+    rebuttals_as_target = relationship(
+        "Rebuttal",
+        foreign_keys="Rebuttal.tgt_adu_id",
+        back_populates="target_adu",
+        cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return f"<Adu(id={self.id}, speech_id={self.speech_id}, role={self.role})>"
+
 
 class Rebuttal(Base):
+    """
+    ADU間の反論関係を表すテーブル（N:N自己参照）
+    """
     __tablename__ = "rebuttals"
-    id = Column(Integer, primary_key=True, index=True)
 
-    src = Column(Integer)
-    tgt = Column(Integer)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    src_adu_id = Column(Integer, ForeignKey("adus.id", ondelete="CASCADE"), nullable=False, index=True)  # 反論している側
+    tgt_adu_id = Column(Integer, ForeignKey("adus.id", ondelete="CASCADE"), nullable=False, index=True)  # 反論されている側
 
-    round_id = Column(Integer, ForeignKey("rounds.id"))
-    round = relationship("Round", back_populates="rebuttals")
+    # リレーション
+    source_adu = relationship("Adu", foreign_keys=[src_adu_id], back_populates="rebuttals_as_source")
+    target_adu = relationship("Adu", foreign_keys=[tgt_adu_id], back_populates="rebuttals_as_target")
 
-class OperationLog(Base):
-    __tablename__ = "operation_logs"
-    id = Column(Integer, primary_key=True, index=True)
-    operation = Column(String(1024))
-    timestamp = Column(String(1024))
-    data = Column(JSON)
+    def __repr__(self):
+        return f"<Rebuttal(id={self.id}, src={self.src_adu_id}, tgt={self.tgt_adu_id})>"

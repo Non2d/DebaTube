@@ -23,7 +23,7 @@ type TabType = 'audio' | 'visualization';
 
 export default function RecordPage() {
   const [activeTab, setActiveTab] = useState<TabType>('audio');
-  const [matchName, setMatchName] = useState('');
+  const [roundName, setRoundName] = useState('');
   const [debateFormat, setDebateFormat] = useState<DebateFormatType>('BP'); // Default format
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -75,28 +75,29 @@ export default function RecordPage() {
     }
   }, []);
 
-  // Load match name from LocalStorage or set default on mount
+  // Load round name from LocalStorage or set default on mount
   useEffect(() => {
-    const savedMatchName = localStorage.getItem('debate_match_name');
-    if (savedMatchName) {
-      setMatchName(savedMatchName);
+    const savedRoundName = localStorage.getItem('debate_round_name');
+    if (savedRoundName) {
+      setRoundName(savedRoundName);
     } else {
-      // Set default match name: YYYY-MM-DD-session_HHmmss
+      // Set default round name: YYYY-MM-DD-session_HHmmss
       const now = new Date();
       const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const time = now.toTimeString().split(' ')[0].replace(/:/g, ''); // HHmmss
       const defaultName = `${date}-session_${time}`;
-      setMatchName(defaultName);
-      localStorage.setItem('debate_match_name', defaultName);
+      setRoundName(defaultName);
+      localStorage.setItem('debate_round_name', defaultName);
     }
   }, []);
 
-  // Save match name to LocalStorage when it changes
+  // Save round name to LocalStorage when it changes
   useEffect(() => {
-    if (matchName) {
-      localStorage.setItem('debate_match_name', matchName);
+    if (roundName) {
+      localStorage.setItem('debate_round_name', roundName);
     }
-  }, [matchName]);
+  }, [roundName]);
+
 
   // Save debate format to LocalStorage when it changes (skip on initial mount)
   useEffect(() => {
@@ -179,13 +180,13 @@ export default function RecordPage() {
     });
   };
 
-  // Load existing audio files from server when match name changes
+  // Load existing audio files from server when round name changes
   useEffect(() => {
     const loadExistingRecordings = async () => {
-      if (!matchName) return;
+      if (!roundName) return;
 
       try {
-        const response = await fetch(`http://localhost:8080/audio/match/${matchName}`);
+        const response = await fetch(`http://localhost:8080/audio/match/${roundName}`);
 
         if (!response.ok) {
           // If match doesn't exist (404), reset all recordings
@@ -234,7 +235,7 @@ export default function RecordPage() {
           if (speechIndex === null || isNaN(speechIndex)) continue;
 
           // Fetch the audio file as blob
-          const audioResponse = await fetch(`http://localhost:8080/audio/file/${matchName}/${fileInfo.filename}`);
+          const audioResponse = await fetch(`http://localhost:8080/audio/file/${roundName}/${fileInfo.filename}`);
           if (!audioResponse.ok) {
             console.error(`Failed to fetch audio file: ${fileInfo.filename}`);
             continue;
@@ -278,7 +279,7 @@ export default function RecordPage() {
     };
 
     loadExistingRecordings();
-  }, [matchName]);
+  }, [roundName]);
 
   const startRecording = async () => {
     try {
@@ -310,7 +311,7 @@ export default function RecordPage() {
         // Save to API
         try {
           const formData = new FormData();
-          formData.append('match_name', matchName);
+          formData.append('round_name', roundName);
           formData.append('speech_index', currentSpeechIndex.toString());
           const speechName = DEBATE_SPEECHES[currentSpeechIndex].name.toLowerCase().replace(/ /g, '_');
           formData.append('speech_name', speechName);
@@ -437,7 +438,7 @@ export default function RecordPage() {
 
   // 音声からディベートグラフを生成
   const generateDebateGraph = async () => {
-    if (!matchName) {
+    if (!roundName) {
       setGenerationError(t('recordPage.messages.enterRoundId'));
       return;
     }
@@ -464,7 +465,7 @@ export default function RecordPage() {
 
     try {
       const formData = new FormData();
-      formData.append('match_name', matchName);
+      formData.append('round_name', roundName);
       formData.append('debate_format', debateFormat);
 
       // 全ての音声ファイルを FormData に追加
@@ -501,31 +502,23 @@ export default function RecordPage() {
       const result = await response.json();
       console.log('[generateDebateGraph] Success:', result);
 
-      // 反論グラフの JSON を自動読み込み
-      if (result.rebuttal_graph_file) {
-        try {
-          // ファイルパスから JSON ファイルを読み込む
-          // Note: ファイルシステムへの直接アクセスはできないため、サーバーから返されたデータを使用
-          setGraphData({
-            speeches: result.summary,
-            rebuttals: []
-          });
-
-          setGenerationSuccess(
-            t('recordPage.status.success', { seconds: result.processing_time_seconds }) + '\n' +
-            t('recordPage.status.transcribed', { files: result.summary.files_transcribed }) + '\n' +
-            t('recordPage.status.adus', { total: result.summary.total_adus }) + '\n' +
-            t('recordPage.status.rebuttalPairs', { total: result.summary.total_rebuttal_pairs }) + '\n' +
-            t('recordPage.status.savedTo', { path: result.results_directory })
-          );
-        } catch (error) {
-          console.error('Failed to load graph data:', error);
-          setGenerationSuccess(
-            t('recordPage.status.success', { seconds: result.processing_time_seconds }) + '\n' +
-            t('recordPage.status.savedTo', { path: result.results_directory })
-          );
-        }
+      // round_name を保存（round_id は廃止）
+      if (result.round_name) {
+        console.log(`[generateDebateGraph] Round name: ${result.round_name}`);
       }
+
+      // グラフデータを自動読み込み
+      if (result.round_name || roundName) {
+        await autoLoadGraphData(result.round_name || roundName);
+      }
+
+      setGenerationSuccess(
+        t('recordPage.status.success', { seconds: result.processing_time_seconds }) + '\n' +
+        t('recordPage.status.transcribed', { files: result.summary.files_transcribed }) + '\n' +
+        t('recordPage.status.adus', { total: result.summary.total_adus }) + '\n' +
+        t('recordPage.status.rebuttalPairs', { total: result.summary.total_rebuttal_pairs }) + '\n' +
+        `Round: ${result.round_name || roundName}`
+      );
     } catch (error) {
       console.error('[generateDebateGraph] Error:', error);
       setGenerationError(
@@ -537,15 +530,15 @@ export default function RecordPage() {
   };
 
   // グラフデータを自動読み込み（サーバーから）
-  const autoLoadGraphData = async (matchId: string) => {
-    if (!matchId) return;
+  const autoLoadGraphData = async (roundNameToLoad: string) => {
+    if (!roundNameToLoad) return;
 
     try {
-      console.log(`[autoLoadGraphData] Loading graph for match: ${matchId}`);
-      const response = await fetch(`http://localhost:8080/rebuttal-graph/${matchId}`);
+      console.log(`[autoLoadGraphData] Loading graph for round: ${roundNameToLoad}`);
+      const response = await fetch(`http://localhost:8080/rebuttal-graph/${roundNameToLoad}`);
 
       if (!response.ok) {
-        console.warn(`[autoLoadGraphData] Graph not found for match: ${matchId}`);
+        console.warn(`[autoLoadGraphData] Graph not found for round: ${roundNameToLoad}`);
         setAutoLoadedGraphData(null);
         return;
       }
@@ -553,13 +546,20 @@ export default function RecordPage() {
       const result = await response.json();
       if (result.status === 'success' && result.data) {
         setAutoLoadedGraphData(result.data);
-        console.log(`[autoLoadGraphData] Graph loaded successfully for match: ${matchId}`);
+        console.log(`[autoLoadGraphData] Graph loaded successfully for round: ${roundNameToLoad}`);
       }
     } catch (error) {
       console.error('[autoLoadGraphData] Error:', error);
       setAutoLoadedGraphData(null);
     }
   };
+
+  // Load graph data when roundName changes or on mount
+  useEffect(() => {
+    if (roundName) {
+      autoLoadGraphData(roundName);
+    }
+  }, [roundName]);
 
   // ノードクリック時のハンドラー - グローバルIDとstart_timeからスピーチを特定し、seekbarをジャンプ
   const handleGraphNodeClick = (globalNodeId: number) => {
@@ -729,7 +729,7 @@ export default function RecordPage() {
               <button
                 onClick={() => {
                   setActiveTab('audio');
-                  logTabSwitch('audio', matchName);
+                  logTabSwitch('audio', roundName);
                 }}
                 className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'audio'
                   ? 'bg-white text-gray-900 shadow-sm'
@@ -741,8 +741,7 @@ export default function RecordPage() {
               <button
                 onClick={() => {
                   setActiveTab('visualization');
-                  logTabSwitch('visualization', matchName);
-                  if (matchName) autoLoadGraphData(matchName);
+                  logTabSwitch('visualization', roundName);
                 }}
                 className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'visualization'
                   ? 'bg-white text-blue-600 shadow-sm'
@@ -845,8 +844,8 @@ export default function RecordPage() {
                         </div>
                         <input
                           type="text"
-                          value={matchName}
-                          onChange={(e) => setMatchName(e.target.value)}
+                          value={roundName}
+                          onChange={(e) => setRoundName(e.target.value)}
                           className="h-12 w-full pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
                           placeholder={t('recordPage.controls.enterRoundId')}
                         />
@@ -858,10 +857,10 @@ export default function RecordPage() {
                     <div className="lg:col-span-3">
                       <button
                         onClick={generateDebateGraph}
-                        disabled={!areAllAudioFilesReady() || isGeneratingGraph || !matchName}
+                        disabled={!areAllAudioFilesReady() || isGeneratingGraph || !roundName}
                         className={`h-12 w-full flex items-center justify-center gap-2.5 rounded-xl text-sm font-bold tracking-wide transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
                           ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
-                          : !matchName
+                          : !roundName
                             ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
                             : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
                           }`}
@@ -944,8 +943,8 @@ export default function RecordPage() {
                       </div>
                       <input
                         type="text"
-                        value={matchName}
-                        onChange={(e) => setMatchName(e.target.value)}
+                        value={roundName}
+                        onChange={(e) => setRoundName(e.target.value)}
                         className="h-12 w-full lg:w-96 pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
                         placeholder={t('recordPage.controls.searchRoundId')}
                       />

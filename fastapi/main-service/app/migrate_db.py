@@ -1,50 +1,76 @@
-import time
-from sqlalchemy import create_engine
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import sessionmaker
-from models.round import Base
-import models.round as round_db_model
-import json
+"""
+データベースマイグレーションスクリプト
+既存データを保持しながらスキーマを更新します
+"""
+import asyncio
+from sqlalchemy import text
+from db import async_engine, Base
+from models.round import Round, Speech, Adu, Rebuttal
 
-import os
-from dotenv import load_dotenv
-load_dotenv()
 
-MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-MYSQL_HOST = "db" #yamlで設定したDBサービス名
-MYSQL_DATABASE = "debate"
-
-PROD_DB_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8"
-
-DEV_DB_URL = "mysql+pymysql://root@db:3306/debate?charset=utf8"
-
-DB_URL = PROD_DB_URL if os.getenv("ENV") == "production" else DEV_DB_URL
-
-engine = create_engine(DB_URL, echo=True)
-Session = sessionmaker(bind=engine)
-
-def wait_for_db_connection(max_retries=5, wait_interval=5):
-    retries = 0
-    while retries < max_retries:
+async def add_name_column_to_rounds():
+    """roundsテーブルにnameカラムを追加"""
+    async with async_engine.begin() as conn:
         try:
-            engine.connect()
-            print("Database connection successful")
-            return True
-        except OperationalError:
-            retries += 1
-            print(f"Database connection failed. Retrying in {wait_interval} seconds...")
-            time.sleep(wait_interval)
-    print("Could not connect to the database. Exiting.")
-    return False
+            # nameカラムが存在するかチェック
+            result = await conn.execute(text("""
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = 'debate'
+                AND TABLE_NAME = 'rounds'
+                AND COLUMN_NAME = 'name'
+            """))
+            exists = result.scalar()
 
-def restart_database():
-    # Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+            if exists == 0:
+                # nameカラムを追加
+                await conn.execute(text("""
+                    ALTER TABLE rounds
+                    ADD COLUMN name VARCHAR(255) NOT NULL DEFAULT 'untitled'
+                """))
+                print("✓ roundsテーブルにnameカラムを追加しました")
+
+                # 既存のデータにユニークな名前を設定
+                await conn.execute(text("""
+                    UPDATE rounds
+                    SET name = CONCAT('round_', id, '_', DATE_FORMAT(created_at, '%Y%m%d_%H%i%s'))
+                """))
+                print("✓ 既存レコードに名前を設定しました")
+
+                # UNIQUE制約とINDEXを追加
+                await conn.execute(text("""
+                    ALTER TABLE rounds
+                    ADD UNIQUE KEY unique_name (name)
+                """))
+                await conn.execute(text("""
+                    ALTER TABLE rounds
+                    ADD INDEX idx_rounds_name (name)
+                """))
+                print("✓ UNIQUE制約とINDEXを追加しました")
+            else:
+                print("✓ nameカラムは既に存在します")
+
+        except Exception as e:
+            print(f"✗ エラー: {e}")
+            raise
+
+
+async def main():
+    """マイグレーションを実行"""
+    print("=" * 50)
+    print("データベースマイグレーション開始")
+    print("=" * 50)
+
+    # nameカラムを追加
+    await add_name_column_to_rounds()
+
+    print("=" * 50)
+    print("マイグレーション完了")
+    print("=" * 50)
+
+    # エンジンを閉じる
+    await async_engine.dispose()
+
 
 if __name__ == "__main__":
-    if wait_for_db_connection():
-        restart_database()
-        pass
-    else:
-        print("Exiting due to database connection failure.")
+    asyncio.run(main())
