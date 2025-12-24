@@ -74,22 +74,22 @@ export default function RecordingCard({
     <div
       className={`rounded-lg p-4 cursor-pointer transition-all duration-200 ${isCurrentSpeech
         ? speech.team === 'proposition'
-          ? 'border-2 border-red-500 bg-red-50'
-          : 'border-2 border-blue-500 bg-blue-50'
+          ? 'border-2 border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-400'
+          : 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
         : hasRecording
-          ? 'bg-gray-50 hover:bg-gray-100'
-          : 'bg-gray-100 border-2 border-dashed border-gray-300 hover:bg-gray-200'
+          ? 'bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700'
+          : 'bg-gray-100 dark:bg-slate-900 border-2 border-dashed border-gray-300 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-800'
         }`}
       onClick={() => onClick(index)}
     >
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h4 className={`font-medium text-sm ${speech.team === 'proposition' ? 'text-red-600' : 'text-blue-600'
+          <h4 className={`font-medium text-sm ${speech.team === 'proposition' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
             }`}>
             {displayName}
           </h4>
           {recordings && recordings.length > 1 && (
-            <span className="text-xs text-gray-500">({recordings.length} {t('recordingCard.recordings')})</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">({recordings.length} {t('recordingCard.recordings')})</span>
           )}
         </div>
         {hasRecording && (

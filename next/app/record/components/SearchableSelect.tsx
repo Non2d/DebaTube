@@ -87,12 +87,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 value={searchTerm}
                 onChange={handleInputChange}
                 onFocus={handleInputFocus}
-                className="h-12 w-full pl-10 pr-10 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                className="h-12 w-full pl-10 pr-10 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
                 placeholder={placeholder}
             />
 
             {label && (
-                <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">
+                <label className="absolute -top-2 left-3 px-1 bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 pointer-events-none">
                     {label}
                 </label>
             )}
@@ -104,12 +104,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
             {/* Dropdown Options */}
             {isOpen && filteredOptions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg max-h-60 overflow-auto ring-1 ring-black/5 py-1">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-auto ring-1 ring-black/5 dark:ring-white/10 py-1">
                     {filteredOptions.map((option, index) => (
                         <div
                             key={index}
                             onClick={() => handleOptionClick(option)}
-                            className="px-4 py-2.5 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer transition-colors font-mono"
+                            className="px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors font-mono"
                         >
                             {option}
                         </div>
@@ -118,7 +118,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             )}
 
             {isOpen && searchTerm && filteredOptions.length === 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-3 text-sm text-slate-500 text-center italic">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-lg px-4 py-3 text-sm text-slate-500 dark:text-slate-400 text-center italic">
                     No matches found
                 </div>
             )}

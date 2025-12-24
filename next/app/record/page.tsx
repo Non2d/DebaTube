@@ -728,39 +728,44 @@ export default function RecordPage() {
     }
   };
 
+  const handleTabSwitch = (tab: TabType) => {
+    setActiveTab(tab);
+    logTabSwitch(tab, roundName);
+  };
+
   const currentSpeech = DEBATE_SPEECHES[currentSpeechIndex];
 
   return (
     <>
       <Header title="DebaTube Live" />
-      <div className="min-h-screen bg-white flex flex-col pt-16">
-        <div className="flex-1 max-w-4xl mx-auto px-4 py-4 w-full">
-          {/* Top Navigation */}
-          <div className="flex justify-center mb-6">
-            <div className="bg-gray-100 p-1 rounded-lg inline-flex shadow-inner">
+      <div className="min-h-screen h-screen bg-white dark:bg-slate-950 flex flex-col pt-16 transition-colors duration-300 overflow-hidden">
+        <div className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-2 max-w-7xl flex flex-col min-h-0">
+          {/* Tab Navigation */}
+          <div className="flex justify-center mb-2">
+            <div className="bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl inline-flex shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 backdrop-blur-sm">
               <button
-                onClick={() => {
-                  setActiveTab('audio');
-                  logTabSwitch('audio', roundName);
-                }}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'audio'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
+                onClick={() => handleTabSwitch('audio')}
+                className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center gap-2 ${activeTab === 'audio'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
                   }`}
               >
-                {t('recordPage.tabs.audio')}
+                <div className={`p-1 rounded-lg ${activeTab === 'audio' ? 'bg-indigo-50 dark:bg-indigo-500/20' : 'bg-transparent'}`}>
+                  <Zap size={16} className={activeTab === 'audio' ? "fill-indigo-600 dark:fill-indigo-400" : ""} />
+                </div>
+                <span>{t('recordPage.tabs.audio')}</span>
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('visualization');
-                  logTabSwitch('visualization', roundName);
-                }}
-                className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'visualization'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
+                onClick={() => handleTabSwitch('visualization')}
+                className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center gap-2 ${activeTab === 'visualization'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
                   }`}
               >
-                {t('recordPage.tabs.visualization')}
+                <div className={`p-1 rounded-lg ${activeTab === 'visualization' ? 'bg-indigo-50 dark:bg-indigo-500/20' : 'bg-transparent'}`}>
+                  <Eye size={16} />
+                </div>
+                <span>{t('recordPage.tabs.visualization')}</span>
               </button>
             </div>
           </div>
@@ -821,7 +826,7 @@ export default function RecordPage() {
               {/* Modern Control Bar */}
 
 
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 mt-12">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 mt-12">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
                   {/* Format Input Group */}
                   <div className="lg:col-span-3">
@@ -832,7 +837,7 @@ export default function RecordPage() {
                       <select
                         value={debateFormat}
                         onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
-                        className="h-12 w-full pl-10 pr-10 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-50/50"
+                        className="h-12 w-full pl-10 pr-10 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
                       >
                         <option value="NA">{t('recordPage.formatOptions.na')}</option>
                         <option value="ASIAN">{t('recordPage.formatOptions.asian')}</option>
@@ -915,17 +920,15 @@ export default function RecordPage() {
 
           {/* Feedback Tab */}
           {activeTab === 'visualization' && (
-            <div>
+            <div className="flex flex-col flex-1 min-h-0 h-full">
               {autoLoadedGraphData && (
-                <div className="mb-6">
-                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-                    <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
-                  </div>
+                <div className="flex-1 min-h-0 basis-0 grow mb-6 bg-white border border-gray-200 rounded-lg overflow-hidden relative">
+                  <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
                 </div>
               )}
               {!autoLoadedGraphData && (
-                <div className="mb-6 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg" style={{ height: '600px' }}>
-                  <p className="text-gray-600 font-medium">{t('recordPage.messages.noGraphData')}</p>
+                <div className="flex-1 min-h-0 basis-0 grow mb-6 flex items-center justify-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg">
+                  <p className="text-gray-600 dark:text-gray-400 font-medium">{t('recordPage.messages.noGraphData')}</p>
                 </div>
               )}
 
@@ -940,9 +943,8 @@ export default function RecordPage() {
                 />
               </div>
 
-              {/* Modern Action Footer */}
-              <div className="mt-4">
-                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5">
+              <div className="mt-2">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10">
                   <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
 
                     {/* Round ID Badge (Editable) */}
@@ -968,7 +970,7 @@ export default function RecordPage() {
                             const val = e.target.value ? parseInt(e.target.value) : null;
                             setTryCount(val);
                           }}
-                          className="h-12 w-full pl-9 pr-3 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                          className="h-12 w-full pl-9 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
                           placeholder="1"
                         />
                         <label className="absolute -top-2 left-1 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Try</label>
@@ -976,10 +978,10 @@ export default function RecordPage() {
                     </div>
 
                     {/* Display Options Toggles */}
-                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 px-6 py-3 rounded-xl ring-1 ring-slate-200/80">
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 dark:bg-slate-800 px-6 py-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-700">
                       {/* POI Toggle */}
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.poiColor')}</span>
+                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{t('recordPage.toggles.poiColor')}</span>
                         <button
                           onClick={() => setShowPoiColors(!showPoiColors)}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showPoiColors ? 'bg-indigo-600' : 'bg-slate-300'
@@ -996,7 +998,7 @@ export default function RecordPage() {
 
                       {/* Node ID Toggle */}
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.nodeId')}</span>
+                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{t('recordPage.toggles.nodeId')}</span>
                         <button
                           onClick={() => setShowNodeIds(!showNodeIds)}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showNodeIds ? 'bg-indigo-600' : 'bg-slate-300'

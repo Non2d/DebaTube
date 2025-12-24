@@ -239,14 +239,14 @@ export default function UnifiedAudioPlayer({
 
   if (segments.length === 0) {
     return (
-      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-        <p className="text-gray-600">{t('unifiedPlayer.noAudio')}</p>
+      <div className="p-4 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
+        <p className="text-gray-600 dark:text-gray-400">{t('unifiedPlayer.noAudio')}</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-white border border-gray-300 rounded-lg shadow-md">
+    <div className="p-6 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg shadow-md">
       <div className="flex items-center gap-4 mb-4">
         <button
           onClick={onPlayPause}
@@ -256,7 +256,7 @@ export default function UnifiedAudioPlayer({
           {isPlaying ? <Pause size={24} /> : <Play size={24} />}
         </button>
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-2 text-sm text-gray-600">
+          <div className="flex items-center justify-between mb-2 text-sm text-gray-600 dark:text-gray-300">
             <span>{formatTime(currentGlobalTime)}</span>
             <span>{formatTime(totalDuration)}</span>
           </div>
@@ -267,7 +267,7 @@ export default function UnifiedAudioPlayer({
             step="0.01"
             value={currentGlobalTime}
             onChange={handleSeek}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
             style={{
               background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(currentGlobalTime / totalDuration) * 100}%, #d1d5db ${(currentGlobalTime / totalDuration) * 100}%, #d1d5db 100%)`,
               outline: 'none',
@@ -294,7 +294,7 @@ export default function UnifiedAudioPlayer({
                 );
               })}
             </div>
-            <div className="flex justify-between mt-1 text-xs text-gray-500">
+            <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
               <span>{t('unifiedPlayer.prop')}</span>
               <span>{t('unifiedPlayer.opp')}</span>
             </div>
