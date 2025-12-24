@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
+from cruds import round as round_crud
+
 
 router = APIRouter()
 
@@ -734,14 +736,11 @@ async def create_round_from_jsons(
         transcript_data = json.loads(transcript_content.decode('utf-8'))
 
         # 2. Round作成
-        # TODO: すでに存在する場合のハンドリング（とりあえずそのままINSERTしてエラーなら400返すなど）
-        # AsyncSessionなのでcommitが必要
-        new_round = Round(name=round_name)
-        db.add(new_round)
-        await db.commit()
-        await db.refresh(new_round)
-
-        logger.info(f"Created Round: {round_name}")
+        # round_crudを使用することでtry_countの自動インクリメントを行う
+        new_round = await round_crud.create_round(db, name=round_name)
+        current_round_id = new_round.id
+        
+        logger.info(f"Created Round: {new_round.name} (id={current_round_id}, try_count={new_round.try_count})")
 
         # IDマッピング用辞書 (old_adu_id -> new_adu_id)
         # rebuttal_graph内のIDは整数だが、一意性はSpeech内のみか全体かを確認する必要がある
@@ -752,12 +751,13 @@ async def create_round_from_jsons(
         # rebuttal_graph["speeches"] あるいは transcript_data のキーでループ
         
         # transcript_dataのキー (Proposition_1st, ...) をベースにする
+        # transcript_dataのキー (Proposition_1st, ...) をベースにする
         for position, speech_content in transcript_data.items():
             # Speech作成
             duration = speech_content.get("duration", 0.0)
             
             new_speech = Speech(
-                round_id=new_round.id,
+                round_id=current_round_id,
                 position=position,
                 duration=duration,
                 raw_transcription=speech_content # 全体を保存しておく
@@ -816,33 +816,11 @@ async def create_round_from_jsons(
             if "speeches" in rebuttal_data and position in rebuttal_data["speeches"]:
                 adus_list = rebuttal_data["speeches"][position]
                 
-                for adu_item in adus_list:
-                    # { "id": 1, "type": "...", "text": "...", "start": ... }
-                    old_id = adu_item.get("id")
-                    role = adu_item.get("type", "unknown")
-                    text = adu_item.get("text", "")
-                    start_time_adu = adu_item.get("start", 0.0)
-
-                    # 文章のインデックスを特定する必要がある
-                    # start_timeをもとに、sentencesのstart_timeと比較して開始文を特定
-                    # 終了文は次のADUの直前、あるいはスピーチの終わりまで
-                    # ここでは簡易的に、start_timeが含まれる文を開始文とし、
-                    # 次のADUの開始タイムの直前の文までを範囲とする、などのロジックが必要だが、
-                    # ユーザー指示では「Start/End Sentence Index」が重要。
-                    # しかし入力json(rebuttal_graph)には start しかない。
-                    # ここは推定ロジックが必要。
-                    
-                    # 簡易ロジック: start_time に最も近い開始時間を持つ sentence を start_sentence_index とする
-                    # 次のADUの start_sentence_index - 1 を end_sentence_index とする
-                    pass 
-
                 # ADUの開始・終了文インデックスを決定するために、一度全ADUの開始時間をリスト化してソートする
                 sorted_adus = sorted(adus_list, key=lambda x: x.get("start", 0.0))
                 
-                # Sentenceのリストもstart_timeでソートされているはず
-                # sentences_struct は id順 = 時間順
-                
                 for i, adu_item in enumerate(sorted_adus):
+
                     adu_start_time = adu_item.get("start", 0.0)
                     
                     # 開始文を見つける

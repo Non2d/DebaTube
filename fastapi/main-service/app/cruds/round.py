@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 
 from models.round import Round, Speech, Adu, Rebuttal, Word, Sentence
+from sqlalchemy import func
 
 
 # ==================== Round CRUD ====================
@@ -11,24 +12,48 @@ from models.round import Round, Speech, Adu, Rebuttal, Word, Sentence
 async def create_round(db: AsyncSession, name: str) -> Round:
     """
     新しいラウンドを作成
+    同じ名前がある場合はtry_countをインクリメントして作成する
     """
-    round_obj = Round(name=name)
+    # 同じ名前のラウンドの最大try_countを取得
+    result = await db.execute(
+        select(func.max(Round.try_count)).where(Round.name == name)
+    )
+    max_try_count = result.scalar()
+    
+    new_try_count = 1
+    if max_try_count is not None:
+        new_try_count = max_try_count + 1
+        
+    round_obj = Round(name=name, try_count=new_try_count)
     db.add(round_obj)
     await db.commit()
     await db.refresh(round_obj)
     return round_obj
 
 
-async def get_round(db: AsyncSession, round_name: str) -> Optional[Round]:
+async def get_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> Optional[Round]:
     """
     ラウンドを名前で取得
+    try_count指定なしの場合は、最新のものを返す
     """
-    result = await db.execute(
-        select(Round)
-        .where(Round.name == round_name)
-        .options(selectinload(Round.speeches))
-    )
-    return result.scalar_one_or_none()
+    query = select(Round).where(Round.name == round_name).options(selectinload(Round.speeches))
+    
+    if try_count is not None:
+        # 指定されたバージョンを取得
+        query = query.where(Round.try_count == try_count)
+    else:
+        # 最新を取得 (try_count降順で1件)
+        query = query.order_by(Round.try_count.desc())
+    
+    result = await db.execute(query)
+    
+    # scalar_one_or_noneだと複数ある場合にエラーになる可能性がある(latest取得の場合、limitが必要？)
+    # scalar() は最初の一件を返すので order_by desc していれば最新が取れる
+    # ただし first() メソッドがAsyncSessionにはないので、fetchする
+    row = result.first()
+    if row:
+        return row[0]
+    return None
 
 
 async def get_all_rounds(db: AsyncSession) -> List[Round]:

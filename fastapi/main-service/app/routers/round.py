@@ -22,6 +22,7 @@ class RoundResponse(BaseModel):
     name: str
     try_count: int
     type: str
+    note: Optional[str] = None
     created_at: str
 
     class Config:
@@ -105,6 +106,7 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
         name=round_obj.name,
         try_count=round_obj.try_count,
         type=round_obj.type,
+        note=round_obj.note,
         created_at=round_obj.created_at.isoformat()
     )
 
@@ -121,6 +123,7 @@ async def get_all_rounds(db: AsyncSession = Depends(get_db)):
             name=r.name,
             try_count=r.try_count,
             type=r.type,
+            note=r.note,
             created_at=r.created_at.isoformat()
         )
         for r in rounds
@@ -128,11 +131,13 @@ async def get_all_rounds(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/rounds/{round_name}", response_model=RoundResponse)
-async def get_round(round_name: str, db: AsyncSession = Depends(get_db)):
+async def get_round(round_name: str, try_count: Optional[int] = None, db: AsyncSession = Depends(get_db)):
     """
     ラウンドを名前で取得
+    try_countを指定するとそのバージョンのラウンドを取得
+    指定なしの場合は最新を取得
     """
-    round_obj = await round_crud.get_round(db, round_name)
+    round_obj = await round_crud.get_round(db, round_name, try_count=try_count)
     if not round_obj:
         raise HTTPException(status_code=404, detail="Round not found")
     return RoundResponse(
@@ -140,6 +145,7 @@ async def get_round(round_name: str, db: AsyncSession = Depends(get_db)):
         name=round_obj.name,
         try_count=round_obj.try_count,
         type=round_obj.type,
+        note=round_obj.note,
         created_at=round_obj.created_at.isoformat()
     )
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON, DateTime, Index
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Text, JSON, DateTime, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -12,15 +12,20 @@ class Round(Base):
     __tablename__ = "rounds"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 新しい主キー
-    name = Column(String(255), unique=True, index=True, nullable=False)  # 既存のID代わり
+    name = Column(String(255), index=True, nullable=False)  # 既存のID代わり (Unique制約は複合のみにする)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     # New fields
     try_count = Column(Integer, default=1, nullable=False)
     type = Column(String(50), default="record", nullable=False) # "record" or "external_video"
+    note = Column(Text, nullable=True)
 
     # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint('name', 'try_count', name='idx_rounds_name_try_count'),
+    )
 
     def __repr__(self):
         return f"<Round(id={self.id}, name={self.name})>"
