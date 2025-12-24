@@ -5,7 +5,7 @@ export const ja: LocaleType = {
     header: {
         title: "DebaTube Live",
         explore: "試合をさがす",
-        dashboard: "試合一覧をみる",
+        dashboard: "試合リストをみる",
         record: "試合を録音する",
     },
     timer: {
@@ -36,9 +36,9 @@ export const ja: LocaleType = {
         },
         controls: {
             format: "フォーマット",
-            roundId: "ラウンドID",
-            enterRoundId: "ラウンドIDを入力...",
-            searchRoundId: "ラウンドIDを検索...",
+            roundId: "試合ID",
+            enterRoundId: "試合IDを入力...",
+            searchRoundId: "試合IDを検索...",
             generateGraph: "グラフ作成",
             processing: "処理中...",
         },
@@ -52,7 +52,7 @@ export const ja: LocaleType = {
             savedTo: "保存先: {path}",
         },
         messages: {
-            enterRoundId: "ラウンドIDを入力してください",
+            enterRoundId: "試合IDを入力してください",
             allAudioRequired: "全ての音声ファイルが必要です",
             confirmGenerate: "グラフを生成しますか？\n\nこれには数分かかる場合があります。",
             invalidJson: "無効なJSON形式です。「speeches」と「rebuttals」が含まれているか確認してください。",

@@ -917,20 +917,20 @@ export default function RecordPage() {
           {activeTab === 'visualization' && (
             <div>
               {autoLoadedGraphData && (
-                <div className="mb-12">
+                <div className="mb-6">
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: '600px' }}>
                     <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
                   </div>
                 </div>
               )}
               {!autoLoadedGraphData && (
-                <div className="mb-12 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg" style={{ height: '600px' }}>
+                <div className="mb-6 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg" style={{ height: '600px' }}>
                   <p className="text-gray-600 font-medium">{t('recordPage.messages.noGraphData')}</p>
                 </div>
               )}
 
               {/* Unified Audio Player - Middle */}
-              <div className="mt-8 mb-12">
+              <div className="mt-4 mb-6">
                 <UnifiedAudioPlayer
                   speechRecordings={speechRecordings}
                   speechCount={DEBATE_SPEECHES.length}
@@ -941,7 +941,7 @@ export default function RecordPage() {
               </div>
 
               {/* Modern Action Footer */}
-              <div className="mt-8">
+              <div className="mt-4">
                 <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5">
                   <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
 
@@ -969,7 +969,7 @@ export default function RecordPage() {
                             setTryCount(val);
                           }}
                           className="h-12 w-full pl-9 pr-3 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
-                          placeholder="#"
+                          placeholder="1"
                         />
                         <label className="absolute -top-2 left-1 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Try</label>
                       </div>
