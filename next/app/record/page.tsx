@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Upload, Zap, List, Hash, Check, Tags, Eye, Search } from 'lucide-react';
 import RecordButton from './components/RecordButton';
 import TimerDisplay from './components/TimerDisplay';
@@ -40,7 +40,10 @@ export default function RecordPage() {
   const [autoLoadedGraphData, setAutoLoadedGraphData] = useState<GraphData | null>(null);
   const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
   const [unifiedSeekTime, setUnifiedSeekTime] = useState<number | undefined>(undefined);
+
   const [isUnifiedPlaying, setIsUnifiedPlaying] = useState(false);
+  const [tryCount, setTryCount] = useState<number | null>(null);
+  const [roundCandidates, setRoundCandidates] = useState<string[]>([]);
   const [showNodeIds, setShowNodeIds] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('graph_show_node_ids');
@@ -73,6 +76,16 @@ export default function RecordPage() {
     if (savedFormat && (savedFormat === 'NA' || savedFormat === 'ASIAN' || savedFormat === 'BP' || savedFormat === 'OPENING_HALF_BP_ORDER')) {
       setDebateFormat(savedFormat as DebateFormatType);
     }
+
+    // Fetch round candidates
+    fetch('http://localhost:8080/rounds')
+      .then(res => res.json())
+      .then(data => {
+        // Unique names
+        const names = Array.from(new Set(data.map((r: any) => r.name))).sort() as string[];
+        setRoundCandidates(names);
+      })
+      .catch(err => console.error('Failed to fetch rounds:', err));
   }, []);
 
   // Load round name from LocalStorage or set default on mount
@@ -509,7 +522,11 @@ export default function RecordPage() {
 
       // グラフデータを自動読み込み
       if (result.round_name || roundName) {
-        await autoLoadGraphData(result.round_name || roundName);
+        // 新しいtry_countがあれば設定
+        if (result.try_count) {
+          setTryCount(result.try_count);
+        }
+        await autoLoadGraphData(result.round_name || roundName, result.try_count);
       }
 
       setGenerationSuccess(
@@ -530,12 +547,18 @@ export default function RecordPage() {
   };
 
   // グラフデータを自動読み込み（サーバーから）
-  const autoLoadGraphData = async (roundNameToLoad: string) => {
+  const autoLoadGraphData = useCallback(async (roundNameToLoad: string, specificTryCount?: number) => {
     if (!roundNameToLoad) return;
 
+    const targetTryCount = specificTryCount !== undefined ? specificTryCount : tryCount;
+
     try {
-      console.log(`[autoLoadGraphData] Loading graph for round: ${roundNameToLoad}`);
-      const response = await fetch(`http://localhost:8080/rebuttal-graph/${roundNameToLoad}`);
+      console.log(`[autoLoadGraphData] Loading graph for round: ${roundNameToLoad} (try: ${targetTryCount})`);
+      let url = `http://localhost:8080/rebuttal-graph/${roundNameToLoad}`;
+      if (targetTryCount !== null && targetTryCount !== undefined) {
+        url += `?try_count=${targetTryCount}`;
+      }
+      const response = await fetch(url);
 
       if (!response.ok) {
         console.warn(`[autoLoadGraphData] Graph not found for round: ${roundNameToLoad}`);
@@ -552,14 +575,14 @@ export default function RecordPage() {
       console.error('[autoLoadGraphData] Error:', error);
       setAutoLoadedGraphData(null);
     }
-  };
+  }, [tryCount]);
 
   // Load graph data when roundName changes or on mount
   useEffect(() => {
     if (roundName) {
       autoLoadGraphData(roundName);
     }
-  }, [roundName]);
+  }, [roundName, autoLoadGraphData]);
 
   // ノードクリック時のハンドラー - グローバルIDとstart_timeからスピーチを特定し、seekbarをジャンプ
   const handleGraphNodeClick = (nodeId: number) => {
@@ -795,99 +818,123 @@ export default function RecordPage() {
               {/* Match Name and Format Selection */}
               {/* Settings & Actions Area */}
               {/* Modern Control Bar */}
-              <div className="mt-12">
-                <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5">
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-stretch">
 
-                    {/* Format Input Group */}
-                    <div className="lg:col-span-3">
-                      <div className="relative group h-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                          <List size={18} strokeWidth={2} />
-                        </div>
-                        <select
-                          value={debateFormat}
-                          onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
-                          className="h-12 w-full pl-10 pr-10 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-50/50"
-                        >
-                          <option value="NA">{t('recordPage.formatOptions.na')}</option>
-                          <option value="ASIAN">{t('recordPage.formatOptions.asian')}</option>
-                          <option value="BP">{t('recordPage.formatOptions.bp')}</option>
-                          <option value="OPENING_HALF_BP_ORDER">{t('recordPage.formatOptions.openingHalfBp')}</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="transition-transform group-focus-within:rotate-180">
-                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </div>
-                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.format')}</label>
+
+              <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 mt-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+                  {/* Format Input Group */}
+                  <div className="lg:col-span-3">
+                    <div className="relative group h-full">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                        <List size={18} strokeWidth={2} />
                       </div>
-                    </div>
-
-                    {/* Round ID Input Group */}
-                    <div className="lg:col-span-6">
-                      <div className="relative group h-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                          <Search size={18} strokeWidth={2} />
-                        </div>
-                        <input
-                          type="text"
-                          value={roundName}
-                          onChange={(e) => setRoundName(e.target.value)}
-                          className="h-12 w-full pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
-                          placeholder={t('recordPage.controls.enterRoundId')}
-                        />
-                        <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.roundId')}</label>
-                      </div>
-                    </div>
-
-                    {/* Primary Action Button */}
-                    <div className="lg:col-span-3">
-                      <button
-                        onClick={generateDebateGraph}
-                        disabled={!areAllAudioFilesReady() || isGeneratingGraph || !roundName}
-                        className={`h-12 w-full flex items-center justify-center gap-2.5 rounded-xl text-sm font-bold tracking-wide transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
-                          ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
-                          : !roundName
-                            ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
-                            : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
-                          }`}
+                      <select
+                        value={debateFormat}
+                        onChange={(e) => setDebateFormat(e.target.value as DebateFormatType)}
+                        className="h-12 w-full pl-10 pr-10 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer hover:bg-slate-50/50"
                       >
-                        <Zap size={18} className={isGeneratingGraph ? "animate-pulse" : "fill-current"} />
-                        <span>{isGeneratingGraph ? t('recordPage.controls.processing') : t('recordPage.controls.generateGraph')}</span>
-                      </button>
+                        <option value="NA">{t('recordPage.formatOptions.na')}</option>
+                        <option value="ASIAN">{t('recordPage.formatOptions.asian')}</option>
+                        <option value="BP">{t('recordPage.formatOptions.bp')}</option>
+                        <option value="OPENING_HALF_BP_ORDER">{t('recordPage.formatOptions.openingHalfBp')}</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="transition-transform group-focus-within:rotate-180">
+                          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.format')}</label>
                     </div>
                   </div>
 
-                  {/* Status Messages Area */}
-                  {(isGeneratingGraph || generationError || generationSuccess) && (
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="flex justify-center">
-                        {isGeneratingGraph && (
-                          <div className="flex items-center gap-2 text-xs font-mono text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                            </span>
-                            {t('recordPage.status.processing', { seconds: generationElapsedTime })}
-                          </div>
-                        )}
-                        {generationError && (
-                          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
-                            <span className="font-bold">Error:</span> {generationError}
-                          </div>
-                        )}
-                        {generationSuccess && (
-                          <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 shadow-sm">
-                            <Check size={16} className="text-emerald-500" />
-                            <span className="whitespace-pre-line font-medium">{generationSuccess}</span>
-                          </div>
-                        )}
+                  {/* Round ID Input Group (Combined) */}
+                  <div className="lg:col-span-6 flex gap-2">
+                    <div className="relative group h-full flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                        <Search size={18} strokeWidth={2} />
                       </div>
+                      <input
+                        type="text"
+                        list="round-candidates"
+                        value={roundName}
+                        onChange={(e) => setRoundName(e.target.value)}
+                        className="h-12 w-full pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                        placeholder={t('recordPage.controls.enterRoundId')}
+                      />
+                      <datalist id="round-candidates">
+                        {roundCandidates.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
+                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.roundId')}</label>
                     </div>
-                  )}
+
+                    {/* Try Count Input */}
+                    <div className="w-24 relative group h-full">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                        <Hash size={18} strokeWidth={2} />
+                      </div>
+                      <input
+                        type="number"
+                        min="1"
+                        value={tryCount || ''}
+                        onChange={(e) => {
+                          const val = e.target.value ? parseInt(e.target.value) : null;
+                          setTryCount(val);
+                        }}
+                        className="h-12 w-full pl-9 pr-3 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                        placeholder="#"
+                      />
+                      <label className="absolute -top-2 left-1 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Try</label>
+                    </div>
+                  </div>
+
+                  {/* Primary Action Button */}
+                  <div className="lg:col-span-3">
+                    <button
+                      onClick={generateDebateGraph}
+                      disabled={!areAllAudioFilesReady() || isGeneratingGraph || !roundName}
+                      className={`h-12 w-full flex items-center justify-center gap-2.5 rounded-xl text-sm font-bold tracking-wide transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
+                        ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
+                        : !roundName
+                          ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
+                          : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
+                        }`}
+                    >
+                      <Zap size={18} className={isGeneratingGraph ? "animate-pulse" : "fill-current"} />
+                      <span>{isGeneratingGraph ? t('recordPage.controls.processing') : t('recordPage.controls.generateGraph')}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Status Messages Area */}
+              {(isGeneratingGraph || generationError || generationSuccess) && (
+                <div className="mt-4 pt-4 border-t border-slate-200/60 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex justify-center">
+                    {isGeneratingGraph && (
+                      <div className="flex items-center gap-2 text-xs font-mono text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                        {t('recordPage.status.processing', { seconds: generationElapsedTime })}
+                      </div>
+                    )}
+                    {generationError && (
+                      <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg border border-red-100">
+                        <span className="font-bold">Error:</span> {generationError}
+                      </div>
+                    )}
+                    {generationSuccess && (
+                      <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 shadow-sm">
+                        <Check size={16} className="text-emerald-500" />
+                        <span className="whitespace-pre-line font-medium">{generationSuccess}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

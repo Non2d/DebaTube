@@ -113,14 +113,19 @@ async def get_speech(db: AsyncSession, speech_id: int) -> Optional[Speech]:
     return result.scalar_one_or_none()
 
 
-async def get_speeches_by_round(db: AsyncSession, round_name: str) -> List[Speech]:
+async def get_speeches_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Speech]:
     """
     ラウンド名でスピーチ一覧を取得
+    try_count指定時はそのバージョンのスピーチを取得
     """
+    # ラウンドIDを特定
+    round_obj = await get_round(db, round_name, try_count)
+    if not round_obj:
+        return []
+
     result = await db.execute(
         select(Speech)
-        .join(Round, Speech.round_id == Round.id)
-        .where(Round.name == round_name)
+        .where(Speech.round_id == round_obj.id)
         .options(selectinload(Speech.adus))
     )
     return result.scalars().all()
@@ -289,15 +294,19 @@ async def get_adus_by_speech(db: AsyncSession, speech_id: int) -> List[Adu]:
     return result.scalars().all()
 
 
-async def get_adus_by_round(db: AsyncSession, round_name: str) -> List[Adu]:
+async def get_adus_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Adu]:
     """
     ラウンド名でADU一覧を取得（全スピーチ）
     """
+    # ラウンドIDを特定
+    round_obj = await get_round(db, round_name, try_count)
+    if not round_obj:
+        return []
+
     result = await db.execute(
         select(Adu)
         .join(Speech, Adu.speech_id == Speech.id)
-        .join(Round, Speech.round_id == Round.id)
-        .where(Round.name == round_name)
+        .where(Speech.round_id == round_obj.id)
         .order_by(Adu.id)
     )
     return result.scalars().all()
@@ -344,30 +353,38 @@ async def create_rebuttals_batch(
     return rebuttals
 
 
-async def get_rebuttals_by_round(db: AsyncSession, round_name: str) -> List[Rebuttal]:
+async def get_rebuttals_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Rebuttal]:
     """
     ラウンド名で反論関係一覧を取得
     """
+    # ラウンドIDを特定
+    round_obj = await get_round(db, round_name, try_count)
+    if not round_obj:
+        return []
+
     result = await db.execute(
         select(Rebuttal)
         .join(Adu, Rebuttal.src_adu_id == Adu.id)
         .join(Speech, Adu.speech_id == Speech.id)
-        .join(Round, Speech.round_id == Round.id)
-        .where(Round.name == round_name)
+        .where(Speech.round_id == round_obj.id)
     )
     return result.scalars().all()
 
 
-async def delete_rebuttals_by_round(db: AsyncSession, round_name: str) -> bool:
+async def delete_rebuttals_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> bool:
     """
     ラウンド名で反論関係を削除
     """
+    # ラウンドIDを特定 (削除の場合は最新だけ消すか指定するか？通常指定しなければ最新)
+    round_obj = await get_round(db, round_name, try_count)
+    if not round_obj:
+        return False
+
     # まずそのラウンドのADU IDsを取得
     adu_result = await db.execute(
         select(Adu.id)
         .join(Speech, Adu.speech_id == Speech.id)
-        .join(Round, Speech.round_id == Round.id)
-        .where(Round.name == round_name)
+        .where(Speech.round_id == round_obj.id)
     )
     adu_ids = [row[0] for row in adu_result.all()]
 

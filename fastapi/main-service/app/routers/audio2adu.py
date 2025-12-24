@@ -39,10 +39,11 @@ class RebuttalStructureRequest(BaseModel):
     """Request for identifying rebuttal structure from database"""
 
     round_name: str  # Round name to identify which debate round
+    try_count: Optional[int] = None
 
     model_config = {
         "json_schema_extra": {
-            "example": {"round_name": "WAD_1211_R2"}
+            "example": {"round_name": "WAD_1211_R2", "try_count": 1}
         }
     }
 
@@ -535,9 +536,10 @@ async def identify_rebuttal_structure(
 
     try:
         round_name = request.round_name
+        try_count = request.try_count
 
         # DBからスピーチとADUを取得
-        speeches = await round_crud.get_speeches_by_round(db, round_name)
+        speeches = await round_crud.get_speeches_by_round(db, round_name, try_count=try_count)
         if not speeches:
             raise HTTPException(
                 status_code=404, detail=f"No speeches found for round {round_name}"
@@ -670,7 +672,7 @@ Do not include any other text, explanation, or formatting."""
         # DBに反論関係を保存
         if rebuttal_pairs:
             # 既存の反論関係を削除
-            await round_crud.delete_rebuttals_by_round(db, round_name)
+            await round_crud.delete_rebuttals_by_round(db, round_name, try_count=try_count)
             # 新しい反論関係を保存
             await round_crud.create_rebuttals_batch(db, rebuttal_pairs)
             logger.info(f"Saved {len(rebuttal_pairs)} rebuttal pairs to database")
@@ -858,7 +860,7 @@ async def audio_to_debate_graph_batch(
 
         # Step 5: 反論構造を抽出してDBに保存
         print("[Step 5/5] 反論構造の抽出を開始...")
-        rebuttal_request = RebuttalStructureRequest(round_name=round_name)
+        rebuttal_request = RebuttalStructureRequest(round_name=round_name, try_count=round_obj.try_count)
         rebuttal_response = await identify_rebuttal_structure(rebuttal_request, db)
 
         if rebuttal_response["status"] != "success":
@@ -872,6 +874,7 @@ async def audio_to_debate_graph_batch(
         return {
             "status": "success",
             "round_name": round_name,
+            "try_count": round_obj.try_count,
             "debate_format": debate_format,
             "summary": {
                 "files_transcribed": len(batch_results),
@@ -892,7 +895,7 @@ async def audio_to_debate_graph_batch(
 
 
 @router.get("/rebuttal-graph/{round_name}")
-async def get_rebuttal_graph(round_name: str, db: AsyncSession = Depends(get_db)):
+async def get_rebuttal_graph(round_name: str, try_count: Optional[int] = None, db: AsyncSession = Depends(get_db)):
     """
     Get the rebuttal graph JSON for a specific round from database
     - Reads from database
@@ -900,7 +903,7 @@ async def get_rebuttal_graph(round_name: str, db: AsyncSession = Depends(get_db)
     """
     try:
         # DBからスピーチとADUを取得
-        speeches = await round_crud.get_speeches_by_round(db, round_name)
+        speeches = await round_crud.get_speeches_by_round(db, round_name, try_count=try_count)
         if not speeches:
             raise HTTPException(
                 status_code=404, detail=f"No speeches found for round {round_name}"
@@ -938,7 +941,7 @@ async def get_rebuttal_graph(round_name: str, db: AsyncSession = Depends(get_db)
                 speeches_data[speech_key].append(adu_data)
 
         # DBから反論関係を取得
-        rebuttals = await round_crud.get_rebuttals_by_round(db, round_name)
+        rebuttals = await round_crud.get_rebuttals_by_round(db, round_name, try_count=try_count)
         rebuttal_pairs = [[r.src_adu_id, r.tgt_adu_id] for r in rebuttals]
 
         graph_data = {
