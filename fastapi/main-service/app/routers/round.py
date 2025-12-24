@@ -18,7 +18,10 @@ class RoundCreate(BaseModel):
 
 
 class RoundResponse(BaseModel):
+    id: int
     name: str
+    try_count: int
+    type: str
     created_at: str
 
     class Config:
@@ -36,7 +39,11 @@ class SpeechCreate(BaseModel):
 
 class SpeechResponse(BaseModel):
     id: int
-    round_name: str
+    round_id: int
+    # round_name is tricky with new schema. We keep it if we can lazy load or if we updated CRUD to load it.
+    # For now, let's expose round_id. Frontend might need migration.
+    # But user asked to add fields to ROUNDs.
+    # I will allow round_name to be mapped if available.
     position: str
     audio_path: Optional[str]
     duration: Optional[float]
@@ -94,7 +101,10 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
     """
     round_obj = await round_crud.create_round(db, name=round_data.name)
     return RoundResponse(
+        id=round_obj.id,
         name=round_obj.name,
+        try_count=round_obj.try_count,
+        type=round_obj.type,
         created_at=round_obj.created_at.isoformat()
     )
 
@@ -107,7 +117,10 @@ async def get_all_rounds(db: AsyncSession = Depends(get_db)):
     rounds = await round_crud.get_all_rounds(db)
     return [
         RoundResponse(
+            id=r.id,
             name=r.name,
+            try_count=r.try_count,
+            type=r.type,
             created_at=r.created_at.isoformat()
         )
         for r in rounds
@@ -123,7 +136,10 @@ async def get_round(round_name: str, db: AsyncSession = Depends(get_db)):
     if not round_obj:
         raise HTTPException(status_code=404, detail="Round not found")
     return RoundResponse(
+        id=round_obj.id,
         name=round_obj.name,
+        try_count=round_obj.try_count,
+        type=round_obj.type,
         created_at=round_obj.created_at.isoformat()
     )
 
@@ -149,9 +165,14 @@ async def create_speech(
     """
     新しいスピーチを作成
     """
+    # Look up round_id from round_name
+    round_obj = await round_crud.get_round(db, speech.round_name)
+    if not round_obj:
+        raise HTTPException(status_code=404, detail="Round not found")
+
     speech_obj = await round_crud.create_speech(
         db,
-        round_name=speech.round_name,
+        round_id=round_obj.id,
         position=speech.position,
         audio_path=speech.audio_path,
         duration=speech.duration,

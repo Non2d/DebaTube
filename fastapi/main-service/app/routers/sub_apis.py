@@ -1,16 +1,20 @@
 """
 Utility/Sub APIs - Less essential endpoints for manual verification and debugging
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import FileResponse
 from log_config import logger
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os, json, csv, time, re, tempfile
 from datetime import datetime, timezone, timedelta
 import asyncio
 from google import genai
 from openai import OpenAI, AsyncOpenAI
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db import get_db
+from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 
 router = APIRouter()
 
@@ -705,6 +709,230 @@ def group_sentences(request: SentenceGroupRequest):
     text = request.text
     words_data = [word.model_dump() for word in request.words]
 
-    sentences = group_words_into_sentences(text, words_data)
-
     return sentences
+
+
+@router.post("/rebuttal-graph-from-jsons")
+async def create_round_from_jsons(
+    rebuttal_file: UploadFile = File(...),
+    transcript_file: UploadFile = File(...),
+    round_name: str = Form(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    rebuttal_graph.jsonとbatch_transcription.jsonからラウンド情報を作成するAPI
+    - SentencesのみWordデータから再構築する
+    - ADUのIDは振り直す（相対関係は保持）
+    - すでに同名のラウンドがある場合はエラーになる可能性あり（DB制約による）
+    """
+    try:
+        # 1. ファイル読み込み
+        rebuttal_content = await rebuttal_file.read()
+        transcript_content = await transcript_file.read()
+
+        rebuttal_data = json.loads(rebuttal_content.decode('utf-8'))
+        transcript_data = json.loads(transcript_content.decode('utf-8'))
+
+        # 2. Round作成
+        # TODO: すでに存在する場合のハンドリング（とりあえずそのままINSERTしてエラーなら400返すなど）
+        # AsyncSessionなのでcommitが必要
+        new_round = Round(name=round_name)
+        db.add(new_round)
+        await db.commit()
+        await db.refresh(new_round)
+
+        logger.info(f"Created Round: {round_name}")
+
+        # IDマッピング用辞書 (old_adu_id -> new_adu_id)
+        # rebuttal_graph内のIDは整数だが、一意性はSpeech内のみか全体かを確認する必要がある
+        # ファイルを見る限り、全体で連番になっているように見える (id: 1, 2, ..., 53)
+        old_to_new_adu_id_map = {}
+
+        # 3. Speech, Word, Sentence, ADUの作成
+        # rebuttal_graph["speeches"] あるいは transcript_data のキーでループ
+        
+        # transcript_dataのキー (Proposition_1st, ...) をベースにする
+        for position, speech_content in transcript_data.items():
+            # Speech作成
+            duration = speech_content.get("duration", 0.0)
+            
+            new_speech = Speech(
+                round_id=new_round.id,
+                position=position,
+                duration=duration,
+                raw_transcription=speech_content # 全体を保存しておく
+            )
+            db.add(new_speech)
+            await db.commit()
+            await db.refresh(new_speech)
+            
+            speech_id = new_speech.id
+            logger.info(f"Created Speech: {position} (id={speech_id})")
+
+            # Words作成
+            words_list = speech_content.get("words", [])
+            db_words = []
+            for idx, w in enumerate(words_list):
+                # Wordモデルに合わせてデータを作成
+                # { "start": ..., "end": ..., "word": ... }
+                db_word = Word(
+                    speech_id=speech_id,
+                    index=idx,
+                    text=w.get("word", ""),
+                    start_time=w.get("start", 0.0),
+                    end_time=w.get("end", 0.0),
+                    confidence=w.get("confidence", 1.0) # ない場合に備えて
+                )
+                db_words.append(db_word)
+            
+            if db_words:
+                db.add_all(db_words)
+                await db.commit() # wordのIDは後で使わないのでまとめてコミット
+
+            # Sentences再構築
+            # group_words_into_sentencesを使用
+            full_text = speech_content.get("text", "")
+            # words_data format need to be dicts, which they are
+            sentences_struct = group_words_into_sentences(full_text, words_list)
+
+            db_sentences = []
+            for s_data in sentences_struct:
+                # { "id": 0, "text": "...", "start_time": ..., "end_time": ..., "start_word_index": ..., "end_word_index": ... }
+                db_sent = Sentence(
+                    speech_id=speech_id,
+                    index=s_data["id"],
+                    text=s_data["text"],
+                    start_word_index=s_data["start_word_index"],
+                    end_word_index=s_data["end_word_index"]
+                )
+                db_sentences.append(db_sent)
+            
+            if db_sentences:
+                db.add_all(db_sentences)
+                await db.commit() 
+
+            # ADU作成
+            # rebuttal_graphから該当スピーチのADUを取得
+            if "speeches" in rebuttal_data and position in rebuttal_data["speeches"]:
+                adus_list = rebuttal_data["speeches"][position]
+                
+                for adu_item in adus_list:
+                    # { "id": 1, "type": "...", "text": "...", "start": ... }
+                    old_id = adu_item.get("id")
+                    role = adu_item.get("type", "unknown")
+                    text = adu_item.get("text", "")
+                    start_time_adu = adu_item.get("start", 0.0)
+
+                    # 文章のインデックスを特定する必要がある
+                    # start_timeをもとに、sentencesのstart_timeと比較して開始文を特定
+                    # 終了文は次のADUの直前、あるいはスピーチの終わりまで
+                    # ここでは簡易的に、start_timeが含まれる文を開始文とし、
+                    # 次のADUの開始タイムの直前の文までを範囲とする、などのロジックが必要だが、
+                    # ユーザー指示では「Start/End Sentence Index」が重要。
+                    # しかし入力json(rebuttal_graph)には start しかない。
+                    # ここは推定ロジックが必要。
+                    
+                    # 簡易ロジック: start_time に最も近い開始時間を持つ sentence を start_sentence_index とする
+                    # 次のADUの start_sentence_index - 1 を end_sentence_index とする
+                    pass 
+
+                # ADUの開始・終了文インデックスを決定するために、一度全ADUの開始時間をリスト化してソートする
+                sorted_adus = sorted(adus_list, key=lambda x: x.get("start", 0.0))
+                
+                # Sentenceのリストもstart_timeでソートされているはず
+                # sentences_struct は id順 = 時間順
+                
+                for i, adu_item in enumerate(sorted_adus):
+                    adu_start_time = adu_item.get("start", 0.0)
+                    
+                    # 開始文を見つける
+                    # sentence.start_time <= adu_start_time となる最後の文、あるいは
+                    # 最も近い文を探す。
+                    # 通常、ADU start timeは文のstart timeとほぼ一致するはず
+                    
+                    start_sent_idx = 0
+                    min_diff = float("inf")
+                    
+                    # 線形探索で十分 (文数は多くて100程度)
+                    # sentences_struct is list of dicts
+                    for s_data in sentences_struct:
+                        diff = abs(s_data["start_time"] - adu_start_time)
+                        if diff < min_diff:
+                            min_diff = diff
+                            start_sent_idx = s_data["id"]
+                    
+                    # 終了文を見つける
+                    # 次のADUの開始文の前まで。最後のADUなら最後の文まで。
+                    if i < len(sorted_adus) - 1:
+                        next_adu_start = sorted_adus[i+1].get("start", 0.0)
+                        
+                        # 次のADUの開始文を探す
+                        next_start_sent_idx = 0
+                        min_diff_next = float("inf")
+                        for s_data in sentences_struct:
+                            diff = abs(s_data["start_time"] - next_adu_start)
+                            if diff < min_diff_next:
+                                min_diff_next = diff
+                                next_start_sent_idx = s_data["id"]
+                        
+                        # その1つ前までがこのADUの範囲
+                        end_sent_idx = max(start_sent_idx, next_start_sent_idx - 1)
+                    else:
+                        # 最後のADU
+                        end_sent_idx = sentences_struct[-1]["id"] if sentences_struct else 0
+
+                    
+                    # ADU作成
+                    new_adu = Adu(
+                        speech_id=speech_id,
+                        start_sentence_index=start_sent_idx,
+                        end_sentence_index=end_sent_idx,
+                        text=adu_item.get("text", ""),
+                        role=adu_item.get("type", "unknown"),
+                    )
+                    db.add(new_adu)
+                    await db.commit()
+                    await db.refresh(new_adu)
+                    
+                    # IDマッピング保存
+                    old_id = adu_item.get("id")
+                    if old_id is not None:
+                        old_to_new_adu_id_map[old_id] = new_adu.id
+
+        # 4. Rebuttals作成
+        rebuttals_list = rebuttal_data.get("rebuttals", [])
+        # [[src_id, tgt_id], ...] の形式であることをファイルから確認済み
+        
+        db_rebuttals = []
+        for pair in rebuttals_list:
+            if len(pair) >= 2:
+                old_src = pair[0]
+                old_tgt = pair[1]
+                
+                new_src = old_to_new_adu_id_map.get(old_src)
+                new_tgt = old_to_new_adu_id_map.get(old_tgt)
+                
+                if new_src and new_tgt:
+                    db_reb = Rebuttal(
+                        src_adu_id=new_src,
+                        tgt_adu_id=new_tgt
+                    )
+                    db_rebuttals.append(db_reb)
+                else:
+                    logger.warning(f"Skipping rebuttal pair {old_src}->{old_tgt}: ID not found in mapping")
+
+        if db_rebuttals:
+            db.add_all(db_rebuttals)
+            await db.commit()
+
+        return {
+            "status": "success",
+            "round_name": round_name,
+            "speeches_count": len(transcript_data),
+            "rebuttals_count": len(db_rebuttals)
+        }
+
+    except Exception as e:
+        logger.error(f"Error in create_round_from_jsons: {str(e)}")
+        # 必要に応じてロールバックなど検討
+        raise HTTPException(status_code=500, detail=str(e))

@@ -11,14 +11,19 @@ class Round(Base):
     """
     __tablename__ = "rounds"
 
-    name = Column(String(255), primary_key=True, index=True)  # 主キー
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 新しい主キー
+    name = Column(String(255), unique=True, index=True, nullable=False)  # 既存のID代わり
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # New fields
+    try_count = Column(Integer, default=1, nullable=False)
+    type = Column(String(50), default="record", nullable=False) # "record" or "external_video"
 
     # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Round(name={self.name}, created_at={self.created_at})>"
+        return f"<Round(id={self.id}, name={self.name})>"
 
 
 class Speech(Base):
@@ -28,7 +33,9 @@ class Speech(Base):
     __tablename__ = "speeches"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    round_name = Column(String(255), ForeignKey("rounds.name", ondelete="CASCADE"), nullable=False, index=True)
+    round_id = Column(Integer, ForeignKey("rounds.id", ondelete="CASCADE"), nullable=False, index=True)
+    # round_name は削除
+    
     position = Column(String(64), nullable=False)  # Proposition_1st, Opposition_1st, etc.
     audio_path = Column(String(512), nullable=True)  # 音声ファイルのパス
     duration = Column(Float, nullable=True)  # 音声の長さ（秒）
@@ -41,7 +48,7 @@ class Speech(Base):
     sentences = relationship("Sentence", back_populates="speech", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Speech(id={self.id}, round_name={self.round_name}, position={self.position})>"
+        return f"<Speech(id={self.id}, round_id={self.round_id}, position={self.position})>"
 
 
 class Word(Base):

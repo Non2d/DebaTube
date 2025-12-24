@@ -54,7 +54,7 @@ async def delete_round(db: AsyncSession, round_name: str) -> bool:
 
 async def create_speech(
     db: AsyncSession,
-    round_name: str,
+    round_id: int,
     position: str,
     audio_path: Optional[str] = None,
     duration: Optional[float] = None,
@@ -64,7 +64,7 @@ async def create_speech(
     新しいスピーチを作成
     """
     speech = Speech(
-        round_name=round_name,
+        round_id=round_id,
         position=position,
         audio_path=audio_path,
         duration=duration,
@@ -94,7 +94,8 @@ async def get_speeches_by_round(db: AsyncSession, round_name: str) -> List[Speec
     """
     result = await db.execute(
         select(Speech)
-        .where(Speech.round_name == round_name)
+        .join(Round, Speech.round_id == Round.id)
+        .where(Round.name == round_name)
         .options(selectinload(Speech.adus))
     )
     return result.scalars().all()
@@ -269,8 +270,9 @@ async def get_adus_by_round(db: AsyncSession, round_name: str) -> List[Adu]:
     """
     result = await db.execute(
         select(Adu)
-        .join(Speech)
-        .where(Speech.round_name == round_name)
+        .join(Speech, Adu.speech_id == Speech.id)
+        .join(Round, Speech.round_id == Round.id)
+        .where(Round.name == round_name)
         .order_by(Adu.id)
     )
     return result.scalars().all()
@@ -325,7 +327,8 @@ async def get_rebuttals_by_round(db: AsyncSession, round_name: str) -> List[Rebu
         select(Rebuttal)
         .join(Adu, Rebuttal.src_adu_id == Adu.id)
         .join(Speech, Adu.speech_id == Speech.id)
-        .where(Speech.round_name == round_name)
+        .join(Round, Speech.round_id == Round.id)
+        .where(Round.name == round_name)
     )
     return result.scalars().all()
 
@@ -337,8 +340,9 @@ async def delete_rebuttals_by_round(db: AsyncSession, round_name: str) -> bool:
     # まずそのラウンドのADU IDsを取得
     adu_result = await db.execute(
         select(Adu.id)
-        .join(Speech)
-        .where(Speech.round_name == round_name)
+        .join(Speech, Adu.speech_id == Speech.id)
+        .join(Round, Speech.round_id == Round.id)
+        .where(Round.name == round_name)
     )
     adu_ids = [row[0] for row in adu_result.all()]
 
