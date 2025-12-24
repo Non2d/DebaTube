@@ -8,6 +8,7 @@ import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
 import UnifiedAudioPlayer from './components/UnifiedAudioPlayer';
 import Header from '../../components/shared/Header';
+import SearchableSelect from './components/SearchableSelect';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
 import { logTabSwitch, logPlaybackEvent, logGraphNodeClick } from '../../utils/userLogger';
 import { localToGlobalTime, buildSpeechSegments } from './utils/speechTimeline';
@@ -850,23 +851,13 @@ export default function RecordPage() {
                   {/* Round ID Input Group (Combined) */}
                   <div className="lg:col-span-6 flex gap-2">
                     <div className="relative group h-full flex-1">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                        <Search size={18} strokeWidth={2} />
-                      </div>
-                      <input
-                        type="text"
-                        list="round-candidates"
+                      <SearchableSelect
+                        options={roundCandidates}
                         value={roundName}
-                        onChange={(e) => setRoundName(e.target.value)}
-                        className="h-12 w-full pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                        onChange={setRoundName}
                         placeholder={t('recordPage.controls.enterRoundId')}
+                        label={t('recordPage.controls.roundId')}
                       />
-                      <datalist id="round-candidates">
-                        {roundCandidates.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
-                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.roundId')}</label>
                     </div>
 
                     {/* Try Count Input */}
