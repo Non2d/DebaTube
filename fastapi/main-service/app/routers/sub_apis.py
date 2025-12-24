@@ -739,8 +739,9 @@ async def create_round_from_jsons(
         # round_crudを使用することでtry_countの自動インクリメントを行う
         new_round = await round_crud.create_round(db, name=round_name)
         current_round_id = new_round.id
+        current_try_count = new_round.try_count
         
-        logger.info(f"Created Round: {new_round.name} (id={current_round_id}, try_count={new_round.try_count})")
+        logger.info(f"Created Round: {new_round.name} (id={current_round_id}, try_count={current_try_count})")
 
         # IDマッピング用辞書 (old_adu_id -> new_adu_id)
         # rebuttal_graph内のIDは整数だが、一意性はSpeech内のみか全体かを確認する必要がある
@@ -905,7 +906,9 @@ async def create_round_from_jsons(
 
         return {
             "status": "success",
+            "round_id": current_round_id,
             "round_name": round_name,
+            "try_count": current_try_count,
             "speeches_count": len(transcript_data),
             "rebuttals_count": len(db_rebuttals)
         }
