@@ -860,24 +860,7 @@ export default function RecordPage() {
                       />
                     </div>
 
-                    {/* Try Count Input */}
-                    <div className="w-24 relative group h-full">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                        <Hash size={18} strokeWidth={2} />
-                      </div>
-                      <input
-                        type="number"
-                        min="1"
-                        value={tryCount || ''}
-                        onChange={(e) => {
-                          const val = e.target.value ? parseInt(e.target.value) : null;
-                          setTryCount(val);
-                        }}
-                        className="h-12 w-full pl-9 pr-3 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
-                        placeholder="#"
-                      />
-                      <label className="absolute -top-2 left-1 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Try</label>
-                    </div>
+
                   </div>
 
                   {/* Primary Action Button */}
@@ -941,8 +924,8 @@ export default function RecordPage() {
                 </div>
               )}
               {!autoLoadedGraphData && (
-                <div className="mb-12 p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                  <p className="text-gray-600">{t('recordPage.messages.noGraphData')}</p>
+                <div className="mb-12 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg" style={{ height: '600px' }}>
+                  <p className="text-gray-600 font-medium">{t('recordPage.messages.noGraphData')}</p>
                 </div>
               )}
 
@@ -963,56 +946,69 @@ export default function RecordPage() {
                   <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
 
                     {/* Round ID Badge (Editable) */}
-                    <div className="w-full lg:w-auto relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                        <Search size={18} strokeWidth={2} />
+                    <div className="w-full lg:w-auto flex gap-2">
+                      <div className="relative group h-full flex-1 lg:w-80">
+                        <SearchableSelect
+                          options={roundCandidates}
+                          value={roundName}
+                          onChange={setRoundName}
+                          placeholder={t('recordPage.controls.searchRoundId')}
+                          label={t('recordPage.controls.roundId')}
+                        />
                       </div>
-                      <input
-                        type="text"
-                        value={roundName}
-                        onChange={(e) => setRoundName(e.target.value)}
-                        className="h-12 w-full lg:w-96 pl-10 pr-4 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
-                        placeholder={t('recordPage.controls.searchRoundId')}
-                      />
-                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.roundId')}</label>
+                      <div className="w-24 relative group h-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                          <Hash size={18} strokeWidth={2} />
+                        </div>
+                        <input
+                          type="number"
+                          min="1"
+                          value={tryCount || ''}
+                          onChange={(e) => {
+                            const val = e.target.value ? parseInt(e.target.value) : null;
+                            setTryCount(val);
+                          }}
+                          className="h-12 w-full pl-9 pr-3 bg-white border-0 ring-1 ring-slate-200/80 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50"
+                          placeholder="#"
+                        />
+                        <label className="absolute -top-2 left-1 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Try</label>
+                      </div>
                     </div>
 
                     {/* Display Options Toggles */}
-                    {autoLoadedGraphData && (
-                      <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 px-6 py-3 rounded-xl ring-1 ring-slate-200/80">
-                        {/* POI Toggle */}
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.poiColor')}</span>
-                          <button
-                            onClick={() => setShowPoiColors(!showPoiColors)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showPoiColors ? 'bg-indigo-600' : 'bg-slate-300'
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 px-6 py-3 rounded-xl ring-1 ring-slate-200/80">
+                      {/* POI Toggle */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.poiColor')}</span>
+                        <button
+                          onClick={() => setShowPoiColors(!showPoiColors)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showPoiColors ? 'bg-indigo-600' : 'bg-slate-300'
+                            }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showPoiColors ? 'translate-x-6' : 'translate-x-1'
                               }`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showPoiColors ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                            />
-                          </button>
-                        </div>
-
-                        <div className="w-px h-6 bg-slate-300 mx-2"></div>
-
-                        {/* Node ID Toggle */}
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.nodeId')}</span>
-                          <button
-                            onClick={() => setShowNodeIds(!showNodeIds)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showNodeIds ? 'bg-indigo-600' : 'bg-slate-300'
-                              }`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showNodeIds ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                            />
-                          </button>
-                        </div>
+                          />
+                        </button>
                       </div>
-                    )}
+
+                      <div className="w-px h-6 bg-slate-300 mx-2"></div>
+
+                      {/* Node ID Toggle */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-slate-600">{t('recordPage.toggles.nodeId')}</span>
+                        <button
+                          onClick={() => setShowNodeIds(!showNodeIds)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showNodeIds ? 'bg-indigo-600' : 'bg-slate-300'
+                            }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showNodeIds ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
