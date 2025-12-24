@@ -199,7 +199,17 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
         return srcNodeType !== tgtNodeType && !isSrcPoi && !isTgtPoi;
       });
 
-      const rebuttalCandidates = filteredRebuttals.map(([src, tgt]) => ({ src, tgt }));
+      // 1つのADUから複数の反論がある場合、最新の発言(idの大きいADU)への反論だけを採用
+      const latestRebuttalsMap: { [src: number]: number } = {};
+      filteredRebuttals.forEach(([src, tgt]) => {
+        if (!latestRebuttalsMap[src] || tgt > latestRebuttalsMap[src]) {
+          latestRebuttalsMap[src] = tgt;
+        }
+      });
+
+      const dedicatedRebuttals = Object.entries(latestRebuttalsMap).map(([src, tgt]) => [parseInt(src), tgt] as [number, number]);
+
+      const rebuttalCandidates = dedicatedRebuttals.map(([src, tgt]) => ({ src, tgt }));
       const rebuttalDict: { [key: string]: number } = {};
 
       for (let i = 0; i < rebuttalCandidates.length; i++) {
