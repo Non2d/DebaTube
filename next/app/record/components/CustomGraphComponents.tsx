@@ -74,6 +74,7 @@ export const backgroundNode = ({ data }: { data: any }) => {
       width: '8rem',
       height: `${data.height - 1}px`,
       backgroundColor: data.isGovernment ? "pink" : "lightblue",
+      pointerEvents: 'none',
     }}>
     </div>
   );

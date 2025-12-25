@@ -175,6 +175,9 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
           type: "backgroundNode",
           position: { x: originX + xposOpp * +!isGovernment, y: startNodeY },
           data: { height: endNodeY - startNodeY, isGovernment: isGovernment, isBackground: true },
+          selectable: false,
+          connectable: false,
+          zIndex: -1,
         });
 
         // Opposition側の最後から2番目のスピーチの後に間隔を入れる
