@@ -7,7 +7,7 @@ export const govNode = ({ data }: { data: any }) => {
   const backgroundColor = (!data.showPoiColors && data.isPoi) ? "#0065bd" : "red";
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', height: '8px', display: 'flex', alignItems: 'center' }}>
       <div style={{
         width: '8rem',
         height: '0.4rem',
@@ -40,7 +40,7 @@ export const oppNode = ({ data }: { data: any }) => {
   const backgroundColor = (!data.showPoiColors && data.isPoi) ? "red" : "#0065bd";
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', height: '8px', display: 'flex', alignItems: 'center' }}>
       <div style={{
         width: '8rem',
         height: '0.4rem',
