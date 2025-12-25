@@ -156,7 +156,7 @@ export const ja: LocaleType = {
                     desc: "視覚的な表現は、学生が議論のパターンを学び、戦略的な機会を特定するのに役立ちます。"
                 },
                 postRound: {
-                    title: "ラウンド後の分析:",
+                    title: "試合後の分析:",
                     desc: "包括的な視覚的サマリーにより、詳細なフィードバックとパフォーマンスの改善が可能になります。"
                 }
             }
@@ -176,25 +176,29 @@ export const ja: LocaleType = {
     },
     dashboard: {
         title: "ダッシュボード",
-        description: "全ディベートラウンドの概要と統計",
+        description: "全ディベート試合の概要と統計",
         registerNewRound: "新しい試合を登録",
+        tabs: {
+            youtube: "YouTube動画",
+            record: "録音データ"
+        },
         stats: {
-            totalRounds: "総ラウンド数",
+            totalRounds: "総試合数",
             totalPois: "総POI数",
             totalRebuttals: "総反論数",
-            argumentUnits: "議論単位数"
+            argumentUnits: "ADU数"
         },
         table: {
-            title: "全ラウンド",
-            error: "ラウンドの読み込みエラー",
-            noRounds: "ラウンドが見つかりません",
+            title: "全試合",
+            error: "試合の読み込みエラー",
+            noRounds: "試合が見つかりません",
             headers: {
                 title: "タイトル",
                 motion: "論題",
                 pois: "POI",
                 rebuttals: "反論",
                 speeches: "スピーチ",
-                arguments: "議論",
+                arguments: "ADU",
                 tag: "タグ"
             }
         },
@@ -220,7 +224,7 @@ export const ja: LocaleType = {
                 selectUrlOrFile: "YouTube URLまたは音声ファイルを選択してください",
                 success: "登録が完了しました！",
                 error: "エラーが発生しました",
-                failedCreate: "ラウンドの作成に失敗しました",
+                failedCreate: "試合の作成に失敗しました",
                 failedProcess: "音声処理に失敗しました",
                 idNotFound: "レスポンスにRound IDが見つかりません"
             }

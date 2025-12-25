@@ -161,6 +161,71 @@ async def delete_round(round_name: str, db: AsyncSession = Depends(get_db)):
     return {"status": "success", "message": f"Round {round_name} deleted"}
 
 
+# ==================== Round Summary Endpoints ====================
+
+class RoundSummaryResponse(BaseModel):
+    id: int
+    video_id: str
+    title: str
+    description: str
+    motion: str
+    date_uploaded: str
+    channel_id: str
+    tag: str
+    poi_count: int
+    rebuttal_count: int
+    speech_count: int
+    total_argument_units: int
+    type: str
+    try_count: int
+
+@router.get("/rounds-summary", response_model=List[RoundSummaryResponse])
+async def get_rounds_summary(db: AsyncSession = Depends(get_db)):
+    """
+    ダッシュボード用のラウンドサマリーを取得
+    """
+    rounds = await round_crud.get_all_rounds_with_details(db)
+    
+    summary_list = []
+    for r in rounds:
+        speeches = r.speeches or []
+        speech_cnt = len(speeches)
+        
+        # Count ADUs
+        adu_cnt = 0
+        rebuttal_cnt = 0
+        poi_cnt = 0
+        
+        for s in speeches:
+            adus = s.adus or []
+            adu_cnt += len(adus)
+            for a in adus:
+                if a.role == 'poi':
+                    poi_cnt += 1
+                # Count rebuttals starting from this ADU
+                rebuttals = a.rebuttals_as_source or []
+                rebuttal_cnt += len(rebuttals)
+        
+        summary_list.append(RoundSummaryResponse(
+            id=r.id,
+            video_id="", # 未実装
+            title=r.name,
+            description=r.note or "",
+            motion="", # 未実装
+            date_uploaded=r.created_at.isoformat(),
+            channel_id="", # 未実装
+            tag=r.type, # タグとしてタイプを表示
+            poi_count=poi_cnt,
+            rebuttal_count=rebuttal_cnt,
+            speech_count=speech_cnt,
+            total_argument_units=adu_cnt,
+            type=r.type,
+            try_count=r.try_count
+        ))
+    
+    return summary_list
+
+
 # ==================== Speech Endpoints ====================
 
 @router.post("/speeches", response_model=SpeechResponse)

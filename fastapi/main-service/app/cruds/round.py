@@ -66,6 +66,23 @@ async def get_all_rounds(db: AsyncSession) -> List[Round]:
     return result.scalars().all()
 
 
+async def get_all_rounds_with_details(db: AsyncSession) -> List[Round]:
+    """
+    すべてのラウンドを取得（統計用に詳細リレーションもロード）
+    """
+    # Round -> Speeches -> Adus -> Rebuttals(src)
+    # これにより、len(r.speeches), len(s.adus), len(a.rebuttals_as_source) でカウント可能
+    result = await db.execute(
+        select(Round)
+        .options(
+            selectinload(Round.speeches)
+            .selectinload(Speech.adus)
+            .selectinload(Adu.rebuttals_as_source)
+        )
+    )
+    return result.scalars().all()
+
+
 async def delete_round(db: AsyncSession, round_name: str) -> bool:
     """
     ラウンドを削除（カスケードで関連データも削除）

@@ -176,11 +176,15 @@ export const en = {
         title: "Dashboard",
         description: "Overview of all debate rounds and their statistics",
         registerNewRound: "Register New Round",
+        tabs: {
+            youtube: "YouTube Videos",
+            record: "Recordings"
+        },
         stats: {
             totalRounds: "Total Rounds",
             totalPois: "Total POIs",
             totalRebuttals: "Total Rebuttals",
-            argumentUnits: "Argument Units"
+            argumentUnits: "ADUs"
         },
         table: {
             title: "All Rounds",
@@ -192,7 +196,7 @@ export const en = {
                 pois: "POIs",
                 rebuttals: "Rebuttals",
                 speeches: "Speeches",
-                arguments: "Arguments",
+                arguments: "ADUs",
                 tag: "Tag"
             }
         },

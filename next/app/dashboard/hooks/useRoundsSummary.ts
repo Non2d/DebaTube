@@ -14,20 +14,22 @@ export interface RoundSummary {
   rebuttal_count: number;
   speech_count: number;
   total_argument_units: number;
+  type: string;
+  try_count: number;
 }
 
 export async function getRoundsSummary(): Promise<RoundSummary[]> {
   const apiRoot = getAPIRoot();
-  
+
   // Fix URL for development environment
   const url = `${apiRoot}/rounds-summary`;
-    
+
   const response = await fetch(url);
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   return response.json();
 }
 
