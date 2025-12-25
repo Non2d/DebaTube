@@ -953,18 +953,18 @@ export default function RecordPage() {
           {activeTab === 'visualization' && (
             <div className="flex flex-col flex-1 min-h-0 h-full">
               {autoLoadedGraphData && (
-                <div className="flex-1 min-h-0 basis-0 grow mb-6 bg-white border border-gray-200 rounded-lg overflow-hidden relative">
+                <div className="flex-1 min-h-0 basis-0 grow mb-2 bg-white border border-gray-200 rounded-lg overflow-hidden relative">
                   <RebuttalGraph data={autoLoadedGraphData} onNodeClick={handleGraphNodeClickCtrl2} debateFormat={debateFormat} showNodeIds={showNodeIds} showPoiColors={showPoiColors} />
                 </div>
               )}
               {!autoLoadedGraphData && (
-                <div className="flex-1 min-h-0 basis-0 grow mb-6 flex items-center justify-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg">
+                <div className="flex-1 min-h-0 basis-0 grow mb-2 flex items-center justify-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg">
                   <p className="text-gray-600 dark:text-gray-400 font-medium">{t('recordPage.messages.noGraphData')}</p>
                 </div>
               )}
 
               {/* Unified Audio Player - Middle */}
-              <div className="mt-4 mb-6">
+              <div className="mt-2 mb-2">
                 <UnifiedAudioPlayer
                   speechRecordings={speechRecordings}
                   speechCount={DEBATE_SPEECHES.length}
@@ -974,7 +974,7 @@ export default function RecordPage() {
                 />
               </div>
 
-              <div className="mt-2">
+              <div className="mt-2 mb-2">
                 <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10">
                   <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
 
