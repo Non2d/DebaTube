@@ -12,10 +12,23 @@ router = APIRouter()
 
 # ==================== Pydantic Models ====================
 
+from enum import Enum
+
+class RoundType(str, Enum):
+    RECORD = "record"
+    EXTERNAL_VIDEO = "external_video"
+
+class RoundStyle(str, Enum):
+    NORTH_AMERICAN = "north_american"
+    ASIAN = "asian"
+    BRITISH_PARLIAMENTARY = "british_parliamentary"
+    BP_OPENING_HALF = "bp_opening_half"
+
 class RoundCreate(BaseModel):
     """ラウンド作成リクエスト"""
     name: str
-    style: Optional[str] = None
+    type: RoundType = RoundType.RECORD
+    style: Optional[RoundStyle] = None
     motion: Optional[str] = None
 
 
@@ -23,9 +36,9 @@ class RoundResponse(BaseModel):
     id: int
     name: str
     try_count: int
-    type: str
+    type: RoundType
     note: Optional[str] = None
-    style: Optional[str] = None
+    style: Optional[RoundStyle] = None
     motion: Optional[str] = None
     created_at: str
 
@@ -107,7 +120,8 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
     round_obj = await round_crud.create_round(
         db, 
         name=round_data.name,
-        style=round_data.style,
+        type=round_data.type.value,
+        style=round_data.style.value if round_data.style else None,
         motion=round_data.motion
     )
     return RoundResponse(
@@ -180,7 +194,7 @@ class RoundSummaryResponse(BaseModel):
     title: str
     description: str
     motion: Optional[str] = None
-    style: Optional[str] = None
+    style: Optional[RoundStyle] = None
     date_uploaded: str
     channel_id: str
     tag: str
@@ -188,7 +202,7 @@ class RoundSummaryResponse(BaseModel):
     rebuttal_count: int
     speech_count: int
     total_argument_units: int
-    type: str
+    type: RoundType
     try_count: int
 
 @router.get("/rounds-summary", response_model=List[RoundSummaryResponse])
