@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { Play, Pause } from 'lucide-react';
-import { buildSpeechSegments, globalToLocalTime, getTotalDuration, SpeechSegment } from '../utils/speechTimeline';
+import { buildSpeechSegments, globalToLocalTime, getTotalDuration, SpeechSegment } from './speechTimeline';
 import { logPlaybackEvent } from '../../../utils/userLogger';
 import { useTranslation } from '../../../context/LanguageContext';
 
