@@ -41,6 +41,16 @@ export const en = {
             motionPlaceholder: "Enter motion (optional)",
             generateGraph: "GENERATE GRAPH",
             processing: "PROCESSING...",
+            processingWithTime: "PROCESSING... ({seconds}s)",
+        },
+        advancedOptions: {
+            title: "Advanced Options",
+            show: "Show Advanced Options",
+            hide: "Hide Advanced Options",
+            processAllAtOnce: "ADU segmentation is performed for all speeches in a single unified prompt",
+            useLatestTranscription: "Use existing transcription for the same Round ID if available (skip re-transcription)",
+            aduModel: "ADU Segmentation Model",
+            rebuttalModel: "Rebuttal Identification Model"
         },
         status: {
             processing: "Processing: {seconds}s",

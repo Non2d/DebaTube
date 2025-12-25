@@ -19,7 +19,9 @@ from .utils import (
     group_words_into_sentences,
 )
 
-def _save_gemini_log(response_text: str, category: str, identifier: str = ""):
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
+
+def _save_gemini_log(response_text: str, category: str, identifier: str = "", prompt_text: str = "", model_name: str = ""):
     """Save raw Gemini response to logs directory"""
     try:
         log_dir = "logs/gemini_response"
@@ -32,6 +34,8 @@ def _save_gemini_log(response_text: str, category: str, identifier: str = ""):
             "timestamp": timestamp,
             "category": category,
             "identifier": identifier,
+            "model": model_name,
+            "prompt": prompt_text,
             "raw_response": response_text
         }
         
@@ -62,6 +66,7 @@ class RebuttalStructureRequest(BaseModel):
 
     round_name: str  # Round name to identify which debate round
     try_count: Optional[int] = None
+    model: Optional[str] = None
 
     model_config = {
         "json_schema_extra": {
@@ -93,6 +98,7 @@ async def regroup_single_speech_sentences_to_adus(
     transcript_data: Dict[str, Any],
     timestamp: str,
     match_name: str = "",
+    model_name: str = GEMINI_MODEL_NAME,
 ) -> tuple[
     str,
     Optional[str],
@@ -131,12 +137,7 @@ async def regroup_single_speech_sentences_to_adus(
             for sentence in sentences_data
         ]
 
-        GEMINI_MODEL = "gemini-2.5-flash"
-
-        response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
-            model=GEMINI_MODEL,
-            contents=f"""
+        prompt_content = f"""
 Please segment the following debate speech into Argument Discourse Units.
 Each ADU represents a single argument or discourse unit with a specific role below:
 
@@ -174,10 +175,18 @@ Return the result as JSON in the following format:
 }}
 
 IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
-""",
+"""
+
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=model_name,
+            contents=prompt_content,
         )
 
         response_text = response.text if hasattr(response, "text") else str(response)
+        
+        # Save raw log with prompt
+        _save_gemini_log(response_text, "adu", f"{match_name}_{speech_key}", prompt_content, model_name=model_name)
 
         try:
             raw_response_dict = (
@@ -256,6 +265,7 @@ async def regroup_all_speech_sentences_to_adus_at_once(
     transcripts: Dict[str, Dict[str, Any]],
     debate_format: str = "NA",
     match_name: str = "",
+    model_name: str = GEMINI_MODEL_NAME,
 ) -> tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]]]:
     """
     Process all speeches in a single Gemini Prompt but using the exact same logic flow as 
@@ -315,7 +325,7 @@ async def regroup_all_speech_sentences_to_adus_at_once(
 
         full_transcript_text = "\n".join(prompt_content_parts)
 
-        GEMINI_MODEL = "gemini-2.5-flash"
+
         
         # Using the exact same prompt structure as regroup_single_speech_sentences_to_adus
         # but adapted to output multiple speeches
@@ -362,14 +372,14 @@ Format:
 
         response = await asyncio.to_thread(
             client_gemini.models.generate_content,
-            model=GEMINI_MODEL,
+            model=model_name,
             contents=prompt_content,
         )
         
         response_text = response.text if hasattr(response, "text") else str(response)
         
         # Save raw log
-        _save_gemini_log(response_text, "batch_adu", "ALL")
+        _save_gemini_log(response_text, "batch_adu", "ALL", prompt_content, model_name=model_name)
 
         cleaning_response = clean_gemini_markdown_response(response_text)
         try:
@@ -765,6 +775,7 @@ async def identify_rebuttal_structure(
     try:
         round_name = request.round_name
         try_count = request.try_count
+        model_name = request.model or GEMINI_MODEL_NAME
 
         # DBからスピーチとADUを取得
         speeches = await round_crud.get_speeches_by_round(db, round_name, try_count=try_count)
@@ -773,7 +784,7 @@ async def identify_rebuttal_structure(
                 status_code=404, detail=f"No speeches found for round {round_name}"
             )
 
-        GEMINI_MODEL = "gemini-2.5-flash"
+
 
         # Build speeches data structure and markdown for Gemini
         speeches_data = {}
@@ -815,10 +826,10 @@ async def identify_rebuttal_structure(
 
                 # Format: {id, type, text, start}
                 adu_data = {
-                    "id": adu.id,  # DBの自動生成ID (Client/API still sees DB ID)
+                    "id": global_adu_index,  # Use local sequential ID for output
                     "type": adu.role,
                     "text": adu.text,
-                    "start": round(start_time, 1),  # 小数第1位に丸める
+                    "start": round(start_time, 1),
                 }
                 speeches_data[speech_key].append(adu_data)
 
@@ -850,17 +861,18 @@ Do not include any other text, explanation, or formatting."""
 
         # Call Gemini API
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content, model=GEMINI_MODEL, contents=prompt
+            client_gemini.models.generate_content, model=model_name, contents=prompt
         )
 
         # Extract response text
         response_text = response.text if hasattr(response, "text") else str(response)
         
         # Save raw log
-        _save_gemini_log(response_text, "rebuttal", round_name)
+        _save_gemini_log(response_text, "rebuttal", round_name, prompt, model_name=model_name)
 
         # Parse the response to extract rebuttal pairs
-        rebuttal_pairs = [] # Final list with DB IDs
+        rebuttal_pairs = [] # List with DB IDs for saving
+        local_rebuttal_pairs = [] # List with Local IDs for JSON output
         try:
             cleaned_response = clean_gemini_markdown_response(response_text)
             raw_local_pairs = json.loads(cleaned_response)
@@ -885,8 +897,9 @@ Do not include any other text, explanation, or formatting."""
                 if local_src in local_id_to_db_id and local_tgt in local_id_to_db_id:
                      db_src = local_id_to_db_id[local_src]
                      db_tgt = local_id_to_db_id[local_tgt]
-                     rebuttal_pairs.append([db_src, db_tgt])
-                     formatted_pairs.append(f"{local_src}->{local_tgt}({db_src}->{db_tgt})")
+                     rebuttal_pairs.append([db_src, db_tgt]) # For DB Saving
+                     local_rebuttal_pairs.append([local_src, local_tgt]) # For JSON Response
+                     formatted_pairs.append(f"{local_src}->{local_tgt}")
                      mapped_count += 1
                 else:
                     logger.warning(f"Skipping pair with unknown sequential IDs: {pair}. Max seq ID: {global_adu_index}")
@@ -909,7 +922,7 @@ Do not include any other text, explanation, or formatting."""
             logger.info(f"Saved {len(rebuttal_pairs)} rebuttal pairs to database")
 
         # Build result in requested format
-        result = {"speeches": speeches_data, "rebuttals": rebuttal_pairs}
+        result = {"speeches": speeches_data, "rebuttals": local_rebuttal_pairs}
 
         elapsed_time = time.time() - start_time
         print(
@@ -920,11 +933,11 @@ Do not include any other text, explanation, or formatting."""
             "status": "success",
             "round_name": round_name,
             "speeches": speeches_data,
-            "rebuttals": rebuttal_pairs,
+            "rebuttals": local_rebuttal_pairs,
             "total_speeches": len(speeches_data),
             "total_adus": total_adus,
             "total_rebuttal_pairs": len(rebuttal_pairs),
-            "model": GEMINI_MODEL,
+            "model": model_name,
             "processing_time_seconds": round(elapsed_time, 2),
         }
 
@@ -938,6 +951,42 @@ Do not include any other text, explanation, or formatting."""
             status_code=500,
             detail=f"Rebuttal structure identification failed: {str(e)}",
         )
+
+
+@router.get("/gemini-models")
+async def get_gemini_models():
+    """List available Gemini models that support generateContent"""
+    try:
+        # The list() call might be blocking, so convert to list in thread if needed,
+        # but list() itself returns an iterator. We iterate it.
+        # Running inside to_thread to avoid blocking event loop
+        
+        def fetch_models():
+            model_list = []
+            # List models using the synchronous client
+            for m in client_gemini.models.list():
+                # Filter by name simple check as supported_generation_methods might be missing
+                # or structure different in this SDK version
+                if "gemini" in m.name.lower():
+                    model_list.append(m.name)
+            return model_list
+
+        models = await asyncio.to_thread(fetch_models)
+        
+        # Sort to have newer/higher versions top effectively? Alphabetical might put 1.5 after 1.0. 
+        # Reverse alphabetical might be better? (g-prop... g-flash...)
+        models.sort(reverse=True) 
+        
+        return {"status": "success", "models": models}
+
+    except Exception as e:
+        logger.error(f"Failed to list Gemini models: {e}")
+        # Return fallback list if API fails
+        # User requested specific single fallback if error
+        fallback = [
+             "models/gemini-2.5-flash"
+        ]
+        return {"status": "error", "models": fallback, "detail": str(e)}
 
 
 class AudioToDebateGraphRequest(BaseModel):
@@ -955,6 +1004,8 @@ async def audio_to_debate_graph_batch(
     call_llm_all_at_once: bool = Form(True),
     use_latest_transcription: bool = Form(True),
     speech_metadata: Optional[str] = Form(None),
+    adu_model: str = Form(GEMINI_MODEL_NAME),
+    rebuttal_model: str = Form(GEMINI_MODEL_NAME),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1095,15 +1146,15 @@ async def audio_to_debate_graph_batch(
         adus_by_speech = {}
         
         if call_llm_all_at_once:
-             print(">> Using Call LLM All At Once Mode")
+             print(f">> Using Call LLM All At Once Mode with {adu_model}")
              adus_by_speech, _, _ = await regroup_all_speech_sentences_to_adus_at_once(
-                 batch_results, debate_format, round_name
+                 batch_results, debate_format, round_name, model_name=adu_model
              )
         else:
-            print(">> Using Parallel Individual Call Mode")
+            print(f">> Using Parallel Individual Call Mode with {adu_model}")
             # 各スピーチのADUを生成（並列処理）
             tasks = [
-                regroup_single_speech_sentences_to_adus(k, v, timestamp, round_name)
+                regroup_single_speech_sentences_to_adus(k, v, timestamp, round_name, model_name=adu_model)
                 for idx, (k, v) in enumerate(batch_results.items())
             ]
             
@@ -1189,8 +1240,8 @@ async def audio_to_debate_graph_batch(
         print(f"[Step 4/5] ADU変換完了: {total_adus_saved} ADUs")
 
         # Step 5: 反論構造を抽出してDBに保存
-        print("[Step 5/5] 反論構造の抽出を開始...")
-        rebuttal_request = RebuttalStructureRequest(round_name=round_name, try_count=current_try_count)
+        print(f"[Step 5/5] 反論構造の抽出を開始... model={rebuttal_model}")
+        rebuttal_request = RebuttalStructureRequest(round_name=round_name, try_count=current_try_count, model=rebuttal_model)
         rebuttal_response = await identify_rebuttal_structure(rebuttal_request, db)
 
         if rebuttal_response["status"] != "success":

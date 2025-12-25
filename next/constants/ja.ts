@@ -43,6 +43,16 @@ export const ja: LocaleType = {
             motionPlaceholder: "論題を入力 (任意)",
             generateGraph: "グラフ作成",
             processing: "処理中...",
+            processingWithTime: "処理中... ({seconds}秒)",
+        },
+        advancedOptions: {
+            title: "詳細設定",
+            show: "詳細設定を表示",
+            hide: "詳細設定を隠す",
+            processAllAtOnce: "全スピーチでのADUセグメンテーションを1つのプロンプトで一括して行う",
+            useLatestTranscription: "同じRound IDの文字起こしデータが既に存在する場合はそれを使用する（再文字起こしをスキップ）",
+            aduModel: "ADUセグメンテーションモデル",
+            rebuttalModel: "反論判定モデル"
         },
         status: {
             processing: "処理中: {seconds}秒",

@@ -193,14 +193,23 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
       let isTfBase = true;
 
       // 同じチーム内での反論を除外、かつPOIノードからの反論とPOIノードへの反論も除外
-      const filteredRebuttals = data.rebuttals.filter(([src, tgt]) => {
-        const srcNodeType = nodeTypeMap[src];
-        const tgtNodeType = nodeTypeMap[tgt];
-        const isSrcPoi = poiNodeMap[src];
-        const isTgtPoi = poiNodeMap[tgt];
-        // 異なるチーム間の反論のみを保持、かつソースとターゲットがPOIでない
-        return srcNodeType !== tgtNodeType && !isSrcPoi && !isTgtPoi;
-      });
+      const filteredRebuttals = data.rebuttals
+        .map(([src, tgt]) => {
+          // 常にLater -> Earlier (IDが大きい方がSource) となるようにスワップ
+          // これにより、もしLLMが[Earlier, Later]の順で出力しても補正される
+          if (src < tgt) {
+            return [tgt, src] as [number, number];
+          }
+          return [src, tgt] as [number, number];
+        })
+        .filter(([src, tgt]) => {
+          const srcNodeType = nodeTypeMap[src];
+          const tgtNodeType = nodeTypeMap[tgt];
+          const isSrcPoi = poiNodeMap[src];
+          const isTgtPoi = poiNodeMap[tgt];
+          // 異なるチーム間の反論のみを保持、かつソースとターゲットがPOIでない
+          return srcNodeType !== tgtNodeType && !isSrcPoi && !isTgtPoi;
+        });
 
       // 1つのADUから複数の反論がある場合、最新の発言(idの大きいADU)への反論だけを採用
       const latestRebuttalsMap: { [src: number]: number } = {};

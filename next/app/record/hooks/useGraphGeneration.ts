@@ -12,6 +12,8 @@ interface UseGraphGenerationProps {
     areAllAudioFilesReady: boolean;
     callLlmAllAtOnce: boolean;
     useLatestTranscription: boolean;
+    aduModel: string;
+    rebuttalModel: string;
     onSuccess: (result: any) => void;
 }
 
@@ -24,6 +26,8 @@ export function useGraphGeneration({
     areAllAudioFilesReady,
     callLlmAllAtOnce,
     useLatestTranscription,
+    aduModel,
+    rebuttalModel,
     onSuccess
 }: UseGraphGenerationProps) {
     const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
@@ -83,6 +87,8 @@ export function useGraphGeneration({
             }
             formData.append('call_llm_all_at_once', callLlmAllAtOnce.toString());
             formData.append('use_latest_transcription', useLatestTranscription.toString());
+            formData.append('adu_model', aduModel);
+            formData.append('rebuttal_model', rebuttalModel);
 
             const speechMetadata: { filename: string; position: string }[] = [];
             let totalFiles = 0;

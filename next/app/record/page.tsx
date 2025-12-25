@@ -51,6 +51,8 @@ export default function RecordPage() {
   });
   const [callLlmAllAtOnce, setCallLlmAllAtOnce] = useState(true);
   const [useLatestTranscription, setUseLatestTranscription] = useState(true);
+  const [aduModel, setAduModel] = useState("gemini-2.5-flash");
+  const [rebuttalModel, setRebuttalModel] = useState("gemini-2.5-flash");
   const { t } = useTranslation();
 
   const isInitialMount = useRef<boolean>(true);
@@ -101,6 +103,8 @@ export default function RecordPage() {
     areAllAudioFilesReady: areAllAudioFilesReady(),
     callLlmAllAtOnce,
     useLatestTranscription,
+    aduModel,
+    rebuttalModel,
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -336,6 +340,11 @@ export default function RecordPage() {
                 setCallLlmAllAtOnce={setCallLlmAllAtOnce}
                 useLatestTranscription={useLatestTranscription}
                 setUseLatestTranscription={setUseLatestTranscription}
+                aduModel={aduModel}
+                setAduModel={setAduModel}
+                rebuttalModel={rebuttalModel}
+                setRebuttalModel={setRebuttalModel}
+                generationElapsedTime={generationElapsedTime}
               />
 
               <GenerationStatus

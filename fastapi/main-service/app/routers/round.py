@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
+from sqlalchemy import select
 
 from db import get_db
 from cruds import round as round_crud
-from models.round import Round, Speech, Adu, Rebuttal
+from models.round import Round, Speech, Adu, Rebuttal, Sentence, Word
+from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
@@ -375,3 +377,109 @@ async def get_rebuttals_by_round(round_name: str, db: AsyncSession = Depends(get
     """
     rebuttals = await round_crud.get_rebuttals_by_round(db, round_name)
     return rebuttals
+
+
+@router.get("/rounds/{round_id}/graph", response_model=Dict[str, Any])
+async def get_round_graph(round_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    指定されたround_idのグラフデータ（スピーチ、ADU、反論関係）を取得
+    JSON形式は results_.../rebuttal_graph_....json に準拠
+    """
+    # Force loading of speeches and ADUs
+    stmt = (
+        select(Round)
+        .options(
+            selectinload(Round.speeches).selectinload(Speech.adus),
+            selectinload(Round.speeches).selectinload(Speech.sentences)
+        )
+        .where(Round.id == round_id)
+    )
+    result = await db.execute(stmt)
+    round_obj = result.scalar_one_or_none()
+    
+    if not round_obj:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+    speeches_data = {}
+    
+    # Pre-fetch start times for all ADUs in this round efficiently
+    speech_ids = [s.id for s in round_obj.speeches]
+    
+    adu_start_times = {}
+    if speech_ids:
+        # Query: Select ADU.id, Word.start_time 
+        #        FROM adus 
+        #        JOIN sentences ON adus.speech_id = sentences.speech_id AND adus.start_sentence_index = sentences.index
+        #        JOIN words ON sentences.speech_id = words.speech_id AND sentences.start_word_index = words.index
+        #        WHERE adus.speech_id IN speech_ids
+        
+        time_stmt = (
+            select(Adu.id, Word.start_time)
+            .join(Sentence, (Adu.speech_id == Sentence.speech_id) & (Adu.start_sentence_index == Sentence.index))
+            .join(Word, (Sentence.speech_id == Word.speech_id) & (Sentence.start_word_index == Word.index))
+            .where(Adu.speech_id.in_(speech_ids))
+        )
+        
+        time_result = await db.execute(time_stmt)
+        adu_start_times = {row.id: row.start_time for row in time_result.all()}
+
+    # Construct speeches dictionary
+    global_adu_index = 0
+    db_id_to_local_id = {}
+
+    # Need to iterate speeches in a deterministic order for consistent checking, usually format order.
+    # But since we just want a graph, iterating speeches as they are is okay, provided we map consistently.
+    # If round_obj.speeches order is random, IDs change. Ideally sort speeches by position/ID.
+    sorted_speeches = sorted(
+        round_obj.speeches, 
+        key=lambda s: s.id if s.id else 0
+    ) 
+    # Or by 'index' if position order is known? But ID is fine for determinism.
+
+    for speech in sorted_speeches:
+        role_name = speech.position # e.g. "Proposition_1st"
+        adu_list = []
+        
+        current_adus = speech.adus or []
+        current_adus.sort(key=lambda a: a.id)
+        
+        for adu in current_adus:
+            global_adu_index += 1
+            local_id = global_adu_index
+            db_id_to_local_id[adu.id] = local_id
+
+            adu_list.append({
+                "id": local_id, # return Local ID (1..N)
+                "type": adu.role, 
+                "text": adu.text,
+                "start": adu_start_times.get(adu.id, 0.0)
+            })
+        
+        speeches_data[role_name] = adu_list
+
+    # Construct rebuttals list
+    rebuttals_data = []
+    
+    if speech_ids:
+        r_stmt = (
+            select(Rebuttal.src_adu_id, Rebuttal.tgt_adu_id)
+            .join(Adu, Rebuttal.src_adu_id == Adu.id)
+            .where(Adu.speech_id.in_(speech_ids))
+        )
+        
+        r_result = await db.execute(r_stmt)
+        for row in r_result.all():
+            db_src = row.src_adu_id
+            db_tgt = row.tgt_adu_id
+            
+            # Map DB IDs to local IDs
+            if db_src in db_id_to_local_id and db_tgt in db_id_to_local_id:
+                rebuttals_data.append([
+                    db_id_to_local_id[db_src], 
+                    db_id_to_local_id[db_tgt]
+                ])
+
+    return {
+        "speeches": speeches_data,
+        "rebuttals": rebuttals_data
+    }
