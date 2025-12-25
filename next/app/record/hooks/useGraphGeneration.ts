@@ -10,6 +10,8 @@ interface UseGraphGenerationProps {
     speechRecordings: { [key: number]: { blob: Blob; duration: number; timestamp: string }[] };
     debateSpeeches: SpeechFormat[];
     areAllAudioFilesReady: boolean;
+    callLlmAllAtOnce: boolean;
+    useLatestTranscription: boolean;
     onSuccess: (result: any) => void;
 }
 
@@ -20,6 +22,8 @@ export function useGraphGeneration({
     speechRecordings,
     debateSpeeches,
     areAllAudioFilesReady,
+    callLlmAllAtOnce,
+    useLatestTranscription,
     onSuccess
 }: UseGraphGenerationProps) {
     const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
@@ -77,7 +81,10 @@ export function useGraphGeneration({
             if (motion) {
                 formData.append('motion', motion);
             }
+            formData.append('call_llm_all_at_once', callLlmAllAtOnce.toString());
+            formData.append('use_latest_transcription', useLatestTranscription.toString());
 
+            const speechMetadata: { filename: string; position: string }[] = [];
             let totalFiles = 0;
             for (let i = 0; i < debateSpeeches.length; i++) {
                 const recordings = speechRecordings[i];
@@ -89,12 +96,18 @@ export function useGraphGeneration({
                         const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '');
                         const timestamp = `${dateStr}_${timeStr}`;
                         const suffix = recordings.length > 1 ? `_${j}` : '';
-                        const filename = `${debateSpeeches[i].name.replace(/ /g, '_')}-${timestamp}${suffix}.webm`;
+                        const position = debateSpeeches[i].name;
+                        // Use a simple sanitized filename for the file map
+                        const filename = `${position.replace(/ /g, '_')}-${timestamp}${suffix}.webm`;
+
                         formData.append('files', blob, filename);
+                        speechMetadata.push({ filename, position });
                         totalFiles++;
                     }
                 }
             }
+            // Send explicit metadata to avoid relying on filename parsing
+            formData.append('speech_metadata', JSON.stringify(speechMetadata));
 
             console.log(`[generateDebateGraph] Uploading ${totalFiles} audio files...`);
 
@@ -105,14 +118,14 @@ export function useGraphGeneration({
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || `Failed to generate debate graph: ${response.statusText}`);
+                throw new Error(errorData.detail || `Failed to generate debate graph: ${response.statusText} `);
             }
 
             const result = await response.json();
             console.log('[generateDebateGraph] Success:', result);
 
             if (result.round_name) {
-                console.log(`[generateDebateGraph] Round name: ${result.round_name}`);
+                console.log(`[generateDebateGraph] Round name: ${result.round_name} `);
             }
 
             setGenerationSuccess(
@@ -120,7 +133,7 @@ export function useGraphGeneration({
                 t('recordPage.status.transcribed', { files: result.summary.files_transcribed }) + '\n' +
                 t('recordPage.status.adus', { total: result.summary.total_adus }) + '\n' +
                 t('recordPage.status.rebuttalPairs', { total: result.summary.total_rebuttal_pairs }) + '\n' +
-                `Round: ${result.round_name || roundName}`
+                `Round: ${result.round_name || roundName} `
             );
 
             if (onSuccess) {

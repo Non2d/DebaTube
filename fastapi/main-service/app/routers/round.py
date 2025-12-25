@@ -23,6 +23,10 @@ class RoundStyle(str, Enum):
     ASIAN = "asian"
     BRITISH_PARLIAMENTARY = "british_parliamentary"
     BP_OPENING_HALF = "bp_opening_half"
+    BP = "BP"
+    OPENING_HALF_BP_ORDER = "OPENING_HALF_BP_ORDER"
+    NA = "NA"
+    ASIAN_STYLE = "ASIAN"
 
 class RoundCreate(BaseModel):
     """ラウンド作成リクエスト"""
@@ -134,7 +138,6 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
         motion=round_obj.motion,
         created_at=round_obj.created_at.isoformat()
     )
-
 
 @router.get("/rounds", response_model=List[RoundResponse])
 async def get_all_rounds(db: AsyncSession = Depends(get_db)):

@@ -1,7 +1,7 @@
-
+import React, { useState } from 'react';
 import { List, Zap } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
-import { DebateFormatType } from '../../../constants/constants';
+import { DebateFormatType, DEBATE_FORMATS } from '../../../constants/constants';
 import { useTranslation } from '../../../context/LanguageContext';
 
 interface GenerationControlBarProps {
@@ -15,6 +15,10 @@ interface GenerationControlBarProps {
     generateDebateGraph: () => void;
     isGeneratingGraph: boolean;
     areAllAudioFilesReady: boolean;
+    callLlmAllAtOnce: boolean;
+    setCallLlmAllAtOnce: (val: boolean) => void;
+    useLatestTranscription: boolean;
+    setUseLatestTranscription: (val: boolean) => void;
 }
 
 export default function GenerationControlBar({
@@ -27,9 +31,14 @@ export default function GenerationControlBar({
     roundCandidates,
     generateDebateGraph,
     isGeneratingGraph,
-    areAllAudioFilesReady
+    areAllAudioFilesReady,
+    callLlmAllAtOnce,
+    setCallLlmAllAtOnce,
+    useLatestTranscription,
+    setUseLatestTranscription,
 }: GenerationControlBarProps) {
     const { t } = useTranslation();
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 mt-12">
@@ -85,6 +94,42 @@ export default function GenerationControlBar({
                         <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.motion')}</label>
                     </div>
                 </div>
+
+                {/* Advanced Options Toggle */}
+                <div className="lg:col-span-12 flex justify-end">
+                    <button
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="text-xs text-slate-500 hover:text-indigo-500 underline transition-colors"
+                    >
+                        {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
+                    </button>
+                </div>
+
+                {/* Advanced Options Panel */}
+                {showAdvanced && (
+                    <div className="lg:col-span-12 flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded text-sm text-gray-700">
+                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                <input
+                                    type="checkbox"
+                                    checked={callLlmAllAtOnce}
+                                    onChange={(e) => setCallLlmAllAtOnce(e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                />
+                                Process all speeches in one unified prompt (Call LLM All At Once)
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                                <input
+                                    type="checkbox"
+                                    checked={useLatestTranscription}
+                                    onChange={(e) => setUseLatestTranscription(e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                />
+                                Use latest transcription data if exist (skip re-transcription)
+                            </label>
+                        </div>
+                    </div>
+                )}
 
                 {/* Primary Action Button */}
                 <div className="lg:col-span-12">

@@ -18,6 +18,28 @@ from .utils import (
     DEBATE_FORMATS,
     group_words_into_sentences,
 )
+
+def _save_gemini_log(response_text: str, category: str, identifier: str = ""):
+    """Save raw Gemini response to logs directory"""
+    try:
+        log_dir = "logs/gemini_response"
+        os.makedirs(log_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        safe_identifier = identifier.replace("/", "_").replace("\\", "_").replace(" ", "_")
+        filename = f"{log_dir}/gemini_{category}_{safe_identifier}_{timestamp}.json"
+        
+        data = {
+            "timestamp": timestamp,
+            "category": category,
+            "identifier": identifier,
+            "raw_response": response_text
+        }
+        
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        logger.info(f"Saved Gemini log to {filename}")
+    except Exception as e:
+        logger.error(f"Failed to save Gemini log: {e}")
 from db import get_db
 from cruds import round as round_crud
 
@@ -223,10 +245,189 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
             words_data,
         )
 
+
     except Exception as e:
         error_msg = f"Error processing {speech_key}: {str(e)}"
         logger.error(error_msg)
         return (speech_key, None, None, None, None, error_msg, [], [], [])
+
+
+async def regroup_all_speech_sentences_to_adus_at_once(
+    transcripts: Dict[str, Dict[str, Any]],
+    debate_format: str = "NA",
+    match_name: str = "",
+) -> tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]]]:
+    """
+    Process all speeches in a single Gemini Prompt but using the exact same logic flow as 
+    regroup_single_speech_sentences_to_adus (using JSON-based sentence input).
+    Returns: (adus_by_speech, all_responses, failed_speeches)
+    """
+    try:
+        # Prepare data for prompt
+        speech_order = DEBATE_FORMATS.get(debate_format, [])
+        ordered_speeches = []
+        
+        # Sort transcripts based on debate format order if possible
+        if speech_order:
+            for role in speech_order:
+                if role in transcripts:
+                    ordered_speeches.append((role, transcripts[role]))
+            # Add any remaining speeches not in order
+            for k, v in transcripts.items():
+                if k not in speech_order:
+                    ordered_speeches.append((k, v))
+        else:
+            ordered_speeches = list(transcripts.items())
+
+        sentences_map_by_speech = {} # speech_key -> sentences_data
+        prompt_content_parts = []
+
+        for speech_key, transcript_data in ordered_speeches:
+            transcript_text = transcript_data.get("text", "")
+            words_data_raw = transcript_data.get("words", [])
+            
+            words_data = [
+                {
+                    **word,
+                    "start": round(word.get("start", 0), 1),
+                    "end": round(word.get("end", 0), 1),
+                }
+                for word in words_data_raw
+            ]
+            
+            sentences_data = group_words_into_sentences(transcript_text, words_data)
+            sentences_map_by_speech[speech_key] = sentences_data
+            
+            # Create prompt data for this speech matching regroup_single_speech_sentences_to_adus format
+            prompt_sentences_data = [
+                {
+                    "id": sentence["id"],
+                    "text": sentence["text"],
+                }
+                for sentence in sentences_data
+            ]
+            
+            prompt_content_parts.append(f"## Speech: {speech_key}")
+            prompt_content_parts.append("Sentence-level transcript data:")
+            prompt_content_parts.append(json.dumps(prompt_sentences_data, indent=None))
+            prompt_content_parts.append(f"Total Sentences: {len(sentences_data)}")
+            prompt_content_parts.append("")
+
+        full_transcript_text = "\n".join(prompt_content_parts)
+
+        GEMINI_MODEL = "gemini-2.5-flash"
+        
+        # Using the exact same prompt structure as regroup_single_speech_sentences_to_adus
+        # but adapted to output multiple speeches
+        prompt_content = f"""
+Please segment the following debate speeches into Argument Discourse Units (ADUs).
+Each ADU represents a single argument or discourse unit with a specific role below:
+
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+5. Treat any POI as a single independent ADU.
+6. Treat a response to a POI as a single ADU.
+7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+
+Transcript Data:
+{full_transcript_text}
+
+Return the result as a JSON object where keys are "Speech Name" (e.g. Proposition_1st) and values are lists of ADUs.
+IDs are local to each speech (0, 1, 2...).
+
+Format:
+{{
+  "Proposition_1st": [
+    {{
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
+      "text": "The actual ADU text...",
+      "role": "point_of_main_argument"
+    }}
+  ],
+  "Opposition_1st": [...]
+}}
+"""
+
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=GEMINI_MODEL,
+            contents=prompt_content,
+        )
+        
+        response_text = response.text if hasattr(response, "text") else str(response)
+        
+        # Save raw log
+        _save_gemini_log(response_text, "batch_adu", "ALL")
+
+        cleaning_response = clean_gemini_markdown_response(response_text)
+        try:
+            parsed_json = json.loads(cleaning_response)
+        except json.JSONDecodeError:
+             logger.error(f"Failed to parse JSON from batch response: {response_text}")
+             return {}, {"all_at_once": response_text}, [{"speech_key": "ALL", "error": "JSON Parse Error"}]
+
+        adus_by_speech = {}
+        failed_speeches = []
+
+        for speech_key, adu_list in parsed_json.items():
+             if speech_key not in sentences_map_by_speech:
+                 logger.warning(f"Unknown speech key in response: {speech_key}")
+                 continue
+             
+             sentences_data = sentences_map_by_speech[speech_key]
+             
+             adus_with_timestamps = []
+             for adu in adu_list:
+                 try:
+                     # Parse IDs: expecting simple integers as per single speech logic
+                     # Note: key names might vary slightly if Gemini hallucinates, but we stick to standard keys
+                     # regroup_single uses start_sentence_index, end_sentence_index
+                     
+                     start_id = int(adu.get("start_sentence_index", adu.get("start_sentence_id", 0)))
+                     end_id = int(adu.get("end_sentence_index", adu.get("end_sentence_id", 0)))
+                                          
+                     if start_id >= len(sentences_data) or end_id >= len(sentences_data):
+                         continue
+
+                     start_time = sentences_data[start_id].get("start_time", 0.0)
+                     end_time = sentences_data[end_id].get("end_time", 0.0)
+                     
+                     # Reconstruct text from sentences to ensure accuracy
+                     text = " ".join(sentences_data[i]["text"] for i in range(start_id, end_id + 1))
+                     
+                     adus_with_timestamps.append({
+                         **adu,
+                         "start_sentence_index": start_id,
+                         "end_sentence_index": end_id,
+                         "start_time": start_time,
+                         "end_time": end_time,
+                         "text": text
+                     })
+                 except Exception as e:
+                     logger.warning(f"Error processing ADU in {speech_key}: {e}")
+             
+             if adus_with_timestamps:
+                 adus_by_speech[speech_key] = adus_with_timestamps
+        
+        return adus_by_speech, {"all_at_once": response_text}, failed_speeches
+
+    except Exception as e:
+        logger.error(f"Error in transcript_to_adu_all_at_once: {str(e)}")
+        _save_gemini_log(str(e), "error_batch_adu", "ALL")
+        return {}, {}, [{"speech_key": "ALL", "error": str(e)}]
+
 
 
 async def transcribe_single_audio(
@@ -243,7 +444,7 @@ async def transcribe_single_audio(
             return "", "", None
 
         parts = filename_without_ext.split("-", 1)  # 最初の"-"で分割
-        speech_key = parts[0]
+        speech_key = parts[0].strip()
         date_transcribed = parts[1] if len(parts) > 1 else ""
 
         # 一時ファイルとして保存
@@ -350,7 +551,6 @@ async def audio_to_transcript_batch(
         raise HTTPException(
             status_code=500, detail=f"Batch transcription failed: {str(e)}"
         )
-
 
 @router.post("/transcript-to-adu-batch")
 async def transcript_to_adu_batch(
@@ -517,7 +717,35 @@ async def transcript_to_adu_batch(
         )
 
 
-@router.post("/identify-rebuttal-structure")
+@router.post("/transcript-to-adu-all-at-once")
+async def endpoint_transcript_to_adu_all_at_once(
+    batch_request: BatchTranscriptRequest,
+    debate_format: str = "NA",
+    match_name: str = "",
+):
+    """
+    Experimental: Convert all transcripts to ADUs in a SINGLE Gemini prompt.
+    """
+    start_time = time.time()
+    try:
+         transcripts = batch_request.root
+         adus_by_speech, all_responses, failed = await transcript_to_adu_all_at_once(
+             transcripts, debate_format, match_name
+         )
+         
+         # Save logic (Simplified for this endpoint, usually handled by caller or we can reuse logic)
+         # For now just return the result structure
+         
+         return {
+             "status": "success",
+             "adus_by_speech": adus_by_speech,
+             "raw_response": all_responses,
+             "failed": failed,
+             "processing_time": time.time() - start_time
+         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def identify_rebuttal_structure(
     request: RebuttalStructureRequest, db: AsyncSession = Depends(get_db)
 ):
@@ -627,6 +855,9 @@ Do not include any other text, explanation, or formatting."""
 
         # Extract response text
         response_text = response.text if hasattr(response, "text") else str(response)
+        
+        # Save raw log
+        _save_gemini_log(response_text, "rebuttal", round_name)
 
         # Parse the response to extract rebuttal pairs
         rebuttal_pairs = [] # Final list with DB IDs
@@ -720,24 +951,20 @@ async def audio_to_debate_graph_batch(
     files: List[UploadFile] = File(...),
     debate_format: str = Form("NA"),
     round_name: str = Form(...),
-    motion: Optional[str] = Form(None),
+    motion: str = Form(None),
+    call_llm_all_at_once: bool = Form(True),
+    use_latest_transcription: bool = Form(True),
+    speech_metadata: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    統合エンドポイント: 音声ファイルをディベートグラフに変換（DB保存版）
-    - 入力: 複数の音声ファイル
-    - 処理:
-      1. ラウンドを作成
-      2. 音声を文字起こし → DBに保存
-      3. ADUに変換 → DBに保存
-      4. 反論構造を抽出 → DBに保存
-    - 出力: すべてデータベースに保存
+    Multiple audio files -> Speech-to-Text -> Segment to ADU vs database save -> Rebuttal structure
     """
     start_time = time.time()
-    print(f"[/audio-to-debate-graph-batch] 処理開始 - name: {round_name}, format: {debate_format}")
+    print(f"[/audio-to-debate-graph-batch] 処理開始 - round_name: {round_name}, default_all_at_once: {call_llm_all_at_once}, use_latest: {use_latest_transcription}")
 
     try:
-        # Validate debate format
+        # Step 0: Validate format
         if debate_format not in DEBATE_FORMATS:
             raise HTTPException(
                 status_code=400,
@@ -755,10 +982,68 @@ async def audio_to_debate_graph_batch(
             motion=motion
         )
         logger.info(f"Created round with name '{round_name}'")
+        
+        # Capture try_count immediately to prevent MissingGreenlet error after commits
+        current_try_count = round_obj.try_count
 
-        # Step 2: 音声を文字起こし
+        # Step 1.5: 前回の文字起こしデータを取得（use_latest_transcription=Trueの場合）
+        existing_transcriptions = {}
+        if use_latest_transcription and current_try_count and current_try_count > 1:
+            try:
+                prev_try_count = current_try_count - 1
+                prev_speeches = await round_crud.get_speeches_by_round(db, round_name, try_count=prev_try_count)
+                for s in prev_speeches:
+                    if s.raw_transcription:
+                        existing_transcriptions[s.position.strip()] = s.raw_transcription
+                logger.info(f"Found {len(existing_transcriptions)} existing transcriptions from try_count {prev_try_count}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch previous transcriptions: {e}")
+
+
+
+        # Step 2: 音声を文字起こし (or reuse existing)
         print("[Step 2/5] 音声の文字起こしを開始...")
-        tasks = [transcribe_single_audio(file) for file in files]
+        tasks = []
+        # Keep track of which files are pending transcription vs reused
+        # We need to map results back effectively. 
+        # Strategy: Create a wrapper task or handle reuse directly.
+        
+        # Prepare metadata map if available
+        metadata_map = {}
+        if speech_metadata:
+            try:
+                meta_list = json.loads(speech_metadata)
+                for item in meta_list:
+                    if "filename" in item and "position" in item:
+                        metadata_map[item["filename"]] = item["position"]
+            except Exception as e:
+                logger.warning(f"Failed to parse speech_metadata: {e}")
+
+        async def trans_or_reuse(file: UploadFile):
+            # Resolve speech_key using metadata
+            if file.filename not in metadata_map:
+                logger.error(f"Missing metadata for file: {file.filename}")
+                raise HTTPException(status_code=400, detail=f"Missing metadata for file {file.filename}")
+
+            speech_key = metadata_map[file.filename]
+            
+            # Extract date for reuse case (if present in filename)
+            filename_without_ext = os.path.splitext(file.filename)[0]
+            parts = filename_without_ext.split("-", 1)
+            date_transcribed = parts[1] if len(parts) > 1 else ""
+            
+            if speech_key in existing_transcriptions:
+                print(f"Skipping transcription for {speech_key} (reusing existing data)")
+                return speech_key, date_transcribed, existing_transcriptions[speech_key]
+            else:
+                # Transcribe new audio
+                # Note: transcribe_single_audio parses filename internally too, but we override the key here
+                _, date_ret, trans_dict = await transcribe_single_audio(file)
+                return speech_key, date_ret, trans_dict
+            
+
+
+        tasks = [trans_or_reuse(file) for file in files]
         results = await asyncio.gather(*tasks)
 
         batch_results: Dict[str, Any] = {}
@@ -776,13 +1061,15 @@ async def audio_to_debate_graph_batch(
         # Step 3: スピーチをDBに保存
         print("[Step 3/5] スピーチをデータベースに保存...")
         speech_id_map = {}  # speech_key -> speech_id のマッピング
+        current_round_id = round_obj.id
+        
         for speech_key, trans_data in batch_results.items():
             # audio_pathを設定（audio-save/{round_name}/{speech_key}.webm）
             audio_path = f"{round_name}/{speech_key}.webm"
 
             speech_obj = await round_crud.create_speech(
                 db,
-                round_name=round_name,
+                round_id=current_round_id,
                 position=speech_key,
                 audio_path=audio_path,
                 duration=trans_data.get("duration"),
@@ -794,30 +1081,51 @@ async def audio_to_debate_graph_batch(
         # Step 4: ADUに変換してDBに保存
         print("[Step 4/5] ADU変換を開始...")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-5]
-
-        # 各スピーチのADUを生成（並列処理）
-        tasks = [
-            regroup_single_speech_sentences_to_adus(k, v, timestamp, round_name)
-            for k, v in batch_results.items()
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # ADUをDBに保存
+        
+        adus_by_speech = {}
+        
+        if call_llm_all_at_once:
+             print(">> Using Call LLM All At Once Mode")
+             adus_by_speech, _, _ = await regroup_all_speech_sentences_to_adus_at_once(
+                 batch_results, debate_format, round_name
+             )
+        else:
+            print(">> Using Parallel Individual Call Mode")
+            # 各スピーチのADUを生成（並列処理）
+            tasks = [
+                regroup_single_speech_sentences_to_adus(k, v, timestamp, round_name)
+                for idx, (k, v) in enumerate(batch_results.items())
+            ]
+            
+            adu_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for res in adu_results:
+                 if isinstance(res, tuple) and len(res) >= 7:
+                     s_key = res[0]
+                     s_adus = res[6]
+                     if s_adus:
+                         adus_by_speech[s_key] = s_adus
+        
+        # Save Words, Sentences, and ADUs to DB
         total_adus_saved = 0
-        for (speech_key, log_path, csv_path, raw_response, response_text, error_msg, adus_with_timestamps, sentences_data, words_data) in results:
-            if error_msg:
-                logger.error(f"Failed to process {speech_key}: {error_msg}")
-                continue
-
-            if not adus_with_timestamps:
-                logger.warning(f"No ADUs generated for {speech_key}")
-                continue
-
+        
+        for speech_key, trans_data in batch_results.items():
             speech_id = speech_id_map.get(speech_key)
             if not speech_id:
                 logger.error(f"No speech_id found for {speech_key}")
                 continue
 
+            # 1. Prepare Words Data
+            words_raw = trans_data.get("words", [])
+            words_data = [
+                {
+                    **word,
+                    "start": round(word.get("start", 0), 1),
+                    "end": round(word.get("end", 0), 1),
+                }
+                for word in words_raw
+            ]
+            
             # Save Words
             words_to_create = [
                 {
@@ -832,6 +1140,10 @@ async def audio_to_debate_graph_batch(
             ]
             await round_crud.create_words_batch(db, words_to_create)
 
+            # 2. Prepare Sentences Data
+            transcript_text = trans_data.get("text", "")
+            sentences_data = group_words_into_sentences(transcript_text, words_data)
+            
             # Save Sentences
             sentences_to_create = [
                 {
@@ -845,28 +1157,30 @@ async def audio_to_debate_graph_batch(
             ]
             await round_crud.create_sentences_batch(db, sentences_to_create)
 
-            # Save ADUs
-            adus_data = [
-                {
-                    "speech_id": speech_id,
-                    "start_sentence_index": adu.get("start_sentence_index"),
-                    "end_sentence_index": adu.get("end_sentence_index"),
-                    "text": adu.get("text"),
-                    "role": adu.get("role")
-                }
-                for adu in adus_with_timestamps
-            ]
-
-            # バッチでDB保存
-            saved_adus = await round_crud.create_adus_batch(db, adus_data)
-            total_adus_saved += len(saved_adus)
-            logger.info(f"Saved {len(words_to_create)} words, {len(sentences_to_create)} sentences, {len(saved_adus)} ADUs for {speech_key}")
+            # 3. Save ADUs (if available)
+            if speech_key in adus_by_speech:
+                adus_list = adus_by_speech[speech_key]
+                adus_data = [
+                    {
+                        "speech_id": speech_id,
+                        "start_sentence_index": adu.get("start_sentence_index"),
+                        "end_sentence_index": adu.get("end_sentence_index"),
+                        "text": adu.get("text"),
+                        "role": adu.get("role")
+                    }
+                    for adu in adus_list
+                ]
+                saved_adus = await round_crud.create_adus_batch(db, adus_data)
+                total_adus_saved += len(saved_adus)
+                logger.info(f"Saved {len(words_to_create)} words, {len(sentences_to_create)} sentences, {len(saved_adus)} ADUs for {speech_key}")
+            else:
+                logger.warning(f"No ADUs available for {speech_key}")
 
         print(f"[Step 4/5] ADU変換完了: {total_adus_saved} ADUs")
 
         # Step 5: 反論構造を抽出してDBに保存
         print("[Step 5/5] 反論構造の抽出を開始...")
-        rebuttal_request = RebuttalStructureRequest(round_name=round_name, try_count=round_obj.try_count)
+        rebuttal_request = RebuttalStructureRequest(round_name=round_name, try_count=current_try_count)
         rebuttal_response = await identify_rebuttal_structure(rebuttal_request, db)
 
         if rebuttal_response["status"] != "success":
@@ -880,7 +1194,7 @@ async def audio_to_debate_graph_batch(
         return {
             "status": "success",
             "round_name": round_name,
-            "try_count": round_obj.try_count,
+            "try_count": current_try_count,
             "debate_format": debate_format,
             "summary": {
                 "files_transcribed": len(batch_results),

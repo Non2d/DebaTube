@@ -49,6 +49,8 @@ export default function RecordPage() {
     }
     return true;
   });
+  const [callLlmAllAtOnce, setCallLlmAllAtOnce] = useState(true);
+  const [useLatestTranscription, setUseLatestTranscription] = useState(true);
   const { t } = useTranslation();
 
   const isInitialMount = useRef<boolean>(true);
@@ -97,6 +99,8 @@ export default function RecordPage() {
     speechRecordings,
     debateSpeeches: DEBATE_SPEECHES,
     areAllAudioFilesReady: areAllAudioFilesReady(),
+    callLlmAllAtOnce,
+    useLatestTranscription,
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -328,6 +332,10 @@ export default function RecordPage() {
                 generateDebateGraph={generateDebateGraph}
                 isGeneratingGraph={isGeneratingGraph}
                 areAllAudioFilesReady={areAllAudioFilesReady()}
+                callLlmAllAtOnce={callLlmAllAtOnce}
+                setCallLlmAllAtOnce={setCallLlmAllAtOnce}
+                useLatestTranscription={useLatestTranscription}
+                setUseLatestTranscription={setUseLatestTranscription}
               />
 
               <GenerationStatus
