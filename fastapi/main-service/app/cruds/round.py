@@ -9,7 +9,14 @@ from sqlalchemy import func
 
 # ==================== Round CRUD ====================
 
-async def create_round(db: AsyncSession, name: str) -> Round:
+async def create_round(
+    db: AsyncSession, 
+    name: str, 
+    type: str = "record", 
+    note: str = None,
+    style: str = None,
+    motion: str = None
+) -> Round:
     """
     新しいラウンドを作成
     同じ名前がある場合はtry_countをインクリメントして作成する
@@ -24,7 +31,14 @@ async def create_round(db: AsyncSession, name: str) -> Round:
     if max_try_count is not None:
         new_try_count = max_try_count + 1
         
-    round_obj = Round(name=name, try_count=new_try_count)
+    round_obj = Round(
+        name=name, 
+        try_count=new_try_count,
+        type=type,
+        note=note,
+        style=style,
+        motion=motion
+    )
     db.add(round_obj)
     await db.commit()
     await db.refresh(round_obj)

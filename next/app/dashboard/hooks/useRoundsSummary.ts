@@ -16,6 +16,7 @@ export interface RoundSummary {
   total_argument_units: number;
   type: string;
   try_count: number;
+  style: string;
 }
 
 export async function getRoundsSummary(): Promise<RoundSummary[]> {

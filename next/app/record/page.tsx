@@ -25,6 +25,7 @@ type TabType = 'audio' | 'visualization';
 export default function RecordPage() {
   const [activeTab, setActiveTab] = useState<TabType>('audio');
   const [roundName, setRoundName] = useState('');
+  const [motion, setMotion] = useState('');
   const [debateFormat, setDebateFormat] = useState<DebateFormatType>('BP'); // Default format
   const [currentSpeechIndex, setCurrentSpeechIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -104,6 +105,20 @@ export default function RecordPage() {
       localStorage.setItem('debate_round_name', defaultName);
     }
   }, []);
+
+  // Restore active tab from LocalStorage
+  useEffect(() => {
+    const savedTab = localStorage.getItem('record_active_tab') as TabType;
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  // Save active tab to LocalStorage - REMOVED to avoid overwrite
+  // useEffect(() => {
+  //   localStorage.setItem('record_active_tab', activeTab);
+  // }, [activeTab]);
+  // Instead, saving in handleTabSwitch
 
   // Save round name to LocalStorage when it changes
   useEffect(() => {
@@ -481,6 +496,9 @@ export default function RecordPage() {
       const formData = new FormData();
       formData.append('round_name', roundName);
       formData.append('debate_format', debateFormat);
+      if (motion) {
+        formData.append('motion', motion);
+      }
 
       // 全ての音声ファイルを FormData に追加
       let totalFiles = 0;
@@ -731,6 +749,7 @@ export default function RecordPage() {
   const handleTabSwitch = (tab: TabType) => {
     setActiveTab(tab);
     logTabSwitch(tab, roundName);
+    localStorage.setItem('record_active_tab', tab);
   };
 
   const currentSpeech = DEBATE_SPEECHES[currentSpeechIndex];
@@ -854,7 +873,7 @@ export default function RecordPage() {
                   </div>
 
                   {/* Round ID Input Group (Combined) */}
-                  <div className="lg:col-span-6 flex gap-2">
+                  <div className="lg:col-span-9 flex gap-2">
                     <div className="relative group h-full flex-1">
                       <SearchableSelect
                         options={roundCandidates}
@@ -864,12 +883,24 @@ export default function RecordPage() {
                         label={t('recordPage.controls.roundId')}
                       />
                     </div>
-
-
+                    {/* Motion Input */}
+                    <div className="relative group h-full flex-[2]">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10">
+                        <List size={18} strokeWidth={2} />
+                      </div>
+                      <input
+                        type="text"
+                        value={motion}
+                        onChange={(e) => setMotion(e.target.value)}
+                        className="h-12 w-full pl-10 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
+                        placeholder={t('recordPage.controls.motionPlaceholder')}
+                      />
+                      <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.controls.motion')}</label>
+                    </div>
                   </div>
 
                   {/* Primary Action Button */}
-                  <div className="lg:col-span-3">
+                  <div className="lg:col-span-12">
                     <button
                       onClick={generateDebateGraph}
                       disabled={!areAllAudioFilesReady() || isGeneratingGraph || !roundName}

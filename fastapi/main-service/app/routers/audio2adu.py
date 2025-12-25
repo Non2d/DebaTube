@@ -720,6 +720,7 @@ async def audio_to_debate_graph_batch(
     files: List[UploadFile] = File(...),
     debate_format: str = Form("NA"),
     round_name: str = Form(...),
+    motion: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -747,7 +748,12 @@ async def audio_to_debate_graph_batch(
 
         # Step 1: ラウンドを作成
         print("[Step 1/5] ラウンドを作成...")
-        round_obj = await round_crud.create_round(db, name=round_name)
+        round_obj = await round_crud.create_round(
+            db, 
+            name=round_name,
+            style=debate_format,
+            motion=motion
+        )
         logger.info(f"Created round with name '{round_name}'")
 
         # Step 2: 音声を文字起こし

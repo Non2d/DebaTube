@@ -39,6 +39,8 @@ export const ja: LocaleType = {
             roundId: "試合ID",
             enterRoundId: "試合IDを入力...",
             searchRoundId: "試合IDを検索...",
+            motion: "論題",
+            motionPlaceholder: "論題を入力 (任意)",
             generateGraph: "グラフ作成",
             processing: "処理中...",
         },
@@ -194,6 +196,7 @@ export const ja: LocaleType = {
             noRounds: "試合が見つかりません",
             headers: {
                 title: "タイトル",
+                style: "形式",
                 motion: "論題",
                 pois: "POI",
                 rebuttals: "反論",

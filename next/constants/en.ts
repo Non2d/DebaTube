@@ -37,6 +37,8 @@ export const en = {
             roundId: "Round ID",
             enterRoundId: "Enter Round ID...",
             searchRoundId: "Search Round ID...",
+            motion: "Motion",
+            motionPlaceholder: "Enter motion (optional)",
             generateGraph: "GENERATE GRAPH",
             processing: "PROCESSING...",
         },
@@ -192,6 +194,7 @@ export const en = {
             noRounds: "No rounds found",
             headers: {
                 title: "Title",
+                style: "Style",
                 motion: "Motion",
                 pois: "POIs",
                 rebuttals: "Rebuttals",

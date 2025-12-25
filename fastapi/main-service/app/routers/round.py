@@ -15,6 +15,8 @@ router = APIRouter()
 class RoundCreate(BaseModel):
     """ラウンド作成リクエスト"""
     name: str
+    style: Optional[str] = None
+    motion: Optional[str] = None
 
 
 class RoundResponse(BaseModel):
@@ -23,6 +25,8 @@ class RoundResponse(BaseModel):
     try_count: int
     type: str
     note: Optional[str] = None
+    style: Optional[str] = None
+    motion: Optional[str] = None
     created_at: str
 
     class Config:
@@ -48,7 +52,7 @@ class SpeechResponse(BaseModel):
     position: str
     audio_path: Optional[str]
     duration: Optional[float]
-
+    
     class Config:
         from_attributes = True
 
@@ -100,13 +104,20 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
     """
     新しいラウンドを作成
     """
-    round_obj = await round_crud.create_round(db, name=round_data.name)
+    round_obj = await round_crud.create_round(
+        db, 
+        name=round_data.name,
+        style=round_data.style,
+        motion=round_data.motion
+    )
     return RoundResponse(
         id=round_obj.id,
         name=round_obj.name,
         try_count=round_obj.try_count,
         type=round_obj.type,
         note=round_obj.note,
+        style=round_obj.style,
+        motion=round_obj.motion,
         created_at=round_obj.created_at.isoformat()
     )
 
@@ -168,7 +179,8 @@ class RoundSummaryResponse(BaseModel):
     video_id: str
     title: str
     description: str
-    motion: str
+    motion: Optional[str] = None
+    style: Optional[str] = None
     date_uploaded: str
     channel_id: str
     tag: str
@@ -211,7 +223,8 @@ async def get_rounds_summary(db: AsyncSession = Depends(get_db)):
             video_id="", # 未実装
             title=r.name,
             description=r.note or "",
-            motion="", # 未実装
+            motion=r.motion,
+            style=r.style,
             date_uploaded=r.created_at.isoformat(),
             channel_id="", # 未実装
             tag=r.type, # タグとしてタイプを表示

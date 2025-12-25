@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Video, Mic } from 'lucide-react';
 import Header from '../../components/shared/Header';
 import RegistrationModal from '../../components/shared/RegistrationModal';
@@ -14,12 +14,26 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'youtube' | 'record'>('youtube');
   const { t } = useTranslation();
 
+  /* Load active tab from LocalStorage */
+  useEffect(() => {
+    const savedTab = localStorage.getItem('dashboard_active_tab') as 'youtube' | 'record';
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleTabChange = (tab: 'youtube' | 'record') => {
+    setActiveTab(tab);
+    localStorage.setItem('dashboard_active_tab', tab);
+  };
+
   const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
   const textColor = isDark ? 'text-white' : 'text-gray-900';
   const cardBg = isDark ? 'bg-gray-800' : 'bg-gray-50';
   const borderColor = isDark ? 'border-gray-700' : 'border-gray-200';
 
-  const totalRounds = rounds.length;
+  // Count unique match titles (combining multiple attempts)
+  const totalRounds = new Set(rounds.map(r => r.title)).size;
   const totalPois = rounds.reduce((sum, round) => sum + round.poi_count, 0);
   const totalRebuttals = rounds.reduce((sum, round) => sum + round.rebuttal_count, 0);
   const totalArgumentUnits = rounds.reduce((sum, round) => sum + round.total_argument_units, 0);
@@ -96,23 +110,27 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold">{t('dashboard.table.title')}</h3>
               <div className="bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl inline-flex shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 backdrop-blur-sm">
                 <button
-                  onClick={() => setActiveTab('youtube')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center gap-2 ${activeTab === 'youtube'
+                  onClick={() => handleTabChange('youtube')}
+                  className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center gap-2 ${activeTab === 'youtube'
                     ? 'bg-white dark:bg-slate-700 text-red-600 dark:text-red-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
                     }`}
                 >
-                  <Video size={16} className={activeTab === 'youtube' ? "fill-red-600 dark:fill-red-400 stroke-red-600 dark:stroke-red-400" : ""} />
+                  <div className={`p-1 rounded-lg ${activeTab === 'youtube' ? 'bg-red-50 dark:bg-red-500/20' : 'bg-transparent'}`}>
+                    <Video size={16} className={activeTab === 'youtube' ? "fill-red-600 dark:fill-red-400" : ""} />
+                  </div>
                   <span>{t('dashboard.tabs.youtube')}</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('record')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center gap-2 ${activeTab === 'record'
+                  onClick={() => handleTabChange('record')}
+                  className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 flex items-center gap-2 ${activeTab === 'record'
                     ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
                     }`}
                 >
-                  <Mic size={16} className={activeTab === 'record' ? "fill-indigo-600 dark:fill-indigo-400 stroke-indigo-600 dark:stroke-indigo-400" : ""} />
+                  <div className={`p-1 rounded-lg ${activeTab === 'record' ? 'bg-indigo-50 dark:bg-indigo-500/20' : 'bg-transparent'}`}>
+                    <Mic size={16} className={activeTab === 'record' ? "fill-indigo-600 dark:fill-indigo-400" : ""} />
+                  </div>
                   <span>{t('dashboard.tabs.record')}</span>
                 </button>
               </div>
@@ -129,6 +147,7 @@ export default function Dashboard() {
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
                       <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
+                      <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.style')}</th>
                       <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
                       <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.pois')}</th>
                       <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.rebuttals')}</th>
@@ -142,6 +161,9 @@ export default function Dashboard() {
                         <tr key={i} className="border-b border-gray-200 dark:border-gray-700">
                           <td className="py-2 px-4">
                             <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-32 rounded"></div>
+                          </td>
+                          <td className="py-2 px-4">
+                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
                           </td>
                           <td className="py-2 px-4">
                             <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-48 rounded"></div>
@@ -179,7 +201,7 @@ export default function Dashboard() {
                         if (filteredRounds.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={6} className="py-8 text-center text-gray-500">
+                              <td colSpan={7} className="py-8 text-center text-gray-500">
                                 {t('dashboard.table.noRounds')}
                               </td>
                             </tr>
@@ -213,6 +235,9 @@ export default function Dashboard() {
                                     v{round.try_count || 1}
                                   </span>
                                 </div>
+                              </td>
+                              <td className="py-2 px-4 whitespace-nowrap">
+                                {round.style}
                               </td>
                               <td className="py-2 px-4 max-w-xs truncate" title={round.motion}>
                                 {round.motion}
