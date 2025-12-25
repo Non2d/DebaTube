@@ -23,16 +23,12 @@ class RoundStyle(str, Enum):
     ASIAN = "asian"
     BRITISH_PARLIAMENTARY = "british_parliamentary"
     BP_OPENING_HALF = "bp_opening_half"
-    BP = "BP"
-    OPENING_HALF_BP_ORDER = "OPENING_HALF_BP_ORDER"
-    NA = "NA"
-    ASIAN_STYLE = "ASIAN"
 
 class RoundCreate(BaseModel):
     """ラウンド作成リクエスト"""
     name: str
     type: RoundType = RoundType.RECORD
-    style: Optional[RoundStyle] = None
+    style: RoundStyle = RoundStyle.BRITISH_PARLIAMENTARY
     motion: Optional[str] = None
 
 

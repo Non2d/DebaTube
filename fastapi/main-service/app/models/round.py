@@ -19,7 +19,7 @@ class Round(Base):
     try_count = Column(Integer, default=1, nullable=False)
     type = Column(String(50), default="record", nullable=False) # "record" or "external_video"
     note = Column(Text, nullable=True)
-    style = Column(String(50), nullable=True) # NA, Asian, BP, BP_opening_half
+    style = Column(String(50), default="british_parliamentary", nullable=False) # british_parliamentary, north_american, etc.
     motion = Column(Text, nullable=True)
 
     # リレーション

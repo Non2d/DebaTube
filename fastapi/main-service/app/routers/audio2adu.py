@@ -973,12 +973,22 @@ async def audio_to_debate_graph_batch(
 
         speech_order = DEBATE_FORMATS[debate_format]
 
+        # Map short format codes to long DB style strings
+        style_mapping = {
+            "BP": "british_parliamentary",
+            "NA": "north_american",
+            "ASIAN": "asian",
+            "OPENING_HALF_BP_ORDER": "bp_opening_half"
+        }
+        # Default to the format itself if not in mapping (or fallback)
+        db_style = style_mapping.get(debate_format, debate_format)
+
         # Step 1: ラウンドを作成
         print("[Step 1/5] ラウンドを作成...")
         round_obj = await round_crud.create_round(
             db, 
             name=round_name,
-            style=debate_format,
+            style=db_style,
             motion=motion
         )
         logger.info(f"Created round with name '{round_name}'")

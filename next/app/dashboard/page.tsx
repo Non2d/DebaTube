@@ -237,7 +237,16 @@ export default function Dashboard() {
                                 </div>
                               </td>
                               <td className="py-2 px-4 whitespace-nowrap">
-                                {round.style}
+                                {(() => {
+                                  // Normalize display of debate styles
+                                  const style = round.style;
+                                  if (!style) return '-';
+                                  if (style === 'british_parliamentary' || style === 'BP') return 'BP';
+                                  if (style === 'north_american' || style === 'NA') return 'NA';
+                                  if (style === 'asian' || style === 'ASIAN') return 'Asian';
+                                  if (style === 'bp_opening_half' || style === 'OPENING_HALF_BP_ORDER') return 'BP Opening Half';
+                                  return style;
+                                })()}
                               </td>
                               <td className="py-2 px-4 max-w-xs truncate" title={round.motion}>
                                 {round.motion}
