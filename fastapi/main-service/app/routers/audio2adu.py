@@ -11,6 +11,7 @@ import time
 import shutil
 
 from google import genai
+from groq import AsyncGroq
 from .utils import (
     clean_gemini_markdown_response,
     merge_adus_to_unified_csv,
@@ -79,6 +80,7 @@ class RebuttalStructureRequest(BaseModel):
 client = OpenAI()
 async_client = AsyncOpenAI()
 client_gemini = genai.Client()
+groq_client = AsyncGroq()
 
 APP_DIR = os.path.dirname(__file__)  # /app/routers
 
@@ -457,10 +459,12 @@ class VerboseTranscriptionResponse(BaseModel):
 
 async def transcribe_single_audio(
     file: UploadFile,
+    transcription_model: str = "openai-whisper",
 ) -> tuple[str, str, Optional[Dict[str, Any]]]:
     """
     1つのファイルを文字起こしする
     返り値: (speech_key, date_transcribed, transcription_dict)
+    Model options: 'openai-whisper', 'groq-whisper-large-v3', 'groq-whisper-large-v3-turbo'
     """
     try:
         filename_without_ext = os.path.splitext(file.filename)[0]
@@ -481,15 +485,35 @@ async def transcribe_single_audio(
             temp_file_path = temp_file.name
 
         try:
-            # AsyncOpenAI APIで文字起こし（非同期実行）
-            with open(temp_file_path, "rb") as audio_file:
-                transcription = await async_client.audio.transcriptions.create(
-                    file=audio_file,
-                    model="whisper-1",
-                    response_format="verbose_json",
-                    timestamp_granularities=["word"],
-                    language="en",
-                )
+            # transcription_modelによって分岐
+            if transcription_model.startswith("groq-"):
+                # Map frontend model name to Groq model ID
+                # groq-whisper-large-v3 -> whisper-large-v3
+                # groq-whisper-large-v3-turbo -> whisper-large-v3-turbo
+                groq_model_id = transcription_model.replace("groq-", "")
+                
+                with open(temp_file_path, "rb") as audio_file:
+                    transcription = await groq_client.audio.transcriptions.create(
+                        file=(file.filename, audio_file.read()),
+                        model=groq_model_id,
+                        response_format="verbose_json",
+                        timestamp_granularities=["word"],
+                        language="en",
+                    )
+                    logger.info(f"Transcribed via Groq ({groq_model_id}): {speech_key}")
+
+            else:
+                # Default: OpenAI Whisper
+                with open(temp_file_path, "rb") as audio_file:
+                    transcription = await async_client.audio.transcriptions.create(
+                        file=audio_file,
+                        model="whisper-1",
+                        response_format="verbose_json",
+                        timestamp_granularities=["word"],
+                        language="en",
+                    )
+                    logger.info(f"Transcribed via OpenAI: {speech_key}")
+
         finally:
             os.unlink(temp_file_path)
 
@@ -527,7 +551,9 @@ async def transcribe_single_audio(
 
 @router.post("/audio-to-transcript-batch")
 async def audio_to_transcript_batch(
-    files: List[UploadFile] = File(...), match_name: str = Form("default")
+    files: List[UploadFile] = File(...), 
+    match_name: str = Form("default"),
+    transcription_model: str = Form("openai-whisper")
 ):
     """
     複数の音声ファイルを非同期で並列に文字起こしするエンドポイント
@@ -540,7 +566,7 @@ async def audio_to_transcript_batch(
     print(f"[/audio-to-transcript-batch] 処理開始")
     try:
         # 複数ファイルを非同期で並列処理
-        tasks = [transcribe_single_audio(file) for file in files]
+        tasks = [transcribe_single_audio(file, transcription_model) for file in files]
         results = await asyncio.gather(*tasks)
 
         batch_results: Dict[str, Any] = {}
@@ -1023,6 +1049,7 @@ async def audio_to_debate_graph_batch(
     call_llm_all_at_once: bool = Form(True),
     use_latest_transcription: bool = Form(True),
     speech_metadata: Optional[str] = Form(None),
+    transcription_model: str = Form("groq-whisper-large-v3-turbo"),
     adu_model: str = Form(GEMINI_MODEL_NAME),
     rebuttal_model: str = Form(GEMINI_MODEL_NAME),
     db: AsyncSession = Depends(get_db),
@@ -1118,7 +1145,7 @@ async def audio_to_debate_graph_batch(
             else:
                 # Transcribe new audio
                 # Note: transcribe_single_audio parses filename internally too, but we override the key here
-                _, date_ret, trans_dict = await transcribe_single_audio(file)
+                _, date_ret, trans_dict = await transcribe_single_audio(file, transcription_model)
                 return speech_key, date_ret, trans_dict
             
 

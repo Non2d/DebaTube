@@ -53,6 +53,7 @@ export default function RecordPage() {
   const [useLatestTranscription, setUseLatestTranscription] = useState(true);
   const [aduModel, setAduModel] = useState("gemini-2.5-flash");
   const [rebuttalModel, setRebuttalModel] = useState("gemini-2.5-flash");
+  const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
   const { t } = useTranslation();
 
   const isInitialMount = useRef<boolean>(true);
@@ -105,6 +106,7 @@ export default function RecordPage() {
     useLatestTranscription,
     aduModel,
     rebuttalModel,
+    transcriptionModel,
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -344,6 +346,8 @@ export default function RecordPage() {
                 setAduModel={setAduModel}
                 rebuttalModel={rebuttalModel}
                 setRebuttalModel={setRebuttalModel}
+                transcriptionModel={transcriptionModel}
+                setTranscriptionModel={setTranscriptionModel}
                 generationElapsedTime={generationElapsedTime}
               />
 

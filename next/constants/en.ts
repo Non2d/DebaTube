@@ -50,7 +50,8 @@ export const en = {
             processAllAtOnce: "ADU segmentation is performed for all speeches in a single unified prompt",
             useLatestTranscription: "Use existing transcription for the same Round ID if available (skip re-transcription)",
             aduModel: "ADU Segmentation Model",
-            rebuttalModel: "Rebuttal Identification Model"
+            rebuttalModel: "Rebuttal Identification Model",
+            transcriptionModel: "Transcription Model"
         },
         status: {
             processing: "Processing: {seconds}s",

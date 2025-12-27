@@ -52,7 +52,8 @@ export const ja: LocaleType = {
             processAllAtOnce: "全スピーチでのADUセグメンテーションを1つのプロンプトで一括して行う",
             useLatestTranscription: "同じRound IDの文字起こしデータが既に存在する場合はそれを使用する（再文字起こしをスキップ）",
             aduModel: "ADUセグメンテーションモデル",
-            rebuttalModel: "反論判定モデル"
+            rebuttalModel: "反論判定モデル",
+            transcriptionModel: "文字起こしモデル"
         },
         status: {
             processing: "処理中: {seconds}秒",

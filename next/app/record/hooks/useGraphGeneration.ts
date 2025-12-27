@@ -14,6 +14,7 @@ interface UseGraphGenerationProps {
     useLatestTranscription: boolean;
     aduModel: string;
     rebuttalModel: string;
+    transcriptionModel: string;
     onSuccess: (result: any) => void;
 }
 
@@ -28,6 +29,7 @@ export function useGraphGeneration({
     useLatestTranscription,
     aduModel,
     rebuttalModel,
+    transcriptionModel,
     onSuccess
 }: UseGraphGenerationProps) {
     const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
@@ -89,6 +91,7 @@ export function useGraphGeneration({
             formData.append('use_latest_transcription', useLatestTranscription.toString());
             formData.append('adu_model', aduModel);
             formData.append('rebuttal_model', rebuttalModel);
+            formData.append('transcription_model', transcriptionModel);
 
             const speechMetadata: { filename: string; position: string }[] = [];
             let totalFiles = 0;

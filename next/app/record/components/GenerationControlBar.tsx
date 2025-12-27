@@ -23,6 +23,8 @@ interface GenerationControlBarProps {
     setAduModel: (val: string) => void;
     rebuttalModel: string;
     setRebuttalModel: (val: string) => void;
+    transcriptionModel: string;
+    setTranscriptionModel: (val: string) => void;
     generationElapsedTime: number;
 }
 
@@ -51,6 +53,8 @@ export default function GenerationControlBar({
     setAduModel,
     rebuttalModel,
     setRebuttalModel,
+    transcriptionModel,
+    setTranscriptionModel,
     generationElapsedTime,
 }: GenerationControlBarProps) {
     const { t } = useTranslation();
@@ -180,7 +184,19 @@ export default function GenerationControlBar({
                         </div>
 
                         {/* Model Selection */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('recordPage.advancedOptions.transcriptionModel')}</label>
+                                <select
+                                    value={transcriptionModel}
+                                    onChange={(e) => setTranscriptionModel(e.target.value)}
+                                    className="h-10 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                                    <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
+                                    <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
+                                </select>
+                            </div>
                             <div className="flex flex-col gap-1">
                                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('recordPage.advancedOptions.aduModel')}</label>
                                 <select
