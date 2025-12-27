@@ -957,32 +957,20 @@ Do not include any other text, explanation, or formatting."""
 async def get_gemini_models():
     """List available Gemini models that support generateContent"""
     try:
-        # The list() call might be blocking, so convert to list in thread if needed,
-        # but list() itself returns an iterator. We iterate it.
-        # Running inside to_thread to avoid blocking event loop
-        
         def fetch_models():
             model_list = []
-            # List models using the synchronous client
             for m in client_gemini.models.list():
-                # Filter by name simple check as supported_generation_methods might be missing
-                # or structure different in this SDK version
                 if "gemini" in m.name.lower():
                     model_list.append(m.name)
             return model_list
 
         models = await asyncio.to_thread(fetch_models)
-        
-        # Sort to have newer/higher versions top effectively? Alphabetical might put 1.5 after 1.0. 
-        # Reverse alphabetical might be better? (g-prop... g-flash...)
         models.sort(reverse=True) 
         
         return {"status": "success", "models": models}
 
     except Exception as e:
         logger.error(f"Failed to list Gemini models: {e}")
-        # Return fallback list if API fails
-        # User requested specific single fallback if error
         fallback = [
              "models/gemini-2.5-flash"
         ]
