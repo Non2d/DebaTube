@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, RootModel, ValidationError
 from log_config import logger
 from openai import OpenAI, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -439,6 +439,21 @@ Format:
         return {}, {}, [{"speech_key": "ALL", "error": str(e)}]
 
 
+class TranscriptionWord(BaseModel):
+    word: str
+    start: float
+    end: float
+
+class VerboseTranscriptionResponse(BaseModel):
+    task: str
+    language: str
+    duration: float
+    text: str
+    words: List[TranscriptionWord]
+
+    model_config = {
+        "extra": "ignore"
+    }
 
 async def transcribe_single_audio(
     file: UploadFile,
@@ -479,12 +494,27 @@ async def transcribe_single_audio(
             os.unlink(temp_file_path)
 
         trans_dict = transcription.model_dump()
-        result = {
-            "date_transcribed": date_transcribed,
-            "duration": trans_dict.get("duration", 0),
-            "language": trans_dict.get("language", ""),
-            **trans_dict,
-        }
+        
+        try:
+            # Validate using Pydantic
+            validated_data = VerboseTranscriptionResponse(**trans_dict)
+            
+            result = {
+                "date_transcribed": date_transcribed,
+                "duration": validated_data.duration,
+                "language": validated_data.language,
+                **validated_data.model_dump(),
+            }
+        except ValidationError as val_error:
+            warning_msg = f"Validation failed: {val_error.json()}"
+            logger.warning(f"Validation Error for file {file.filename} (proceeding with raw data): {warning_msg}")
+            result = {
+                "date_transcribed": date_transcribed,
+                "duration": trans_dict.get("duration", 0),
+                "language": trans_dict.get("language", ""),
+                "validation_warning": warning_msg,
+                **trans_dict,
+            }
 
         logger.info(f"Transcribed: {speech_key} (from {file.filename})")
         return speech_key, date_transcribed, result
