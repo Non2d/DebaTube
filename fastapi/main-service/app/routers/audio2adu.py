@@ -1842,10 +1842,28 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
     # Get Round ID
     round_query = await db.execute(select(Round).where(Round.name == round_name, Round.try_count == try_count))
     round_obj = round_query.scalars().first()
+    
     if not round_obj:
-         # If the round/try combination doesn't exist, we can't resume.
-         # This effectively means "try_count" is invalid or hasn't started.
-         raise HTTPException(status_code=404, detail=f"Round {round_name} with try {try_count} not found")
+         # If the round/try combination doesn't exist, we determine the next valid try count
+         # effectively enforcing "no skipping" logic.
+         from fastapi.responses import JSONResponse
+         
+         # Get the maximum try_count for this round_name
+         base_query = await db.execute(select(Round).where(Round.name == round_name).order_by(Round.try_count.desc()))
+         base_round = base_query.scalars().first()
+         
+         if base_round:
+             next_try = base_round.try_count + 1
+         else:
+             next_try = 1
+             
+         return JSONResponse(
+             status_code=404, 
+             content={
+                 "detail": f"Round {round_name} with try {try_count} not found",
+                 "next_try_count": next_try
+             }
+         )
 
     # Check Rebuttals
     # We can check if ANY rebuttal exists for speeches in this round/try.

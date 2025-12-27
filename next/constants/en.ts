@@ -72,6 +72,8 @@ export const en = {
             enterRoundId: "Please enter round ID",
             allAudioRequired: "All audio files required",
             confirmGenerate: "Generate graph?\n\nThis may take several minutes to complete.",
+            invalidTryCount: 'Invalid Try Count. The next valid Try Count is {{next}}. You cannot skip numbers.',
+            matchNotFoundReverting: 'Match data not found. Reverting to valid Try Count: {{next}}.',
             invalidJson: "Invalid JSON format. Please ensure it contains 'speeches' and 'rebuttals' properties.",
             failedJson: "Failed to parse JSON file: {error}",
             micDenied: "Microphone access denied. Please check your browser settings.",

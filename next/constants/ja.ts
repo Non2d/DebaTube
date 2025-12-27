@@ -73,6 +73,8 @@ export const ja: LocaleType = {
         messages: {
             enterRoundId: "試合IDを入力してください",
             allAudioRequired: "全ての音声ファイルが必要です",
+            invalidTryCount: 'Try Countが無効です。次の有効なTry Countは {{next}} です。番号を飛ばすことはできません。',
+            matchNotFoundReverting: '指定された試合データは存在しません。有効な値 {{next}} に戻します。',
             confirmGenerate: "グラフを生成しますか？\n\nこれには数分かかる場合があります。",
             invalidJson: "無効なJSON形式です。「speeches」と「rebuttals」が含まれているか確認してください。",
             failedJson: "JSONの解析に失敗しました: {error}",
@@ -120,8 +122,8 @@ export const ja: LocaleType = {
             resume: "再開 (Resume)",
             resumeLabel: "TRY(中断した処理を再開する場合)",
             resumeFailed: "指定されたTry番号での再開データが見つかりませんでした。",
-            submitAdu: "ADU JSONを送信",
-            submitRebuttal: "反論 JSONを送信",
+            submitAdu: "ADUデータを送信",
+            submitRebuttal: "反論データを送信",
         }
     },
     landingPage: {

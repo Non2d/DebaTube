@@ -114,6 +114,7 @@ export default function RecordPage() {
     transcriptionModel,
     manualMode,
     resumeTryCount,
+    setResumeTryCount,
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -334,6 +335,13 @@ export default function RecordPage() {
                 </div>
               </div>
 
+              <GenerationStatus
+                isGeneratingGraph={isGeneratingGraph}
+                generationError={generationError}
+                generationSuccess={generationSuccess}
+                generationElapsedTime={generationElapsedTime}
+              />
+
               <GenerationControlBar
                 debateFormat={debateFormat}
                 setDebateFormat={setDebateFormat}
@@ -363,13 +371,6 @@ export default function RecordPage() {
                 onManualSubmitRebuttal={submitManualRebuttal}
                 resumeTryCount={resumeTryCount}
                 setResumeTryCount={setResumeTryCount}
-              />
-
-              <GenerationStatus
-                isGeneratingGraph={isGeneratingGraph}
-                generationError={generationError}
-                generationSuccess={generationSuccess}
-                generationElapsedTime={generationElapsedTime}
               />
             </div>
           )}

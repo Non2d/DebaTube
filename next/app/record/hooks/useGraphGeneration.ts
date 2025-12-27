@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../../../context/LanguageContext';
 import { SpeechFormat } from '../../../constants/constants';
+import toast from 'react-hot-toast';
 
 interface UseGraphGenerationProps {
     roundName: string;
@@ -17,6 +18,7 @@ interface UseGraphGenerationProps {
     transcriptionModel: string;
     manualMode: boolean; // Added
     resumeTryCount?: number | null;
+    setResumeTryCount?: (count: number | null) => void;
     onSuccess: (result: any) => void;
 }
 
@@ -34,6 +36,7 @@ export function useGraphGeneration({
     transcriptionModel,
     manualMode,
     resumeTryCount,
+    setResumeTryCount,
     onSuccess
 }: UseGraphGenerationProps) {
     const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
@@ -76,20 +79,23 @@ export function useGraphGeneration({
         };
     }, [isGeneratingGraph, generationStartTime]);
 
-    const resumeManualWorkflow = async (isAutoCheck: boolean = false) => {
+    const resumeManualWorkflow = async (isAutoCheck = false): Promise<boolean> => {
+        const targetTryCount = (resumeTryCount !== undefined && resumeTryCount !== null) ? resumeTryCount : manualState.tryCount;
+
+        if (!roundName || targetTryCount === null || targetTryCount === undefined) return false;
+
         if (!isAutoCheck) {
             setIsGeneratingGraph(true);
+            setGenerationError(null);
+            setGenerationSuccess(null);
             setGenerationStartTime(Date.now());
             setGenerationElapsedTime(0);
         } else {
             setManualState(prev => ({ ...prev, isProcessing: true }));
         }
 
-        setGenerationError(null);
-        setGenerationSuccess(null);
-
         try {
-            console.log(`[resumeManualWorkflow] Resuming ${roundName} try ${resumeTryCount} (Auto: ${isAutoCheck})`);
+            console.log(`[resumeManualWorkflow] Resuming ${roundName} try ${targetTryCount} (Auto: ${isAutoCheck})`);
 
             const response = await fetch('http://localhost:8080/manual/resume', {
                 method: 'POST',
@@ -98,27 +104,57 @@ export function useGraphGeneration({
                 },
                 body: JSON.stringify({
                     round_name: roundName,
-                    try_count: resumeTryCount
+                    try_count: targetTryCount
                 }),
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                // If auto check and 404 (not found), just reset to initial state silently?
-                // Or show "Resume failed"?
-                // User said "if not found...".
-                // If 404, it means "Not started". So Step 1 (Initial).
-                // We should set step to 'initial'.
                 if (response.status === 404) {
-                    setManualState(prev => ({
-                        ...prev,
-                        step: 'initial',
-                        isProcessing: false,
-                        roundName: roundName,
-                        tryCount: resumeTryCount || 0
-                    }));
-                    return;
+                    // 1. Validate Try Count (Always check, even in auto mode to support auto-revert)
+                    const notFoundData = await response.json();
+                    if (notFoundData.next_try_count !== undefined) {
+                        const nextValid = notFoundData.next_try_count;
+                        if (targetTryCount > nextValid) {
+                            // Auto-Correction: Revert to max+1
+                            toast.error(t('recordPage.messages.matchNotFoundReverting', { next: nextValid }), {
+                                position: 'bottom-center',
+                                duration: 5000,
+                                style: {
+                                    background: '#333',
+                                    color: '#fff',
+                                    fontSize: '16px',
+                                    padding: '16px',
+                                }
+                            });
+
+                            if (setResumeTryCount) {
+                                // Use setTimeout to ensure state update propagates to UI (input field) correctly
+                                setTimeout(() => {
+                                    setResumeTryCount(nextValid);
+                                }, 10);
+                            }
+
+                            setIsGeneratingGraph(false);
+                            return true; // Handled (Reverted)
+                        }
+                    }
+
+                    if (isAutoCheck) {
+                        setManualState(prev => ({
+                            ...prev,
+                            step: 'initial',
+                            isProcessing: false,
+                            roundName: roundName,
+                            tryCount: targetTryCount
+                        }));
+                        return true; // Handled (Reset UI)
+                    }
+
+                    // If !isAutoCheck (User Clicked Start), 404 means "Doesn't exist, Create New".
+                    // We return false to indicate that the caller should proceed with initial generation.
+                    return false; // Not handled, proceed to creation
                 }
+                const errorData = await response.json();
                 throw new Error(errorData.detail || `Failed to resume workflow: ${response.statusText}`);
             }
 
@@ -152,24 +188,25 @@ export function useGraphGeneration({
                     rebuttalPrompt: '',
                     isProcessing: false
                 });
-                setGenerationSuccess(result.message || "Manual workflow already completed.");
+                // Silenced success message as per user request (Manual Card is enough)
+                // setGenerationSuccess(result.message || "Manual workflow already completed.");
                 if (onSuccess) {
                     onSuccess(result);
                 }
             }
+            if (!isAutoCheck) setIsGeneratingGraph(false);
+            return true; // Handled (Resumed)
 
         } catch (error) {
             console.error('[resumeManualWorkflow] Error:', error);
             if (!isAutoCheck) {
                 setGenerationError(error instanceof Error ? error.message : 'Failed to resume workflow');
+                setIsGeneratingGraph(false);
             } else {
-                // If auto check fails, maybe just stop processing?
+                // If auto check fails, just stop processing indicator
                 setManualState(prev => ({ ...prev, isProcessing: false }));
             }
-        } finally {
-            if (!isAutoCheck) {
-                setIsGeneratingGraph(false);
-            }
+            return true; // Handled (Error displayed)
         }
     };
 
@@ -192,41 +229,11 @@ export function useGraphGeneration({
             return;
         }
 
-        const resumeManualWorkflow = async (isAutoCheck = false): Promise<boolean> => {
-            if (!roundName || manualState.tryCount === null || manualState.tryCount === undefined) return false;
-
-            if (!isAutoCheck) {
-                setIsGeneratingGraph(true);
-                setGenerationError(null);
-                setGenerationSuccess(null);
-            } else {
-                setManualState(prev => ({ ...prev, isProcessing: true }));
-            }
-
-            try {
-                const formData = new FormData();
-                formData.append('round_name', roundName);
-                formData.append('try_count', manualState.tryCount.toString());
-
-                const response = await fetch('http://localhost:8080/manual/resume', {
-                    method: 'POST',
-                    body: formData, // audio2adu.py uses Form param? No, it uses Body (JSON) or Form?
-                    // Wait, manual_resume logic verification needed.
-                    // Step 1189 used Content-Type application/json.
-                    // Step 1324 `resumeManualWorkflow` (lines 110+) wasn't fully visible.
-                    // But typically it uses JSON for manual_resume endpoint in previous steps?
-                    // Let's assume the previous implementation was correct about Fetch. 
-                    // Wait, if I change lines here I need to be sure about Body format.
-                    // Step 1189 used JSON body.
-                    // `resumeManualWorkflow` in current file probably used JSON.
-                    // I should Check the existing `resumeManualWorkflow` implementation first to not break it.
-                });
-
-                // I need to see the implementation of fetch part in `resumeManualWorkflow` to copy it. 
-                // I'll VIEW the file first.
-                return false; // Loopback placeholder
-            } catch (e) { return false; }
-        };
+        // Resume Manual Workflow Logic
+        if (manualMode && resumeTryCount !== null && resumeTryCount !== undefined) {
+            const handled = await resumeManualWorkflow(false);
+            if (handled) return;
+        }
 
         if (!areAllAudioFilesReady) {
             setGenerationError(t('recordPage.messages.allAudioRequired'));
