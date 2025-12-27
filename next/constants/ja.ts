@@ -41,7 +41,13 @@ export const ja: LocaleType = {
             searchRoundId: "試合IDを検索...",
             motion: "論題",
             motionPlaceholder: "論題を入力 (任意)",
+            generationTabs: {
+                auto: "自動生成",
+                manual: "マニュアル生成"
+            },
             generateGraph: "グラフ作成",
+            generateAuto: "LLMでグラフを生成",
+            generateManual: "試合データの新規作成 & 文字起こし",
             processing: "処理中...",
             processingWithTime: "処理中... ({seconds}秒)",
         },
@@ -53,7 +59,7 @@ export const ja: LocaleType = {
             useLatestTranscription: "同じRound IDの文字起こしデータが既に存在する場合はそれを使用する（再文字起こしをスキップ）",
             aduModel: "ADUセグメンテーションモデル",
             rebuttalModel: "反論判定モデル",
-            transcriptionModel: "文字起こしモデル"
+            transcriptionModel: "文字起こしモデル",
         },
         status: {
             processing: "処理中: {seconds}秒",
@@ -93,6 +99,25 @@ export const ja: LocaleType = {
             Opposition_3rd: "否定側3人目",
             Proposition_4th: "肯定側4人目",
             Opposition_4th: "否定側4人目",
+        },
+        manualMode: {
+            title: "マニュアルモード",
+            initialButton: "試合データの新規作成 & 文字起こし開始 (マニュアル)",
+            processingAudio: "音声処理中...",
+            step2Title: "ステップ 2: ADU セグメンテーション",
+            step3Title: "ステップ 3: 反論判定",
+            tryCount: "試行: {count}",
+            promptLabel: "プロンプト (Geminiにコピー＆ペーストしてください)",
+            pasteLabel: "JSON結果を貼り付け",
+            placeholder: "GeminiからのJSON出力をここに貼り付けてください...",
+            submit: "データを送信",
+            completed: "マニュアル生成シーケンス完了！",
+            copy: "コピー",
+            copied: "コピー完了",
+            invalidJson: "無効なJSON形式です",
+            resume: "再開 (Resume)",
+            resumeLabel: "中断箇所から再開 (Try番号):",
+            resumeFailed: "指定されたTry番号での再開データが見つかりませんでした。",
         }
     },
     landingPage: {

@@ -39,7 +39,13 @@ export const en = {
             searchRoundId: "Search Round ID...",
             motion: "Motion",
             motionPlaceholder: "Enter motion (optional)",
+            generationTabs: {
+                auto: "Auto Generation",
+                manual: "Manual Generation"
+            },
             generateGraph: "GENERATE GRAPH",
+            generateAuto: "GENERATE GRAPH (AUTO)",
+            generateManual: "GENERATE GRAPH (MANUAL)",
             processing: "PROCESSING...",
             processingWithTime: "PROCESSING... ({seconds}s)",
         },
@@ -51,7 +57,7 @@ export const en = {
             useLatestTranscription: "Use existing transcription for the same Round ID if available (skip re-transcription)",
             aduModel: "ADU Segmentation Model",
             rebuttalModel: "Rebuttal Identification Model",
-            transcriptionModel: "Transcription Model"
+            transcriptionModel: "Transcription Model",
         },
         status: {
             processing: "Processing: {seconds}s",
@@ -91,6 +97,25 @@ export const en = {
             Opposition_3rd: "Opposition 3rd",
             Proposition_4th: "Proposition 4th",
             Opposition_4th: "Opposition 4th",
+        },
+        manualMode: {
+            title: "Manual Mode",
+            initialButton: "Create New Match Data & Transcribe (Manual)",
+            processingAudio: "Processing Audio...",
+            step2Title: "Step 2: ADU Segmentation",
+            step3Title: "Step 3: Rebuttal Identification",
+            tryCount: "Try: {count}",
+            promptLabel: "Prompt (Copy and paste to Gemini)",
+            pasteLabel: "Paste JSON Result",
+            placeholder: "Paste the JSON output from Gemini here...",
+            submit: "Submit Data",
+            completed: "Manual Generation Sequence Completed!",
+            copy: "Copy",
+            copied: "Copied",
+            invalidJson: "Invalid JSON format",
+            resume: "Resume",
+            resumeLabel: "Resume from Try:",
+            resumeFailed: "Could not find data to resume for the specified Try count.",
         }
     },
     landingPage: {

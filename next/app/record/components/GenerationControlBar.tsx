@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { List, Zap } from 'lucide-react';
+import { List, Zap, Play, RotateCw } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
-import { DebateFormatType, DEBATE_FORMATS } from '../../../constants/constants';
+import { DebateFormatType } from '../../../constants/constants';
 import { useTranslation } from '../../../context/LanguageContext';
+import { ManualWorkflowControls } from './ManualWorkflowControls';
+import { Label } from '@/components/ui/label';
 
 interface GenerationControlBarProps {
     debateFormat: DebateFormatType;
@@ -26,12 +28,18 @@ interface GenerationControlBarProps {
     transcriptionModel: string;
     setTranscriptionModel: (val: string) => void;
     generationElapsedTime: number;
+    manualMode: boolean;
+    setManualMode: (val: boolean) => void;
+    // Manual Workflow Props
+    manualState?: any;
+    onManualSubmitAdu?: (json: string) => void;
+    onManualSubmitRebuttal?: (json: string) => void;
 }
 
 const DEFAULT_MODEL_OPTIONS = [
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-    { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
+    { value: "gemini-2.5-flash", label: "gemini-2.5-flash" },
+    { value: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite" },
+    { value: "gemini-3-flash-preview", label: "gemini-3-flash-preview" },
 ];
 
 export default function GenerationControlBar({
@@ -55,42 +63,53 @@ export default function GenerationControlBar({
     setRebuttalModel,
     transcriptionModel,
     setTranscriptionModel,
+
     generationElapsedTime,
+    manualMode,
+
+    setManualMode,
+    manualState,
+    onManualSubmitAdu,
+    onManualSubmitRebuttal,
 }: GenerationControlBarProps) {
     const { t } = useTranslation();
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [modelOptions, setModelOptions] = useState(DEFAULT_MODEL_OPTIONS);
+    // Use default models, no fetching
+    const [modelOptions] = useState(DEFAULT_MODEL_OPTIONS);
 
+    // Force "Call LLM All At Once" to be true when Manual Mode is active
     React.useEffect(() => {
-        const fetchModels = async () => {
-            try {
-                // Determine API base URL (assuming localhost:8080 like in useGraphGeneration, or relative via proxy)
-                // For now hardcoding or using environment if available would be best.
-                // Safest to try localhost:8080 as per existing hook.
-                const res = await fetch('http://localhost:8080/gemini-models');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.status === 'success' && Array.isArray(data.models)) {
-                        const newOptions = data.models.map((m: string) => {
-                            // m is like "models/gemini-1.5-flash"
-                            const val = m.replace(/^models\//, '');
-                            return {
-                                value: val, // use simplified name for value
-                                label: val  // use simplified name for label too for clarity
-                            };
-                        });
-                        setModelOptions(newOptions);
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to fetch models from backend, using defaults", e);
-            }
-        };
-        fetchModels();
-    }, []);
+        if (manualMode) {
+            setCallLlmAllAtOnce(true);
+        }
+    }, [manualMode, setCallLlmAllAtOnce]);
 
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 mt-12">
+
+            {/* Generation Tabs - Tabs at Top */}
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
+                <button
+                    onClick={() => setManualMode(false)}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!manualMode
+                        ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                        }`}
+                >
+                    {t('recordPage.controls.generationTabs.auto')}
+                </button>
+                <button
+                    onClick={() => setManualMode(true)}
+                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${manualMode
+                        ? 'bg-white dark:bg-slate-700 text-red-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                        }`}
+                >
+                    {t('recordPage.controls.generationTabs.manual')}
+                </button>
+            </div>
+
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
                 {/* Format Input Group */}
                 <div className="lg:col-span-3">
@@ -144,103 +163,164 @@ export default function GenerationControlBar({
                     </div>
                 </div>
 
-                {/* Advanced Options Toggle */}
-                <div className="lg:col-span-12 flex justify-end">
-                    <button
-                        onClick={() => setShowAdvanced(!showAdvanced)}
-                        className="text-xs text-slate-500 hover:text-indigo-500 underline transition-colors"
-                    >
-                        {showAdvanced ? t('recordPage.advancedOptions.hide') : t('recordPage.advancedOptions.show')}
-                    </button>
-                </div>
 
-                {/* Advanced Options Panel */}
-                {showAdvanced && (
-                    <div className="lg:col-span-12 flex flex-col gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                        {/* Checkboxes */}
-                        <div className="flex flex-col gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700/50 p-1 rounded">
-                                <input
-                                    type="checkbox"
-                                    checked={callLlmAllAtOnce}
-                                    onChange={(e) => setCallLlmAllAtOnce(e.target.checked)}
-                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                />
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                    {t('recordPage.advancedOptions.processAllAtOnce')}
-                                </span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700/50 p-1 rounded">
-                                <input
-                                    type="checkbox"
-                                    checked={useLatestTranscription}
-                                    onChange={(e) => setUseLatestTranscription(e.target.checked)}
-                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                />
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                    {t('recordPage.advancedOptions.useLatestTranscription')}
-                                </span>
-                            </label>
-                        </div>
-
-                        {/* Model Selection */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('recordPage.advancedOptions.transcriptionModel')}</label>
-                                <select
-                                    value={transcriptionModel}
-                                    onChange={(e) => setTranscriptionModel(e.target.value)}
-                                    className="h-10 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
-                                >
-                                    <option value="openai-whisper">whisper-1 (OpenAI)</option>
-                                    <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
-                                    <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('recordPage.advancedOptions.aduModel')}</label>
-                                <select
-                                    value={aduModel}
-                                    onChange={(e) => setAduModel(e.target.value)}
-                                    className="h-10 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
-                                >
-                                    {modelOptions.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('recordPage.advancedOptions.rebuttalModel')}</label>
-                                <select
-                                    value={rebuttalModel}
-                                    onChange={(e) => setRebuttalModel(e.target.value)}
-                                    className="h-10 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
-                                >
-                                    {modelOptions.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                {/* Main Action Area */}
+                <div className="lg:col-span-12 mt-2">
+                    {/* Advanced Options Toggle - MOVED ABOVE BUTTON */}
+                    <div className="flex justify-end mb-2">
+                        <button
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="text-xs font-semibold text-slate-500 hover:text-indigo-600 flex items-center transition-colors"
+                        >
+                            {showAdvanced ? t('recordPage.advancedOptions.hide') : t('recordPage.advancedOptions.show')}
+                        </button>
                     </div>
-                )
-                }
 
-                {/* Primary Action Button */}
-                <div className="lg:col-span-12">
-                    <button
-                        onClick={generateDebateGraph}
-                        disabled={!areAllAudioFilesReady || isGeneratingGraph || !roundName}
-                        className={`h-12 w-full flex items-center justify-center gap-2.5 rounded-xl text-sm font-bold tracking-wide transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
-                            ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
-                            : !roundName
-                                ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
-                                : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
-                            }`}
-                    >
-                        <Zap size={18} className={isGeneratingGraph ? "animate-pulse" : "fill-current"} />
-                        <span>{isGeneratingGraph ? t('recordPage.controls.processingWithTime', { seconds: generationElapsedTime }) : t('recordPage.controls.generateGraph')}</span>
-                    </button>
+                    {/* Advanced Options Panel - MOVED ABOVE BUTTON */}
+                    {showAdvanced && (
+                        <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1">
+                            <div className="flex flex-col gap-4">
+                                {/* Row 1: Toggles */}
+                                <div className="flex flex-col gap-3 items-start">
+                                    {/* Transcription Toggle */}
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="useLatestTranscription"
+                                            checked={useLatestTranscription}
+                                            onChange={(e) => setUseLatestTranscription(e.target.checked)}
+                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                        />
+                                        <Label htmlFor="useLatestTranscription" className="text-sm cursor-pointer select-none font-medium text-slate-700 dark:text-slate-300">
+                                            {t('recordPage.advancedOptions.useLatestTranscription')}
+                                        </Label>
+                                    </div>
+
+                                    {/* Auto Mode: Process All Toggle */}
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="processAllAtOnce"
+                                            checked={callLlmAllAtOnce}
+                                            onChange={(e) => setCallLlmAllAtOnce(e.target.checked)}
+                                            disabled={manualMode}
+                                            className={`rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer ${manualMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        />
+                                        <Label htmlFor="processAllAtOnce" className={`text-sm cursor-pointer select-none font-medium ${manualMode ? 'text-slate-400 opacity-70' : 'text-slate-700 dark:text-slate-300'}`}>
+                                            {t('recordPage.advancedOptions.processAllAtOnce')}
+                                        </Label>
+                                    </div>
+                                </div>
+
+                                {/* Row 2: Models (Grid) */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Transcription Model */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                            {t('recordPage.advancedOptions.transcriptionModel')}
+                                        </label>
+                                        <select
+                                            value={transcriptionModel}
+                                            onChange={(e) => setTranscriptionModel(e.target.value)}
+                                            className="h-9 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
+                                        >
+                                            <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                                            <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
+                                            <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
+                                        </select>
+                                    </div>
+
+                                    {/* ADU Model */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className={`text-xs font-semibold ${manualMode ? 'text-slate-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                            {t('recordPage.advancedOptions.aduModel')}
+                                        </label>
+                                        <select
+                                            value={aduModel}
+                                            onChange={(e) => setAduModel(e.target.value)}
+                                            disabled={manualMode}
+                                            className={`h-9 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-opacity ${manualMode
+                                                ? 'opacity-50 cursor-not-allowed text-slate-400'
+                                                : 'text-slate-700 dark:text-slate-200'
+                                                }`}
+                                        >
+                                            {modelOptions.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Rebuttal Model */}
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className={`text-xs font-semibold ${manualMode ? 'text-slate-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                            {t('recordPage.advancedOptions.rebuttalModel')}
+                                        </label>
+                                        <select
+                                            value={rebuttalModel}
+                                            onChange={(e) => setRebuttalModel(e.target.value)}
+                                            disabled={manualMode}
+                                            className={`h-9 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-opacity ${manualMode
+                                                ? 'opacity-50 cursor-not-allowed text-slate-400'
+                                                : 'text-slate-700 dark:text-slate-200'
+                                                }`}
+                                        >
+                                            {modelOptions.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+
+
+                    <div className="flex justify-center mb-4">
+                        {manualMode && manualState && manualState.step !== 'initial' ? (
+                            <div className="w-full">
+                                <ManualWorkflowControls
+                                    manualState={manualState}
+                                    onStartTranscription={generateDebateGraph}
+                                    onSubmitAdu={onManualSubmitAdu!}
+                                    onSubmitRebuttal={onManualSubmitRebuttal!}
+                                    onCancel={() => setManualMode(false)}
+                                    isGeneratingGraph={isGeneratingGraph}
+                                />
+                            </div>
+                        ) : (
+                            <button
+                                onClick={generateDebateGraph}
+                                disabled={!areAllAudioFilesReady || isGeneratingGraph || !roundName}
+                                className={`h-14 w-full md:w-auto md:min-w-[240px] px-8 flex items-center justify-center gap-2.5 rounded-xl text-lg font-bold tracking-wide transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
+                                    ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
+                                    : !roundName
+                                        ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
+                                        : manualMode
+                                            ? 'bg-red-600 text-white shadow-red-200 hover:bg-red-700 hover:shadow-lg focus:ring-4 focus:ring-red-500/20'
+                                            : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
+                                    }`}
+                            >
+                                {isGeneratingGraph ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
+                                        <span>{t('recordPage.controls.processingWithTime', { seconds: generationElapsedTime })}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        {manualMode ? <List size={20} /> : <Zap size={20} className="fill-current" />}
+                                        <span>
+                                            {manualMode
+                                                ? t('recordPage.controls.generateManual')
+                                                : t('recordPage.controls.generateAuto')}
+                                        </span>
+                                    </>
+                                )}
+                            </button>
+                        )}
+                    </div>
+
+
                 </div>
             </div >
         </div >

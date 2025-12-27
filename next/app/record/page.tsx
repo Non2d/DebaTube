@@ -54,6 +54,7 @@ export default function RecordPage() {
   const [aduModel, setAduModel] = useState("gemini-2.5-flash");
   const [rebuttalModel, setRebuttalModel] = useState("gemini-2.5-flash");
   const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
+  const [manualMode, setManualMode] = useState(false);
   const { t } = useTranslation();
 
   const isInitialMount = useRef<boolean>(true);
@@ -94,7 +95,10 @@ export default function RecordPage() {
     generationError,
     generationSuccess,
     generationElapsedTime,
-    generateDebateGraph
+    generateDebateGraph,
+    manualState,
+    submitManualAdu,
+    submitManualRebuttal
   } = useGraphGeneration({
     roundName,
     debateFormat,
@@ -107,6 +111,7 @@ export default function RecordPage() {
     aduModel,
     rebuttalModel,
     transcriptionModel,
+    manualMode,
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -276,12 +281,12 @@ export default function RecordPage() {
   return (
     <>
       <Header title="DebaTube Live" />
-      <div className="min-h-screen h-screen bg-white dark:bg-slate-950 flex flex-col pt-16 transition-colors duration-300 overflow-hidden">
-        <div className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-2 max-w-7xl flex flex-col min-h-0">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col pt-16 transition-colors duration-300">
+        <div className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-2 max-w-7xl flex flex-col">
           <TabNavigation activeTab={activeTab} onTabSwitch={handleTabSwitch} />
 
           {activeTab === 'audio' && (
-            <div>
+            <div className="flex flex-col flex-1 pb-4 space-y-4">
               <div className="text-center mb-8">
                 <SpeechNavigator
                   currentSpeech={currentSpeech}
@@ -349,6 +354,11 @@ export default function RecordPage() {
                 transcriptionModel={transcriptionModel}
                 setTranscriptionModel={setTranscriptionModel}
                 generationElapsedTime={generationElapsedTime}
+                manualMode={manualMode}
+                setManualMode={setManualMode}
+                manualState={manualState}
+                onManualSubmitAdu={submitManualAdu}
+                onManualSubmitRebuttal={submitManualRebuttal}
               />
 
               <GenerationStatus

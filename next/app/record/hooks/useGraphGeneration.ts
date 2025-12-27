@@ -15,6 +15,7 @@ interface UseGraphGenerationProps {
     aduModel: string;
     rebuttalModel: string;
     transcriptionModel: string;
+    manualMode: boolean; // Added
     onSuccess: (result: any) => void;
 }
 
@@ -30,6 +31,7 @@ export function useGraphGeneration({
     aduModel,
     rebuttalModel,
     transcriptionModel,
+    manualMode,
     onSuccess
 }: UseGraphGenerationProps) {
     const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
@@ -37,6 +39,23 @@ export function useGraphGeneration({
     const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
     const [generationElapsedTime, setGenerationElapsedTime] = useState<number>(0);
     const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
+
+    // Manual Mode State
+    const [manualState, setManualState] = useState<{
+        step: 'initial' | 'adu_prompt_ready' | 'rebuttal_prompt_ready' | 'completed';
+        roundName: string;
+        tryCount: number;
+        aduPrompt: string;
+        rebuttalPrompt: string;
+        isProcessing: boolean;
+    }>({
+        step: 'initial',
+        roundName: '',
+        tryCount: 0,
+        aduPrompt: '',
+        rebuttalPrompt: '',
+        isProcessing: false
+    });
 
     const { t } = useTranslation();
 
@@ -92,6 +111,7 @@ export function useGraphGeneration({
             formData.append('adu_model', aduModel);
             formData.append('rebuttal_model', rebuttalModel);
             formData.append('transcription_model', transcriptionModel);
+            formData.append('manual_mode', manualMode.toString());
 
             const speechMetadata: { filename: string; position: string }[] = [];
             let totalFiles = 0;
@@ -118,7 +138,7 @@ export function useGraphGeneration({
             // Send explicit metadata to avoid relying on filename parsing
             formData.append('speech_metadata', JSON.stringify(speechMetadata));
 
-            console.log(`[generateDebateGraph] Uploading ${totalFiles} audio files...`);
+            console.log(`[generateDebateGraph] Uploading ${totalFiles} audio files... ManualMode=${manualMode}`);
 
             const response = await fetch('http://localhost:8080/audio-to-debate-graph-batch', {
                 method: 'POST',
@@ -133,6 +153,20 @@ export function useGraphGeneration({
             const result = await response.json();
             console.log('[generateDebateGraph] Success:', result);
 
+            if (result.status === 'manual_adu_prompt') {
+                setManualState({
+                    step: 'adu_prompt_ready',
+                    roundName: result.round_name,
+                    tryCount: result.try_count,
+                    aduPrompt: result.prompt,
+                    rebuttalPrompt: '',
+                    isProcessing: false
+                });
+                setIsGeneratingGraph(false);
+                return;
+            }
+
+            // Normal Success Flow
             if (result.round_name) {
                 console.log(`[generateDebateGraph] Round name: ${result.round_name} `);
             }
@@ -154,7 +188,68 @@ export function useGraphGeneration({
                 error instanceof Error ? error.message : 'Failed to generate graph'
             );
         } finally {
-            setIsGeneratingGraph(false);
+            if (!manualMode) {
+                setIsGeneratingGraph(false);
+            }
+            // If manual mode, we might want to keep Spinner OFF but dialog ON.
+            // Logic handled above.
+        }
+    };
+
+
+
+
+
+    const resumeManualWorkflow = async (count: number) => {
+        if (!roundName) {
+            setGenerationError(t('recordPage.messages.enterRoundId'));
+            return;
+        }
+
+        // Reset state for resume attempt
+        setManualState(prev => ({ ...prev, isProcessing: true, tryCount: count, roundName: roundName }));
+
+        try {
+            const baseUrl = 'http://localhost:8080';
+
+            // 1. Try to fetch Rebuttal Prompt (implies ADU is done)
+            const rebRes = await fetch(`${baseUrl}/manual/rebuttal-prompt/${roundName}?try_count=${count}`);
+            if (rebRes.ok) {
+                const data = await rebRes.json();
+                setManualState(prev => ({
+                    ...prev,
+                    step: 'rebuttal_prompt_ready',
+                    roundName: roundName,
+                    tryCount: count,
+                    rebuttalPrompt: data.prompt,
+                    isProcessing: false
+                }));
+                return;
+            }
+
+            // 2. If Rebuttal fetch failed, assumption: ADU not done?
+            // User might want to "Resume at ADU step".
+            // But ADU step *generating* the prompt is the first step of "Start".
+            // If they want to just see the prompt they already generated?
+            // The backend doesn't store the ADU prompt unless we logged it, but we can regenerate it easily.
+            // If they want to "Resume" a flow where they haven't submitted ADUs yet,
+            // Then it is effectively "Start Manual Generation" with try_count=X.
+
+            // So default behavior: Set step to 'initial' (or implied start) but pre-fill try count?
+            // actually, if we set step to 'initial', the UI shows the "Start" button.
+            // We want to skip the "Start" button?
+            // No, if we can't find Rebuttal prompt, we can't skip to Rebuttal.
+
+            // Let's assume valid resume = Rebuttal is valid.
+            // If not found, tell user.
+
+            setGenerationError(t('recordPage.manualMode.resumeFailed'));
+            setManualState(prev => ({ ...prev, isProcessing: false, tryCount: count }));
+
+        } catch (e) {
+            console.error(e);
+            setGenerationError("Failed to resume.");
+            setManualState(prev => ({ ...prev, isProcessing: false }));
         }
     };
 
@@ -163,6 +258,63 @@ export function useGraphGeneration({
         generationError,
         generationSuccess,
         generationElapsedTime,
-        generateDebateGraph
+        generateDebateGraph,
+        manualState,
+        setManualState,
+        resumeManualWorkflow,
+        submitManualAdu: async (jsonResult: string) => {
+            try {
+                setManualState(prev => ({ ...prev, isProcessing: true }));
+                const { roundName, tryCount } = manualState;
+
+                await fetch('http://localhost:8080/manual/submit-adu', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ round_name: roundName, try_count: tryCount, adu_json: jsonResult })
+                }).then(res => { if (!res.ok) throw new Error("Failed to submit ADU results") });
+
+                const promptRes = await fetch(`http://localhost:8080/manual/rebuttal-prompt/${roundName}?try_count=${tryCount}`);
+                if (!promptRes.ok) throw new Error("Failed to fetch rebuttal prompt");
+                const promptData = await promptRes.json();
+
+                setManualState(prev => ({
+                    ...prev,
+                    step: 'rebuttal_prompt_ready',
+                    rebuttalPrompt: promptData.prompt,
+                    isProcessing: false
+                }));
+
+            } catch (error: any) {
+                console.error("Manual ADU Error", error);
+                setGenerationError(error.message);
+                setManualState(prev => ({ ...prev, isProcessing: false }));
+            }
+        },
+        submitManualRebuttal: async (jsonResult: string) => {
+            try {
+                setManualState(prev => ({ ...prev, isProcessing: true }));
+                const { roundName, tryCount } = manualState;
+
+                const res = await fetch('http://localhost:8080/manual/submit-rebuttal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ round_name: roundName, try_count: tryCount, rebuttal_json: jsonResult })
+                });
+                if (!res.ok) throw new Error("Failed to submit rebuttal results");
+                const finalResult = await res.json();
+
+                setManualState(prev => ({ ...prev, step: 'completed', isProcessing: false }));
+                setGenerationSuccess("Manual Generation Completed Successfully!");
+
+                if (onSuccess) {
+                    onSuccess({ ...finalResult, try_count: tryCount });
+                }
+
+            } catch (error: any) {
+                console.error("Manual Rebuttal Error", error);
+                setGenerationError(error.message);
+                setManualState(prev => ({ ...prev, isProcessing: false }));
+            }
+        }
     };
 }
