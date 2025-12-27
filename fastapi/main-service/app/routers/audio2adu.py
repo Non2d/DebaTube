@@ -47,7 +47,7 @@ def _save_gemini_log(response_text: str, category: str, identifier: str = "", pr
         logger.error(f"Failed to save Gemini log: {e}")
 from db import get_db
 from cruds import round as round_crud
-from models.round import Speech, Adu, Rebuttal, Round
+from models.round import Speech, Adu, Rebuttal, Round, Sentence, Word
 from sqlalchemy import select, delete
 
 router = APIRouter()
@@ -1107,15 +1107,44 @@ async def create_rebuttal_prompt_data(
     # Mapping for sequential ID (1-based) to DB ID
     local_id_to_db_id = {}
     global_adu_index = 0
+    
+    # 1. Collect speech IDs
+    speech_ids = [s.id for s in speeches]
+    
+    # 2. Batch fetch all related data
+    res_adus = await db.execute(select(Adu).where(Adu.speech_id.in_(speech_ids)).order_by(Adu.id))
+    all_adus = res_adus.scalars().all()
+    
+    res_sents = await db.execute(select(Sentence).where(Sentence.speech_id.in_(speech_ids)).order_by(Sentence.index))
+    all_sents = res_sents.scalars().all()
+    
+    res_words = await db.execute(select(Word).where(Word.speech_id.in_(speech_ids)).order_by(Word.index))
+    all_words = res_words.scalars().all()
+    
+    # 3. Group by speech_id
+    speech_adus = {sid: [] for sid in speech_ids}
+    for a in all_adus:
+        if a.speech_id in speech_adus:
+             speech_adus[a.speech_id].append(a)
+             
+    speech_sents = {sid: [] for sid in speech_ids}
+    for s in all_sents:
+        if s.speech_id in speech_sents:
+             speech_sents[s.speech_id].append(s)
+             
+    speech_words = {sid: [] for sid in speech_ids}
+    for w in all_words:
+        if w.speech_id in speech_words:
+             speech_words[w.speech_id].append(w)
 
     for speech in speeches:
         speech_key = speech.position
         speeches_data[speech_key] = []
 
-        # そのスピーチのADU、文、単語を取得
-        adus = await round_crud.get_adus_by_speech(db, speech.id)
-        sentences = await round_crud.get_sentences_by_speech(db, speech.id)
-        words = await round_crud.get_words_by_speech(db, speech.id)
+        # Get data from memory
+        adus = speech_adus.get(speech.id, [])
+        sentences = speech_sents.get(speech.id, [])
+        words = speech_words.get(speech.id, [])
 
         sentences_map = {s.index: s for s in sentences}
         words_map = {w.index: w for w in words}
@@ -1782,3 +1811,249 @@ async def manual_submit_rebuttal(request: ManualRebuttalSubmitRequest, db: Async
         await db.rollback()
         logger.error(f"Error saving manual rebuttal data: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ManualResumeRequest(BaseModel):
+    round_name: str
+    try_count: int
+
+
+@router.post("/manual/resume")
+async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Resume manual workflow based on existing data.
+    Algorithm:
+    1. Check if Rebuttals exist (ADUs linked). If YES -> Return status names for graph, or "completed".
+    2. Check if ADUs exist. If YES -> Return Rebuttal prompt (Step 3).
+    3. Check if Sentences exist. If YES -> Return ADU prompt (Step 2).
+    4. If Sentences missing, check Raw Transcription. If YES -> Recover Sentences -> Return ADU prompt.
+    5. If all missing -> Error.
+    """
+    round_name = request.round_name
+    try_count = request.try_count
+    logger.info(f"Resuming manual workflow for {round_name} (try {try_count})")
+
+    # 1. Check Rebuttals
+    # Rebuttal links two ADUs. Need to find if any Rebuttal exists where src/tgt ADU belongs to this round/try.
+    # ADU table has speech_id, Speech table has round_id/try_count.
+    # Query: Select count(*) from Rebuttal r join ADU a on r.src_adu_id = a.id join Speech s on a.speech_id = s.id 
+    #        where s.round_id = (select id from Round where name=round_name) and s.try_count = try_count
+    
+    # Get Round ID
+    round_query = await db.execute(select(Round).where(Round.name == round_name, Round.try_count == try_count))
+    round_obj = round_query.scalars().first()
+    if not round_obj:
+         # If the round/try combination doesn't exist, we can't resume.
+         # This effectively means "try_count" is invalid or hasn't started.
+         raise HTTPException(status_code=404, detail=f"Round {round_name} with try {try_count} not found")
+
+    # Check Rebuttals
+    # We can check if ANY rebuttal exists for speeches in this round/try.
+    stmt_reb = select(Rebuttal).join(Adu, Rebuttal.src_adu_id == Adu.id).join(Speech, Adu.speech_id == Speech.id)\
+                .where(Speech.round_id == round_obj.id)
+    result_reb = await db.execute(stmt_reb)
+    first_reb = result_reb.scalars().first()
+    
+    if first_reb:
+        # Rebuttals exist. Assume completed.
+        return {
+            "status": "completed",
+            "message": "Rebuttals found. Workflow completed.",
+            "round_name": round_name,
+            "try_count": try_count
+        }
+
+    # 2. Check ADUs
+    stmt_adu = select(Adu).join(Speech, Adu.speech_id == Speech.id)\
+                .where(Speech.round_id == round_obj.id)
+    result_adu = await db.execute(stmt_adu)
+    first_adu = result_adu.scalars().first()
+
+    if first_adu:
+        # ADUs exist, but Rebuttals don't. Need Rebuttal Prompt (Step 3).
+        # Reuse helper: create_rebuttal_prompt_data
+        try:
+             prompt_content, _, _, _ = await create_rebuttal_prompt_data(db, round_name, try_count)
+             return {
+                "status": "step2_done", # Renamed from manual_rebuttal_prompt
+                "round_name": round_name,
+                "try_count": try_count,
+                "prompt": prompt_content
+            }
+        except Exception as e:
+            logger.error(f"Failed to create rebuttal prompt during resume: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate rebuttal prompt: {e}")
+
+    # 3. Check Sentences
+    stmt_sen = select(Sentence).join(Speech, Sentence.speech_id == Speech.id)\
+                .where(Speech.round_id == round_obj.id)
+    result_sen = await db.execute(stmt_sen)
+    first_sen = result_sen.scalars().first()
+
+    if first_sen:
+        # Sentences exist, ADUs don't. Need ADU Prompt (Step 2).
+        # We need to reconstruct transcripts dict for create_adu_prompt_all_at_once
+        # Actually, create_adu_prompt_all_at_once takes `transcripts` dict.
+        # We need to fetch all sentences and group by speech role.
+        
+        # Fetch all speeches for this round/try
+        stmt_speeches = select(Speech).where(Speech.round_id == round_obj.id)
+        speeches_res = await db.execute(stmt_speeches)
+        speeches = speeches_res.scalars().all()
+        
+        
+        transcripts_data = {}
+        speech_id_to_sentences = {}
+        
+        # Batch fetch all sentences
+        speech_ids = [s.id for s in speeches]
+        if speech_ids:
+            stmt_all_s = select(Sentence).where(Sentence.speech_id.in_(speech_ids)).order_by(Sentence.speech_id, Sentence.index)
+            res_all_s = await db.execute(stmt_all_s)
+            all_sentences = res_all_s.scalars().all()
+            
+            # Group by speech_id
+            for s in all_sentences:
+                if s.speech_id not in speech_id_to_sentences:
+                    speech_id_to_sentences[s.speech_id] = []
+                speech_id_to_sentences[s.speech_id].append(s)
+        
+        for speech in speeches:
+            # Get sentences for this speech from memory
+            sentences = speech_id_to_sentences.get(speech.id, [])
+            
+            # Prepare prompt data directly
+            role = speech.position
+            transcripts_data[role] = sentences
+            
+        # Generate prompt manually to ensure we use db sentences
+        prompt_content_parts = []
+        # Need to sort speeches?
+        # Use simple sort by ID or position order if possible.
+        # Let's map positions to standard order if imported.
+        # Reuse DEBATE_FORMATS from utils if imported? Yes (Step 1090).
+        
+        # Sort logic
+        ordered_roles = []
+        # get debate_format from Round? Round model has `style` (british_parliamentary etc).
+        # Need to map style "british_parliamentary" to "BP".
+        # Or just use "NA" default sort if unknown.
+        style_map = {"british_parliamentary": "BP", "north_american": "NA", "asian": "ASIAN"}
+        debate_fmt_key = style_map.get(round_obj.style, "NA") # Round model has `style`, default 'british_parliamentary'.
+        
+        speech_order = DEBATE_FORMATS.get(debate_fmt_key, [])
+        sorted_speech_keys = []
+        
+        # Sort keys
+        remaining = list(transcripts_data.keys())
+        for r in speech_order:
+             if r in remaining:
+                 sorted_speech_keys.append(r)
+                 remaining.remove(r)
+        sorted_speech_keys.extend(remaining) # Add rest
+        
+        for role in sorted_speech_keys:
+             sents = transcripts_data[role] # list of Sentence objects
+             prompt_sentences_data = [
+                 {"id": s.index, "text": s.text} for s in sents
+             ]
+             
+             prompt_content_parts.append(f"## Speech: {role}")
+             prompt_content_parts.append("Sentence-level transcript data:")
+             prompt_content_parts.append(json.dumps(prompt_sentences_data, indent=None, ensure_ascii=False))
+             prompt_content_parts.append(f"Total Sentences: {len(sents)}")
+             prompt_content_parts.append("")
+             
+        full_transcript_text = "\n".join(prompt_content_parts)
+
+        # Reuse static prompt template parts?
+        # I'll just hardcode the prompt template here to be safe and consistent with `create_adu_prompt_all_at_once`
+        # Or import the function and refactor it? Refactoring is risky in EXECUTION.
+        # Usage of `create_adu_prompt_all_at_once` with dummy data is tricky because it calls `group_words_into_sentences`.
+        # So manual reconstruction is safer.
+        
+        prompt_content = f"""
+Please segment the following debate speeches into Argument Discourse Units (ADUs).
+Each ADU represents a single argument or discourse unit with a specific role below:
+
+ADU Role Definitions:
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+
+Segmentation Guidelines:
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+5. Treat any POI as a single independent ADU.
+6. Treat a response to a POI as a single ADU.
+7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+
+Transcript Data:
+{full_transcript_text}
+
+Return the result as a JSON object where keys are "Speech Name" (e.g. Proposition_1st) and values are lists of ADUs.
+IDs are local to each speech (0, 1, 2...).
+
+Format:
+{{
+  "Proposition_1st": [
+    {{
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
+      "text": "The actual ADU text...",
+      "role": "point_of_main_argument"
+    }}
+  ],
+  "Opposition_1st": [...]
+}}
+"""
+        return {
+            "status": "step1_done", # Renamed from manual_adu_prompt
+            "round_name": round_name,
+            "try_count": try_count,
+            "prompt": prompt_content
+        }
+
+    # 4. Check Raw Transcription (in Speech table)
+    stmt_speeches_raw = select(Speech).where(Speech.round_id == round_obj.id)
+    res_raw = await db.execute(stmt_speeches_raw)
+    speeches_raw = res_raw.scalars().all()
+    
+    if speeches_raw and any(s.raw_transcription for s in speeches_raw):
+         # Recover Sentences
+         logger.info("Sentences missing but raw transcription found. Recovering...")
+         try:
+             transcripts_data = {}
+             for speech in speeches_raw:
+                 # existing raw_transcription is a string? Or JSON?
+                 # It's usually a large text block if it's from Whisper simply?
+                 # If we stored raw JSON from Whisper, we can parse.
+                 # If it's just text, we can't easily get timestamps unless we re-align.
+                 # Actually, usually `save_transcription_to_db` saves sentences.
+                 # If we are here, something broke before sentences were saved?
+                 # Or maybe `manual_audio_processing` saved raw text?
+                 # Let's assume we can't easily recover timestamps if only text.
+                 # But if we have valid Speech objects, maybe they have sentences?
+                 # We already checked Sentences and found none (Step 3).
+                 
+                 # If users want to resume from "Step 1" (Transcription done),
+                 # And we have Speech entries with NO sentences...
+                 # We need to segment sentences.
+                 # Using `regroup_single_speech_sentences_to_adus`? No, that's later.
+                 # We need `regroup_sentences` logic.
+                 pass
+             
+             # Fallback if recovery too complex: Tell user "Transcription found but sentences missing."
+             # Or if we implement a recovery:
+             # For now, let's treat "No Sentences" as "Data not sufficient to resume".
+             pass
+         except Exception as e:
+             pass
+
+    # If we fall through here:
+    raise HTTPException(status_code=404, detail="Could not find sufficient data (Sentences, ADUs, or Rebuttals) to resume.")

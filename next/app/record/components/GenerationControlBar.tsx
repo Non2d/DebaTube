@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { List, Zap, Play, RotateCw } from 'lucide-react';
+import { List, Zap, Play, RotateCw, ChevronDown, ChevronUp } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import { DebateFormatType } from '../../../constants/constants';
 import { useTranslation } from '../../../context/LanguageContext';
@@ -34,6 +34,8 @@ interface GenerationControlBarProps {
     manualState?: any;
     onManualSubmitAdu?: (json: string) => void;
     onManualSubmitRebuttal?: (json: string) => void;
+    resumeTryCount: number | null;
+    setResumeTryCount: (val: number | null) => void;
 }
 
 const DEFAULT_MODEL_OPTIONS = [
@@ -71,6 +73,8 @@ export default function GenerationControlBar({
     manualState,
     onManualSubmitAdu,
     onManualSubmitRebuttal,
+    resumeTryCount,
+    setResumeTryCount,
 }: GenerationControlBarProps) {
     const { t } = useTranslation();
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -111,6 +115,44 @@ export default function GenerationControlBar({
 
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+                {/* Row 1: Round ID and Try Count */}
+                {/* Round ID Input Group */}
+                <div className={`lg:col-span-${manualMode ? '9' : '12'}`}>
+                    <div className="relative group h-full">
+                        <SearchableSelect
+                            options={roundCandidates}
+                            value={roundName}
+                            onChange={setRoundName}
+                            placeholder={t('recordPage.controls.enterRoundId')}
+                            label={t('recordPage.controls.roundId')}
+                        />
+                    </div>
+                </div>
+
+                {/* Try Count Input (Manual Mode Only) */}
+                {manualMode && (
+                    <div className="lg:col-span-3">
+                        <div className="relative group h-full">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10">
+                                <RotateCw size={18} strokeWidth={2} />
+                            </div>
+                            <input
+                                type="number"
+                                min="1"
+                                value={resumeTryCount ?? ''}
+                                onChange={(e) => {
+                                    const val = e.target.value ? parseInt(e.target.value) : null;
+                                    setResumeTryCount(val);
+                                }}
+                                className="h-12 w-full pl-10 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
+                                placeholder={t('recordPage.manualMode.tryCountPlaceholder') || "none"} // Fallback
+                            />
+                            <label className="absolute -top-2 left-3 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">{t('recordPage.manualMode.resumeLabel')}</label>
+                        </div>
+                    </div>
+                )}
+
+                {/* Row 2: Format and Motion */}
                 {/* Format Input Group */}
                 <div className="lg:col-span-3">
                     <div className="relative group h-full">
@@ -136,19 +178,9 @@ export default function GenerationControlBar({
                     </div>
                 </div>
 
-                {/* Round ID Input Group (Combined) */}
-                <div className="lg:col-span-9 flex gap-2">
-                    <div className="relative group h-full flex-1">
-                        <SearchableSelect
-                            options={roundCandidates}
-                            value={roundName}
-                            onChange={setRoundName}
-                            placeholder={t('recordPage.controls.enterRoundId')}
-                            label={t('recordPage.controls.roundId')}
-                        />
-                    </div>
-                    {/* Motion Input */}
-                    <div className="relative group h-full flex-[2]">
+                {/* Motion Input Group */}
+                <div className="lg:col-span-9">
+                    <div className="relative group h-full">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10">
                             <List size={18} strokeWidth={2} />
                         </div>
@@ -173,6 +205,7 @@ export default function GenerationControlBar({
                             className="text-xs font-semibold text-slate-500 hover:text-indigo-600 flex items-center transition-colors"
                         >
                             {showAdvanced ? t('recordPage.advancedOptions.hide') : t('recordPage.advancedOptions.show')}
+                            {showAdvanced ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
                         </button>
                     </div>
 

@@ -167,7 +167,7 @@ export function ManualWorkflowControls({
                         </div>
                         <Button onClick={() => handleSubmit('adu')} disabled={manualState.isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white">
                             {manualState.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Submit ADU JSON
+                            {t('recordPage.manualMode.submitAdu')}
                         </Button>
                     </div>
                 )}
@@ -214,20 +214,22 @@ export function ManualWorkflowControls({
                         </div>
                         <Button onClick={() => handleSubmit('rebuttal')} disabled={manualState.isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white">
                             {manualState.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Submit Rebuttal JSON
+                            {t('recordPage.manualMode.submitRebuttal')}
                         </Button>
                     </div>
                 )}
             </div>
 
             {/* Completion Success Message */}
-            {isStep3Done && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex items-center gap-3 animate-in fade-in zoom-in">
-                    <Check size={24} />
-                    <span className="font-bold">Manual Generation Completed!</span>
-                </div>
-            )}
+            {
+                isStep3Done && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex items-center gap-3 animate-in fade-in zoom-in">
+                        <Check size={24} />
+                        <span className="font-bold">{t('recordPage.manualMode.completed')}</span>
+                    </div>
+                )
+            }
 
-        </div>
+        </div >
     );
 }

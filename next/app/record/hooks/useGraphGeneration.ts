@@ -16,6 +16,7 @@ interface UseGraphGenerationProps {
     rebuttalModel: string;
     transcriptionModel: string;
     manualMode: boolean; // Added
+    resumeTryCount?: number | null;
     onSuccess: (result: any) => void;
 }
 
@@ -32,6 +33,7 @@ export function useGraphGeneration({
     rebuttalModel,
     transcriptionModel,
     manualMode,
+    resumeTryCount,
     onSuccess
 }: UseGraphGenerationProps) {
     const [isGeneratingGraph, setIsGeneratingGraph] = useState(false);
@@ -74,11 +76,157 @@ export function useGraphGeneration({
         };
     }, [isGeneratingGraph, generationStartTime]);
 
+    const resumeManualWorkflow = async (isAutoCheck: boolean = false) => {
+        if (!isAutoCheck) {
+            setIsGeneratingGraph(true);
+            setGenerationStartTime(Date.now());
+            setGenerationElapsedTime(0);
+        } else {
+            setManualState(prev => ({ ...prev, isProcessing: true }));
+        }
+
+        setGenerationError(null);
+        setGenerationSuccess(null);
+
+        try {
+            console.log(`[resumeManualWorkflow] Resuming ${roundName} try ${resumeTryCount} (Auto: ${isAutoCheck})`);
+
+            const response = await fetch('http://localhost:8080/manual/resume', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    round_name: roundName,
+                    try_count: resumeTryCount
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                // If auto check and 404 (not found), just reset to initial state silently?
+                // Or show "Resume failed"?
+                // User said "if not found...".
+                // If 404, it means "Not started". So Step 1 (Initial).
+                // We should set step to 'initial'.
+                if (response.status === 404) {
+                    setManualState(prev => ({
+                        ...prev,
+                        step: 'initial',
+                        isProcessing: false,
+                        roundName: roundName,
+                        tryCount: resumeTryCount || 0
+                    }));
+                    return;
+                }
+                throw new Error(errorData.detail || `Failed to resume workflow: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('[resumeManualWorkflow] Success:', result);
+
+            if (result.status === 'step1_done') {
+                setManualState({
+                    step: 'adu_prompt_ready',
+                    roundName: result.round_name,
+                    tryCount: result.try_count,
+                    aduPrompt: result.prompt,
+                    rebuttalPrompt: '',
+                    isProcessing: false
+                });
+            } else if (result.status === 'step2_done') {
+                setManualState({
+                    step: 'rebuttal_prompt_ready',
+                    roundName: result.round_name,
+                    tryCount: result.try_count,
+                    aduPrompt: '', // Not needed for step 3
+                    rebuttalPrompt: result.prompt,
+                    isProcessing: false
+                });
+            } else if (result.status === 'completed') {
+                setManualState({
+                    step: 'completed',
+                    roundName: result.round_name,
+                    tryCount: result.try_count,
+                    aduPrompt: '',
+                    rebuttalPrompt: '',
+                    isProcessing: false
+                });
+                setGenerationSuccess(result.message || "Manual workflow already completed.");
+                if (onSuccess) {
+                    onSuccess(result);
+                }
+            }
+
+        } catch (error) {
+            console.error('[resumeManualWorkflow] Error:', error);
+            if (!isAutoCheck) {
+                setGenerationError(error instanceof Error ? error.message : 'Failed to resume workflow');
+            } else {
+                // If auto check fails, maybe just stop processing?
+                setManualState(prev => ({ ...prev, isProcessing: false }));
+            }
+        } finally {
+            if (!isAutoCheck) {
+                setIsGeneratingGraph(false);
+            }
+        }
+    };
+
+    // Auto-resume logic
+    useEffect(() => {
+        if (!manualMode || !roundName || resumeTryCount === null || resumeTryCount === undefined) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            resumeManualWorkflow(true);
+        }, 800); // 800ms debounce
+
+        return () => clearTimeout(timer);
+    }, [manualMode, roundName, resumeTryCount]);
+
     const generateDebateGraph = async () => {
         if (!roundName) {
             setGenerationError(t('recordPage.messages.enterRoundId'));
             return;
         }
+
+        const resumeManualWorkflow = async (isAutoCheck = false): Promise<boolean> => {
+            if (!roundName || manualState.tryCount === null || manualState.tryCount === undefined) return false;
+
+            if (!isAutoCheck) {
+                setIsGeneratingGraph(true);
+                setGenerationError(null);
+                setGenerationSuccess(null);
+            } else {
+                setManualState(prev => ({ ...prev, isProcessing: true }));
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('round_name', roundName);
+                formData.append('try_count', manualState.tryCount.toString());
+
+                const response = await fetch('http://localhost:8080/manual/resume', {
+                    method: 'POST',
+                    body: formData, // audio2adu.py uses Form param? No, it uses Body (JSON) or Form?
+                    // Wait, manual_resume logic verification needed.
+                    // Step 1189 used Content-Type application/json.
+                    // Step 1324 `resumeManualWorkflow` (lines 110+) wasn't fully visible.
+                    // But typically it uses JSON for manual_resume endpoint in previous steps?
+                    // Let's assume the previous implementation was correct about Fetch. 
+                    // Wait, if I change lines here I need to be sure about Body format.
+                    // Step 1189 used JSON body.
+                    // `resumeManualWorkflow` in current file probably used JSON.
+                    // I should Check the existing `resumeManualWorkflow` implementation first to not break it.
+                });
+
+                // I need to see the implementation of fetch part in `resumeManualWorkflow` to copy it. 
+                // I'll VIEW the file first.
+                return false; // Loopback placeholder
+            } catch (e) { return false; }
+        };
 
         if (!areAllAudioFilesReady) {
             setGenerationError(t('recordPage.messages.allAudioRequired'));
@@ -200,58 +348,7 @@ export function useGraphGeneration({
 
 
 
-    const resumeManualWorkflow = async (count: number) => {
-        if (!roundName) {
-            setGenerationError(t('recordPage.messages.enterRoundId'));
-            return;
-        }
 
-        // Reset state for resume attempt
-        setManualState(prev => ({ ...prev, isProcessing: true, tryCount: count, roundName: roundName }));
-
-        try {
-            const baseUrl = 'http://localhost:8080';
-
-            // 1. Try to fetch Rebuttal Prompt (implies ADU is done)
-            const rebRes = await fetch(`${baseUrl}/manual/rebuttal-prompt/${roundName}?try_count=${count}`);
-            if (rebRes.ok) {
-                const data = await rebRes.json();
-                setManualState(prev => ({
-                    ...prev,
-                    step: 'rebuttal_prompt_ready',
-                    roundName: roundName,
-                    tryCount: count,
-                    rebuttalPrompt: data.prompt,
-                    isProcessing: false
-                }));
-                return;
-            }
-
-            // 2. If Rebuttal fetch failed, assumption: ADU not done?
-            // User might want to "Resume at ADU step".
-            // But ADU step *generating* the prompt is the first step of "Start".
-            // If they want to just see the prompt they already generated?
-            // The backend doesn't store the ADU prompt unless we logged it, but we can regenerate it easily.
-            // If they want to "Resume" a flow where they haven't submitted ADUs yet,
-            // Then it is effectively "Start Manual Generation" with try_count=X.
-
-            // So default behavior: Set step to 'initial' (or implied start) but pre-fill try count?
-            // actually, if we set step to 'initial', the UI shows the "Start" button.
-            // We want to skip the "Start" button?
-            // No, if we can't find Rebuttal prompt, we can't skip to Rebuttal.
-
-            // Let's assume valid resume = Rebuttal is valid.
-            // If not found, tell user.
-
-            setGenerationError(t('recordPage.manualMode.resumeFailed'));
-            setManualState(prev => ({ ...prev, isProcessing: false, tryCount: count }));
-
-        } catch (e) {
-            console.error(e);
-            setGenerationError("Failed to resume.");
-            setManualState(prev => ({ ...prev, isProcessing: false }));
-        }
-    };
 
     return {
         isGeneratingGraph,

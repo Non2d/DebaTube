@@ -55,6 +55,7 @@ export default function RecordPage() {
   const [rebuttalModel, setRebuttalModel] = useState("gemini-2.5-flash");
   const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
   const [manualMode, setManualMode] = useState(false);
+  const [resumeTryCount, setResumeTryCount] = useState<number | null>(null);
   const { t } = useTranslation();
 
   const isInitialMount = useRef<boolean>(true);
@@ -112,6 +113,7 @@ export default function RecordPage() {
     rebuttalModel,
     transcriptionModel,
     manualMode,
+    resumeTryCount,
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -359,6 +361,8 @@ export default function RecordPage() {
                 manualState={manualState}
                 onManualSubmitAdu={submitManualAdu}
                 onManualSubmitRebuttal={submitManualRebuttal}
+                resumeTryCount={resumeTryCount}
+                setResumeTryCount={setResumeTryCount}
               />
 
               <GenerationStatus

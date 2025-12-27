@@ -106,6 +106,7 @@ export const en = {
             step2Title: "Step 2: ADU Segmentation",
             step3Title: "Step 3: Rebuttal Identification",
             tryCount: "Try: {count}",
+            tryCountPlaceholder: "Number",
             promptLabel: "Prompt (Copy and paste to Gemini)",
             pasteLabel: "Paste JSON Result",
             placeholder: "Paste the JSON output from Gemini here...",
@@ -115,8 +116,10 @@ export const en = {
             copied: "Copied",
             invalidJson: "Invalid JSON format",
             resume: "Resume",
-            resumeLabel: "Resume from Try:",
+            resumeLabel: "TRY (for interrupted process)",
             resumeFailed: "Could not find data to resume for the specified Try count.",
+            submitAdu: "Submit ADU JSON",
+            submitRebuttal: "Submit Rebuttal JSON",
         }
     },
     landingPage: {
