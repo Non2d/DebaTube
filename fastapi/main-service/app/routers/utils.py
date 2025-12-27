@@ -88,8 +88,9 @@ def group_words_into_sentences(
     文が min_words 単語以下なら前の文に統合する。
     """
     conjunctions = {
-        "however", "therefore", "moreover", "furthermore", "while",
-        "otherwise", "thus", "hence", "accordingly", "consequently", "instead",
+        "and", "but", "so", "because", "or", "however", "therefore", "moreover",
+        "furthermore", "while", "otherwise", "thus", "hence", "accordingly",
+        "consequently", "instead", "okay",
     }
     
     # 区切り位置を決定

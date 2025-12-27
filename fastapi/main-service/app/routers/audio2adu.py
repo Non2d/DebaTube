@@ -27,7 +27,7 @@ def _save_gemini_log(response_text: str, category: str, identifier: str = "", pr
     try:
         log_dir = "logs/gemini_response"
         os.makedirs(log_dir, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_identifier = identifier.replace("/", "_").replace("\\", "_").replace(" ", "_")
         filename = f"{log_dir}/gemini_{category}_{safe_identifier}_{timestamp}.json"
         
@@ -381,7 +381,7 @@ Format:
         response_text = response.text if hasattr(response, "text") else str(response)
         
         # Save raw log
-        _save_gemini_log(response_text, "batch_adu", "ALL", prompt_content, model_name=model_name)
+        _save_gemini_log(response_text, "adu", match_name, prompt_content, model_name=model_name)
 
         cleaning_response = clean_gemini_markdown_response(response_text)
         try:
@@ -437,7 +437,7 @@ Format:
 
     except Exception as e:
         logger.error(f"Error in transcript_to_adu_all_at_once: {str(e)}")
-        _save_gemini_log(str(e), "error_batch_adu", "ALL")
+        _save_gemini_log(str(e), "error_adu", match_name)
         return {}, {}, [{"speech_key": "ALL", "error": str(e)}]
 
 
@@ -925,7 +925,7 @@ Do not include any other text, explanation, or formatting."""
         response_text = response.text if hasattr(response, "text") else str(response)
         
         # Save raw log
-        _save_gemini_log(response_text, "rebuttal", round_name, prompt, model_name=model_name)
+        _save_gemini_log(response_text, "reb", round_name, prompt, model_name=model_name)
 
         # Parse the response to extract rebuttal pairs
         rebuttal_pairs = [] # List with DB IDs for saving
