@@ -277,7 +277,7 @@ export default function GenerationControlBar({
 
 
                     <div className="flex justify-center mb-4">
-                        {manualMode && manualState && manualState.step !== 'initial' ? (
+                        {manualMode ? (
                             <div className="w-full">
                                 <ManualWorkflowControls
                                     manualState={manualState}
@@ -286,6 +286,9 @@ export default function GenerationControlBar({
                                     onSubmitRebuttal={onManualSubmitRebuttal!}
                                     onCancel={() => setManualMode(false)}
                                     isGeneratingGraph={isGeneratingGraph}
+                                    areAllAudioFilesReady={areAllAudioFilesReady}
+                                    roundName={roundName}
+                                    generationElapsedTime={generationElapsedTime}
                                 />
                             </div>
                         ) : (
@@ -296,9 +299,7 @@ export default function GenerationControlBar({
                                     ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 cursor-wait'
                                     : !roundName
                                         ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200 cursor-not-allowed'
-                                        : manualMode
-                                            ? 'bg-red-600 text-white shadow-red-200 hover:bg-red-700 hover:shadow-lg focus:ring-4 focus:ring-red-500/20'
-                                            : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
+                                        : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-500/20'
                                     }`}
                             >
                                 {isGeneratingGraph ? (
@@ -308,21 +309,15 @@ export default function GenerationControlBar({
                                     </>
                                 ) : (
                                     <>
-                                        {manualMode ? <List size={20} /> : <Zap size={20} className="fill-current" />}
-                                        <span>
-                                            {manualMode
-                                                ? t('recordPage.controls.generateManual')
-                                                : t('recordPage.controls.generateAuto')}
-                                        </span>
+                                        <Zap size={20} className="fill-current" />
+                                        <span>{t('recordPage.controls.generateAuto')}</span>
                                     </>
                                 )}
                             </button>
                         )}
                     </div>
-
-
                 </div>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }

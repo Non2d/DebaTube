@@ -102,6 +102,7 @@ export const en = {
             title: "Manual Mode",
             initialButton: "Create New Match Data & Transcribe (Manual)",
             processingAudio: "Processing Audio...",
+            step1Title: "Step 1: Transcription",
             step2Title: "Step 2: ADU Segmentation",
             step3Title: "Step 3: Rebuttal Identification",
             tryCount: "Try: {count}",

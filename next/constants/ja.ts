@@ -104,6 +104,7 @@ export const ja: LocaleType = {
             title: "マニュアルモード",
             initialButton: "試合データの新規作成 & 文字起こし開始 (マニュアル)",
             processingAudio: "音声処理中...",
+            step1Title: "ステップ 1: 文字起こし",
             step2Title: "ステップ 2: ADU セグメンテーション",
             step3Title: "ステップ 3: 反論判定",
             tryCount: "試行: {count}",
