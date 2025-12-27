@@ -26,7 +26,7 @@ export default function TimerDisplay({
 
   return (
     <div className="text-center mb-8">
-      <div className={`text-8xl font-mono font-bold ${isOverTime ? 'text-red-600' : 'text-gray-900'
+      <div className={`text-8xl font-mono font-bold ${isOverTime ? 'text-red-600' : 'text-gray-900 dark:text-white'
         }`}>
         {formatTime(recordingDuration)}
       </div>
