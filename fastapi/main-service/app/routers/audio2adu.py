@@ -503,6 +503,7 @@ async def transcribe_single_audio(
                 "date_transcribed": date_transcribed,
                 "duration": validated_data.duration,
                 "language": validated_data.language,
+                "validation_warning": "",
                 **validated_data.model_dump(),
             }
         except ValidationError as val_error:
