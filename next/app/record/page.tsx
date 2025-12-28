@@ -10,6 +10,7 @@ import Header from '../../components/shared/Header';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../constants/constants';
 import { logTabSwitch } from '../../utils/userLogger';
 import { useTranslation } from '../../context/LanguageContext';
+import { useSearchParams } from 'next/navigation';
 
 // Extracted Components
 import TabNavigation, { TabType } from './components/TabNavigation';
@@ -58,6 +59,7 @@ export default function RecordPage() {
   // Removed independent resumeTryCount state to synchronize with Visualization tab
   // const [resumeTryCount, setResumeTryCount] = useState<number | null>(null);
   const { t } = useTranslation();
+  const searchParams = useSearchParams();
 
   const isInitialMount = useRef<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -184,6 +186,30 @@ export default function RecordPage() {
       setActiveTab(savedTab);
     }
   }, []);
+
+  // Handle URL parameters for navigation from Explore page
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabType;
+    const urlRoundName = searchParams.get('roundName');
+    const urlTryCount = searchParams.get('tryCount');
+
+    if (tab) {
+      setActiveTab(tab);
+      localStorage.setItem('record_active_tab', tab);
+    }
+
+    if (urlRoundName) {
+      setRoundName(urlRoundName);
+      localStorage.setItem('debate_round_name', urlRoundName);
+    }
+
+    if (urlTryCount) {
+      const tryCountNum = parseInt(urlTryCount);
+      if (!isNaN(tryCountNum)) {
+        setTryCount(tryCountNum);
+      }
+    }
+  }, [searchParams, setTryCount]);
 
   useEffect(() => {
     if (roundName) {

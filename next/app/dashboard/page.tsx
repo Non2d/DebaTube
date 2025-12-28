@@ -6,6 +6,7 @@ import Header from '../../components/shared/Header';
 import RegistrationModal from '../../components/shared/RegistrationModal';
 import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../context/LanguageContext';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const { isDark } = useTranslation();
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'youtube' | 'record'>('youtube');
   const { t } = useTranslation();
+  const router = useRouter();
 
   /* Load active tab from LocalStorage */
   useEffect(() => {
@@ -223,7 +225,14 @@ export default function Dashboard() {
                           }
 
                           return (
-                            <tr key={round.id} className={rowClass}>
+                            <tr
+                              key={round.id}
+                              className={`${rowClass} cursor-pointer`}
+                              onClick={() => {
+                                // Navigate to Record page visualization tab
+                                router.push(`/record?tab=visualization&roundName=${encodeURIComponent(round.title)}&tryCount=${round.try_count || 1}`);
+                              }}
+                            >
                               <td className="py-2 px-4 max-w-xs">
                                 <div className="flex items-center gap-2">
                                   {isGrouped && isSameTitleAsPrev ? (

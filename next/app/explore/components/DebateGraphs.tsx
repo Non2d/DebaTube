@@ -7,6 +7,7 @@ import MacroStructure from './MacroStructure';
 import Youtube from 'react-youtube';
 import Header from '../../../components/shared/Header';
 import { useTranslation } from '../../../context/LanguageContext';
+import { useRouter } from 'next/navigation';
 
 interface MacroStructuralFeatures {
   distance: number;
@@ -36,6 +37,7 @@ interface DebateItem { //UI表示用にデータ生成する際のバリデー�
   tag: string
   description: string
   features: MacroStructuralFeatures
+  tryCount: number
 
   graphItems: {
     roundId: number;
@@ -54,6 +56,7 @@ interface Round { //取得時のバリデーション
   channel_id: string;
   tag: string;
   features: MacroStructuralFeatures;
+  try_count: number;
 
   pois: any;
   speeches: any;
@@ -62,6 +65,7 @@ interface Round { //取得時のバリデーション
 
 const DebateGraphs = () => {
   const { isDark, t } = useTranslation();
+  const router = useRouter();
   const [ytPlayer, setYtPlayer] = useState<YT.Player | null>(null);
   const [ytId, setYtId] = useState('');
   const [ytTitle, setYtTitle] = useState('');
@@ -129,6 +133,7 @@ const DebateGraphs = () => {
           publishedAt: round.date_uploaded,
           tag: round.tag,
           features: round.features,
+          tryCount: round.try_count || 1,
           graphItems: {
             roundId: round.id,
             pois: round.pois,
@@ -411,7 +416,12 @@ const DebateGraphs = () => {
                   {displayDebateItems.map((item, index) => (
                     <div
                       key={item.id}
-                      className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white dark:border-gray-900'}`}
+                      className={`flex flex-col border-4 cursor-pointer ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white dark:border-gray-900'}`}
+                      onClick={() => {
+                        // Navigate to Record page visualization tab with round name and try count
+                        const roundName = item.title; // Assuming title is the round name
+                        router.push(`/record?tab=visualization&roundName=${encodeURIComponent(roundName)}&tryCount=${item.tryCount}`);
+                      }}
                       onDoubleClick={onMovieItemClicked(item.id)}
                     >
                       <div className="mb-1 flex gap-4 bg-white dark:bg-gray-900">
