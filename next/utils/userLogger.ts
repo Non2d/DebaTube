@@ -67,7 +67,7 @@ export async function logTabSwitch(tab: string, matchName: string): Promise<void
  * 音声再生イベント（再生・一時停止・シーク）をログに記録
  */
 export async function logPlaybackEvent(
-  eventType: 'play' | 'pause' | 'seek',
+  eventType: 'play' | 'pause' | 'seek' | 'seek_start',
   speechIndex: number,
   timeSeconds: number
 ): Promise<void> {

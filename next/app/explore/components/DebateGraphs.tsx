@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, createRef } from 'react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, Pin } from 'lucide-react';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { getAPIRoot } from '../../../components/lib/utils';
@@ -60,7 +61,7 @@ interface Round { //取得時のバリデーション
 }
 
 const DebateGraphs = () => {
-  const { isDark } = useTranslation();
+  const { isDark, t } = useTranslation();
   const [ytPlayer, setYtPlayer] = useState<YT.Player | null>(null);
   const [ytId, setYtId] = useState('');
   const [ytTitle, setYtTitle] = useState('');
@@ -81,20 +82,25 @@ const DebateGraphs = () => {
   const macroStructureRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  /* 
+   * タブとソートオプションの定義をuseTranslationフック内に移動するか、
+   * レンダリング時に翻訳関数を使用するように変更する必要があります。
+   * ここでは単純にレンダリング部分で翻訳キーを使用するように変更します。
+   */
   const tabValues = [
-    { value: "All", label: "All" },
-    { value: "CriminalJustice", label: "Criminal Justice" },
-    { value: "Gender", label: "Gender" },
-    { value: "Economy", label: "Economy" },
-    { value: "Politics", label: "Politics" },
+    { value: "All", labelKey: "explore.tabs.all" },
+    { value: "CriminalJustice", labelKey: "explore.tabs.criminalJustice" },
+    { value: "Gender", labelKey: "explore.tabs.gender" },
+    { value: "Economy", labelKey: "explore.tabs.economy" },
+    { value: "Politics", labelKey: "explore.tabs.politics" },
   ];
 
   const sortOptions = [
-    { value: "Date", label: "Date Uploaded", description: "When uploaded on YouTube or DebaTube" },
-    { value: "Distance", label: "Distance", description: "Spatial separation between argument clusters" },
-    { value: "Interval", label: "Interval", description: "Time gaps between speech segments" },
-    { value: "Order", label: "Order", description: "Sequential position in debate flow" },
-    { value: "Rally", label: "Rally", description: "Frequency of back-and-forth exchanges" },
+    { value: "Date", labelKey: "explore.sort.date", descriptionKey: "explore.sort.dateDesc" },
+    { value: "Distance", labelKey: "explore.sort.distance", descriptionKey: "explore.sort.distanceDesc" },
+    { value: "Interval", labelKey: "explore.sort.interval", descriptionKey: "explore.sort.intervalDesc" },
+    { value: "Order", labelKey: "explore.sort.order", descriptionKey: "explore.sort.orderDesc" },
+    { value: "Rally", labelKey: "explore.sort.rally", descriptionKey: "explore.sort.rallyDesc" },
   ];
   const ytProps = {
     height: (800 * 9) / 16,
@@ -301,10 +307,10 @@ const DebateGraphs = () => {
         <header className={`flex items-center justify-between ${bgColor} border-b ${borderColor} pb-4`}>
           <div className="flex items-center gap-6">
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
-              <TabsList>
+              <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9">
                 {tabValues.map((tab) => (
-                  <TabsTrigger key={tab.value} value={tab.value}>
-                    {tab.label}
+                  <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm">
+                    {t(tab.labelKey)}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -314,44 +320,43 @@ const DebateGraphs = () => {
           <div className="flex items-center gap-4">
             {/* ピン留め情報を表示 */}
             {pinnedItems.length > 0 && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 shadow-sm">
-                <div className="p-1 bg-amber-100 rounded-lg">
-                  <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2L3 9h4v9h6v-9h4l-7-7z" />
-                  </svg>
+              <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2.5 shadow-sm">
+                <div className="p-1 bg-amber-100 dark:bg-amber-800 rounded-lg">
+                  <Pin className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 </div>
-                <span className="text-sm font-semibold text-amber-800">
-                  {pinnedItems.length} pinned
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  {t('explore.pinned', { count: pinnedItems.length })}
                 </span>
               </div>
             )}
 
             {/* ソート選択ドロップダウン */}
-            <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-2 py-1 border border-gray-200 dark:border-gray-700 shadow-sm h-9">
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors w-32"
+                className="flex items-center justify-center p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
+                title={sortOrder === 'desc' ? t('explore.sort.largestFirst') : t('explore.sort.smallestFirst')}
               >
-                <span className="text-sm font-medium text-gray-700">
-                  {sortOrder === 'desc' ? 'Largest First' : 'Smallest First'}
-                </span>
+                {sortOrder === 'desc' ? (
+                  <ArrowDownWideNarrow className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                ) : (
+                  <ArrowUpNarrowWide className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                )}
               </button>
-              <div className="h-4 w-px bg-gray-300"></div>
+              <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
 
               {/* カスタムドロップダウン */}
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors min-w-[120px]"
+                  className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md px-2 py-1 transition-colors min-w-[100px]"
                 >
-                  <span>{sortOptions.find(opt => opt.value === sortOption)?.label}</span>
-                  <svg className={`w-4 h-4 text-gray-600 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="font-normal">{t(sortOptions.find(opt => opt.value === sortOption)?.labelKey || '')}</span>
+                  <ChevronDown className={`w-3 h-3 text-gray-500 dark:text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full right-0 mt-1 w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
                     {sortOptions.map((option) => (
                       <button
                         key={option.value}
@@ -362,11 +367,11 @@ const DebateGraphs = () => {
                             sort_option: option.value,
                           });
                         }}
-                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${sortOption === option.value ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                        className={`w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ${sortOption === option.value ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-400' : ''
                           }`}
                       >
-                        <div className="font-medium text-gray-900 mb-1">{option.label}</div>
-                        <div className="text-sm text-gray-600">{option.description}</div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100 mb-0.5 text-sm">{t(option.labelKey)}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{t(option.descriptionKey)}</div>
                       </button>
                     ))}
                   </div>
@@ -384,15 +389,15 @@ const DebateGraphs = () => {
               <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
                   {[...Array(8)].map((_, index) => (
-                    <div key={index} className="flex flex-col border-4 border-white animate-pulse">
-                      <div className="mb-1 flex gap-4 bg-white">
-                        <div className="aspect-square relative bg-gray-300 ml-1 mt-1 rounded-md" style={{ width: '8vh', height: '8vh' }}></div>
+                    <div key={index} className="flex flex-col border-4 border-white dark:border-gray-900 animate-pulse">
+                      <div className="mb-1 flex gap-4 bg-white dark:bg-gray-900">
+                        <div className="aspect-square relative bg-gray-300 dark:bg-gray-700 ml-1 mt-1 rounded-md" style={{ width: '8vh', height: '8vh' }}></div>
                         <div className="flex flex-col flex-grow">
-                          <div className="h-4 bg-gray-300 rounded w-3/4 mb-1"></div>
-                          <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                          <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mb-1"></div>
+                          <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
                         </div>
                       </div>
-                      <div className="aspect-[16/9] relative bg-gray-300 rounded-md" style={{ height: '35vh' }}></div>
+                      <div className="aspect-[16/9] relative bg-gray-300 dark:bg-gray-700 rounded-md" style={{ height: '35vh' }}></div>
                     </div>
                   ))}
                 </div>
@@ -406,10 +411,10 @@ const DebateGraphs = () => {
                   {displayDebateItems.map((item, index) => (
                     <div
                       key={item.id}
-                      className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white'}`}
+                      className={`flex flex-col border-4 ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white dark:border-gray-900'}`}
                       onDoubleClick={onMovieItemClicked(item.id)}
                     >
-                      <div className="mb-1 flex gap-4 bg-white">
+                      <div className="mb-1 flex gap-4 bg-white dark:bg-gray-900">
                         <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
                           <Image
                             src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
@@ -420,13 +425,13 @@ const DebateGraphs = () => {
                           />
                         </div>
                         <div className="flex flex-col flex-grow">
-                          <h3 className="font-medium text-base mb-1 line-clamp-1"> {item.title}</h3>
+                          <h3 className="font-medium text-base mb-1 line-clamp-1 dark:text-gray-100"> {item.title}</h3>
                           <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
                           <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
                           {/* Features表示 */}
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                              {sortOption}: {
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                              {t(sortOptions.find(opt => opt.value === sortOption)?.labelKey || '')}: {
                                 sortOption === 'Date'
                                   ? new Date(item.publishedAt).toISOString().split('T')[0]
                                   : item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
@@ -436,7 +441,7 @@ const DebateGraphs = () => {
                         </div>
                       </div>
                       <div
-                        className="aspect-[16/9] relative bg-white"
+                        className="aspect-[16/9] relative bg-white dark:bg-gray-900"
                         style={{ height: '35vh' }}
                       >
                         <div

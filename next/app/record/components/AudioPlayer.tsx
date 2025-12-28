@@ -196,14 +196,21 @@ export default function AudioPlayer({
         setCurrentTime(newTime);
       }
 
-      // ログを記録（シークバー操作）
-      logPlaybackEvent('seek', speechIndex, newTime);
     }
+  };
+
+  const handleSeekStart = () => {
+    logPlaybackEvent('seek_start', speechIndex, currentTime);
+  };
+
+  const handleSeekEnd = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const time = parseFloat((e.target as HTMLInputElement).value);
+    logPlaybackEvent('seek', speechIndex, time);
   };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2 text-sm text-gray-600">
+      <div className="flex items-center justify-between mb-2 text-sm text-white">
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(recordingDuration)}</span>
       </div>
@@ -214,13 +221,15 @@ export default function AudioPlayer({
         step="0.01"
         value={currentTime}
         onChange={handleSeek}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+        className="range-thumb-custom"
         style={{
           background: '#d1d5db',
           outline: 'none',
           WebkitAppearance: 'none',
           appearance: 'none',
         }}
+        onPointerDown={handleSeekStart}
+        onPointerUp={handleSeekEnd}
       />
 
       <audio ref={audioRef} className="hidden" />

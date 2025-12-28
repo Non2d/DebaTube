@@ -28,7 +28,11 @@ export function useDebateGraph(roundName: string) {
             const response = await fetch(url);
 
             if (!response.ok) {
-                console.warn(`[autoLoadGraphData] Graph not found for round: ${roundNameToLoad}`);
+                if (response.status === 404 && targetTryCount !== undefined && targetTryCount !== null) {
+                    alert(t('recordPage.messages.matchNotFound', { count: targetTryCount }));
+                } else {
+                    console.warn(`[autoLoadGraphData] Graph not found for round: ${roundNameToLoad}`);
+                }
                 setAutoLoadedGraphData(null);
                 return;
             }

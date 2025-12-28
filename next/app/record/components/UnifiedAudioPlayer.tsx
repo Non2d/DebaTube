@@ -237,6 +237,18 @@ export default function UnifiedAudioPlayer({
     setCurrentGlobalTime(time);
   };
 
+  const handleSeekStart = () => {
+    isSeekingRef.current = true;
+    logPlaybackEvent('seek_start', segments[currentSegmentIndex]?.speechIndex || 0, currentGlobalTime);
+  };
+
+  const handleSeekEnd = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    isSeekingRef.current = false;
+    const time = parseFloat((e.target as HTMLInputElement).value);
+    // ログを記録（シークバー操作完了時）
+    logPlaybackEvent('seek', segments[currentSegmentIndex]?.speechIndex || 0, time);
+  };
+
   if (segments.length === 0) {
     return (
       <div className="p-4 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
@@ -256,7 +268,7 @@ export default function UnifiedAudioPlayer({
           {isPlaying ? <Pause size={24} /> : <Play size={24} />}
         </button>
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-2 text-sm text-gray-600 dark:text-gray-300">
+          <div className="flex items-center justify-between mb-2 text-sm text-white font-medium">
             <span>{formatTime(currentGlobalTime)}</span>
             <span>{formatTime(totalDuration)}</span>
           </div>
@@ -267,13 +279,15 @@ export default function UnifiedAudioPlayer({
             step="0.01"
             value={currentGlobalTime}
             onChange={handleSeek}
-            className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+            className="range-thumb-custom"
             style={{
               background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(currentGlobalTime / totalDuration) * 100}%, #d1d5db ${(currentGlobalTime / totalDuration) * 100}%, #d1d5db 100%)`,
               outline: 'none',
               WebkitAppearance: 'none',
               appearance: 'none',
             }}
+            onPointerDown={handleSeekStart}
+            onPointerUp={handleSeekEnd}
           />
           {/* Speech timeline visualization */}
           <div className="mt-2">

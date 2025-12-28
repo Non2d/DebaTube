@@ -115,8 +115,8 @@ export function useGraphGeneration({
                     if (notFoundData.next_try_count !== undefined) {
                         const nextValid = notFoundData.next_try_count;
                         if (targetTryCount > nextValid) {
-                            // Auto-Correction: Revert to max+1
-                            toast.error(t('recordPage.messages.matchNotFoundReverting', { next: nextValid }), {
+                            // User Request: Stop auto-reverting. Just show warning.
+                            toast.error(t('recordPage.manualMode.resumeFailed'), {
                                 position: 'bottom-center',
                                 duration: 5000,
                                 style: {
@@ -127,15 +127,11 @@ export function useGraphGeneration({
                                 }
                             });
 
-                            if (setResumeTryCount) {
-                                // Use setTimeout to ensure state update propagates to UI (input field) correctly
-                                setTimeout(() => {
-                                    setResumeTryCount(nextValid);
-                                }, 10);
-                            }
+                            // DO NOT revert automatically
+                            // if (setResumeTryCount) { ... }
 
                             setIsGeneratingGraph(false);
-                            return true; // Handled (Reverted)
+                            return true; // Handled (Just warned)
                         }
                     }
 

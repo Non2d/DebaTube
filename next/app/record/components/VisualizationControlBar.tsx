@@ -58,7 +58,7 @@ export default function VisualizationControlBar({
                             className="h-12 w-full pl-9 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
                             placeholder="1"
                         />
-                        <label className="absolute -top-2 left-1 px-1 bg-white text-[10px] uppercase tracking-wider font-bold text-slate-400 pointer-events-none">Try</label>
+                        <label className="absolute -top-2 left-1 px-1 bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-400 pointer-events-none">Try</label>
                     </div>
                 </div>
 

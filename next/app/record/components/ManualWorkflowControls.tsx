@@ -92,15 +92,15 @@ export function ManualWorkflowControls({
             <div className={`border rounded-xl transition-all ${isStep1Active ? 'bg-white dark:bg-slate-900 border-red-200 shadow-sm' : 'bg-slate-50 dark:bg-slate-800 border-slate-200'}`}>
                 <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isStep1Done ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isStep1Done ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                             }`}>
                             {isStep1Done ? <Check size={16} /> : "1"}
                         </div>
-                        <h3 className={`font-bold ${isStep1Done ? 'text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                        <h3 className="font-bold text-slate-800 dark:text-slate-200">
                             {t('recordPage.manualMode.step1Title')}
                         </h3>
                     </div>
-                    {isStep1Done && <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Completed</span>}
+                    {isStep1Done && <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">Completed</span>}
                 </div>
 
                 {isStep1Active && (
@@ -108,7 +108,7 @@ export function ManualWorkflowControls({
                         <button
                             onClick={onStartTranscription}
                             disabled={!areAllAudioFilesReady || isGeneratingGraph || !roundName}
-                            className={`w-full h-12 flex items-center justify-center gap-2 rounded-lg font-bold transition-all shadow-md active:scale-[0.98] ${isGeneratingGraph
+                            className={`w-full h-12 flex items-center justify-center gap-2 rounded-lg font-bold transition-all shadow-md active:scale-[0.98] dark:shadow-[0_6px_20px_rgba(0,0,0,0.7)] ${isGeneratingGraph
                                 ? 'bg-amber-100 text-amber-700 cursor-wait'
                                 : !roundName
                                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -127,14 +127,14 @@ export function ManualWorkflowControls({
             </div>
 
             {/* STEP 2: ADU Generation */}
-            <div className={`border rounded-xl transition-all ${isStep2Disabled ? 'opacity-60 bg-slate-50 border-slate-200' :
+            <div className={`border rounded-xl transition-all ${isStep2Disabled ? 'opacity-60 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800' :
                 isStep2Active ? 'bg-white dark:bg-slate-900 border-red-200 shadow-md ring-1 ring-red-100' :
-                    'bg-slate-50 border-slate-200'
+                    'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                 }`}>
                 <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isStep2Done ? 'bg-green-100 text-green-600' :
-                            isStep2Disabled ? 'bg-slate-200 text-slate-400' : 'bg-red-100 text-red-600'
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isStep2Done ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' :
+                            isStep2Disabled ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                             }`}>
                             {isStep2Done ? <Check size={16} /> : isStep2Disabled ? <Lock size={14} /> : "2"}
                         </div>
@@ -142,30 +142,30 @@ export function ManualWorkflowControls({
                             {t('recordPage.manualMode.step2Title')}
                         </h3>
                     </div>
-                    {isStep2Done && <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Completed</span>}
+                    {isStep2Done && <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">Completed</span>}
                 </div>
 
                 {isStep2Active && (
                     <div className="p-4 pt-0 space-y-4 animate-in slide-in-from-top-2 fade-in">
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                                <Label className="text-xs text-slate-500">Prompt for LLM</Label>
+                                <Label className="text-xs text-slate-500 dark:text-slate-400">{t('recordPage.manualMode.promptLabel')}</Label>
                                 <Button size="sm" variant="outline" className="h-6 text-xs gap-1" onClick={() => handleCopy(manualState.aduPrompt)}>
                                     {copied ? <Check size={12} /> : <Copy size={12} />} Copy
                                 </Button>
                             </div>
-                            <Textarea readOnly value={manualState.aduPrompt} className="h-24 font-mono text-xs bg-slate-50" />
+                            <Textarea readOnly value={manualState.aduPrompt} className="h-24 font-mono text-xs bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-xs text-slate-500">Paste JSON Result</Label>
+                            <Label className="text-xs text-slate-500 dark:text-slate-400">{t('recordPage.manualMode.pasteLabel')}</Label>
                             <Textarea
                                 value={jsonInput}
                                 onChange={(e) => setJsonInput(e.target.value)}
                                 placeholder='[{"id": 1, "text": "..."}]'
-                                className="h-24 font-mono text-xs"
+                                className="h-24 font-mono text-xs bg-white dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
                             />
                         </div>
-                        <Button onClick={() => handleSubmit('adu')} disabled={manualState.isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white">
+                        <Button onClick={() => handleSubmit('adu')} disabled={manualState.isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white shadow-md dark:shadow-[0_6px_20px_rgba(0,0,0,0.7)]">
                             {manualState.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {t('recordPage.manualMode.submitAdu')}
                         </Button>
@@ -174,14 +174,14 @@ export function ManualWorkflowControls({
             </div>
 
             {/* STEP 3: Rebuttal Generation */}
-            <div className={`border rounded-xl transition-all ${isStep3Disabled ? 'opacity-60 bg-slate-50 border-slate-200' :
+            <div className={`border rounded-xl transition-all ${isStep3Disabled ? 'opacity-60 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800' :
                 isStep3Active ? 'bg-white dark:bg-slate-900 border-red-200 shadow-md ring-1 ring-red-100' :
-                    'bg-slate-50 border-slate-200'
+                    'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                 }`}>
                 <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isStep3Done ? 'bg-green-100 text-green-600' :
-                            isStep3Disabled ? 'bg-slate-200 text-slate-400' : 'bg-red-100 text-red-600'
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isStep3Done ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' :
+                            isStep3Disabled ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                             }`}>
                             {isStep3Done ? <Check size={16} /> : isStep3Disabled ? <Lock size={14} /> : "3"}
                         </div>
@@ -189,30 +189,30 @@ export function ManualWorkflowControls({
                             {t('recordPage.manualMode.step3Title')}
                         </h3>
                     </div>
-                    {isStep3Done && <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Completed</span>}
+                    {isStep3Done && <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">Completed</span>}
                 </div>
 
                 {isStep3Active && (
                     <div className="p-4 pt-0 space-y-4 animate-in slide-in-from-top-2 fade-in">
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                                <Label className="text-xs text-slate-500">Prompt for LLM</Label>
+                                <Label className="text-xs text-slate-500 dark:text-slate-400">{t('recordPage.manualMode.promptLabel')}</Label>
                                 <Button size="sm" variant="outline" className="h-6 text-xs gap-1" onClick={() => handleCopy(manualState.rebuttalPrompt)}>
                                     {copied ? <Check size={12} /> : <Copy size={12} />} Copy
                                 </Button>
                             </div>
-                            <Textarea readOnly value={manualState.rebuttalPrompt} className="h-24 font-mono text-xs bg-slate-50" />
+                            <Textarea readOnly value={manualState.rebuttalPrompt} className="h-24 font-mono text-xs bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-xs text-slate-500">Paste JSON Result</Label>
+                            <Label className="text-xs text-slate-500 dark:text-slate-400">{t('recordPage.manualMode.pasteLabel')}</Label>
                             <Textarea
                                 value={jsonInput}
                                 onChange={(e) => setJsonInput(e.target.value)}
                                 placeholder='[{"rebuttal": "...", "target_adu_id": 1}]'
-                                className="h-24 font-mono text-xs"
+                                className="h-24 font-mono text-xs bg-white dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
                             />
                         </div>
-                        <Button onClick={() => handleSubmit('rebuttal')} disabled={manualState.isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white">
+                        <Button onClick={() => handleSubmit('rebuttal')} disabled={manualState.isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white shadow-md dark:shadow-[0_6px_20px_rgba(0,0,0,0.7)]">
                             {manualState.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {t('recordPage.manualMode.submitRebuttal')}
                         </Button>
@@ -223,7 +223,7 @@ export function ManualWorkflowControls({
             {/* Completion Success Message */}
             {
                 isStep3Done && (
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex items-center gap-3 animate-in fade-in zoom-in">
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 flex items-center gap-3 animate-in fade-in zoom-in">
                         <Check size={24} />
                         <span className="font-bold">{t('recordPage.manualMode.completed')}</span>
                     </div>
