@@ -90,34 +90,10 @@ export default function GenerationControlBar({
 
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-6 shadow-sm ring-1 ring-slate-900/5 dark:ring-white/10 mt-12">
-
-            {/* Generation Tabs - Tabs at Top */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
-                <button
-                    onClick={() => setManualMode(false)}
-                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!manualMode
-                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                        }`}
-                >
-                    {t('recordPage.controls.generationTabs.auto')}
-                </button>
-                <button
-                    onClick={() => setManualMode(true)}
-                    className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${manualMode
-                        ? 'bg-white dark:bg-slate-700 text-red-600 dark:text-red-300 shadow-sm dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                        }`}
-                >
-                    {t('recordPage.controls.generationTabs.manual')}
-                </button>
-            </div>
-
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-                {/* Row 1: Round ID and Try Count */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 items-end">
+                {/* Row 1: Round ID and Version Number */}
                 {/* Round ID Input Group */}
-                <div className={`lg:col-span-${manualMode ? '9' : '12'}`}>
+                <div className="lg:col-span-9 mb-6">
                     <div className="relative group h-full">
                         <SearchableSelect
                             options={roundCandidates}
@@ -129,32 +105,30 @@ export default function GenerationControlBar({
                     </div>
                 </div>
 
-                {/* Try Count Input (Manual Mode Only) */}
-                {manualMode && (
-                    <div className="lg:col-span-3">
-                        <div className="relative group h-full">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 z-10 font-bold text-sm">
-                                v
-                            </div>
-                            <input
-                                type="number"
-                                min="1"
-                                value={resumeTryCount ?? ''}
-                                onChange={(e) => {
-                                    const val = e.target.value ? parseInt(e.target.value) : null;
-                                    setResumeTryCount(val);
-                                }}
-                                className="h-12 w-full pl-10 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
-                                placeholder={t('recordPage.manualMode.tryCountPlaceholder') || "none"}
-                            />
-                            <label className="absolute -top-2 left-3 px-1 bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-400 pointer-events-none">{t('recordPage.manualMode.resumeLabel')}</label>
+                {/* Version Number (Try Count) - Always visible */}
+                <div className="lg:col-span-3 lg:ml-6 mb-6">
+                    <div className="relative group h-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 z-10 font-bold text-sm">
+                            v
                         </div>
+                        <input
+                            type="number"
+                            min="1"
+                            value={resumeTryCount ?? ''}
+                            onChange={(e) => {
+                                const val = e.target.value ? parseInt(e.target.value) : null;
+                                setResumeTryCount(val);
+                            }}
+                            className="h-12 w-full pl-10 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
+                            placeholder={t('recordPage.manualMode.tryCountPlaceholder') || "none"}
+                        />
+                        <label className="absolute -top-2 left-3 px-1 bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-400 pointer-events-none">{t('recordPage.manualMode.versionLabel')}</label>
                     </div>
-                )}
+                </div>
 
                 {/* Row 2: Format and Motion */}
                 {/* Format Input Group */}
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-3 mb-6">
                     <div className="relative group h-full">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                             <List size={18} strokeWidth={2} />
@@ -179,7 +153,7 @@ export default function GenerationControlBar({
                 </div>
 
                 {/* Motion Input Group */}
-                <div className="lg:col-span-9">
+                <div className="lg:col-span-9 lg:ml-6 mb-6">
                     <div className="relative group h-full">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10">
                             <List size={18} strokeWidth={2} />
@@ -195,9 +169,32 @@ export default function GenerationControlBar({
                     </div>
                 </div>
 
+                {/* Row 3: Generation Mode Tabs */}
+                <div className="lg:col-span-12 mb-2">
+                    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                        <button
+                            onClick={() => setManualMode(false)}
+                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${!manualMode
+                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                }`}
+                        >
+                            {t('recordPage.controls.generationTabs.auto')}
+                        </button>
+                        <button
+                            onClick={() => setManualMode(true)}
+                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${manualMode
+                                ? 'bg-white dark:bg-slate-700 text-red-600 dark:text-red-300 shadow-sm dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                }`}
+                        >
+                            {t('recordPage.controls.generationTabs.manual')}
+                        </button>
+                    </div>
+                </div>
 
                 {/* Main Action Area */}
-                <div className="lg:col-span-12 mt-2">
+                <div className="lg:col-span-12">
                     {/* Advanced Options Toggle - MOVED ABOVE BUTTON */}
                     <div className="flex justify-end mb-2">
                         <button
@@ -211,7 +208,7 @@ export default function GenerationControlBar({
 
                     {/* Advanced Options Panel - MOVED ABOVE BUTTON */}
                     {showAdvanced && (
-                        <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1">
+                        <div className="mb-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-1">
                             <div className="flex flex-col gap-4">
                                 {/* Row 1: Toggles */}
                                 <div className="flex flex-col gap-3 items-start">
