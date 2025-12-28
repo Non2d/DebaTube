@@ -1,5 +1,5 @@
 
-import { Hash } from 'lucide-react';
+
 import SearchableSelect from './SearchableSelect';
 import { useTranslation } from '../../../context/LanguageContext';
 
@@ -43,22 +43,22 @@ export default function VisualizationControlBar({
                             label={t('recordPage.controls.roundId')}
                         />
                     </div>
-                    <div className="w-24 relative group h-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                            <Hash size={18} strokeWidth={2} />
+                    <div className="w-64 relative group h-full">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10 font-bold text-sm">
+                            v
                         </div>
                         <input
                             type="number"
                             min="1"
-                            value={tryCount || ''}
+                            value={tryCount ?? ''}
                             onChange={(e) => {
                                 const val = e.target.value ? parseInt(e.target.value) : null;
                                 setTryCount(val);
                             }}
-                            className="h-12 w-full pl-9 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
-                            placeholder="1"
+                            className="h-12 w-full pl-10 pr-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-xl text-sm font-semibold font-mono text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all hover:bg-slate-50/50 dark:hover:bg-slate-700/50"
+                            placeholder={t('recordPage.manualMode.tryCountPlaceholder') || ""}
                         />
-                        <label className="absolute -top-2 left-1 px-1 bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-400 pointer-events-none">Try</label>
+                        <label className="absolute -top-2 left-3 px-1 bg-white dark:bg-slate-800 text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-400 pointer-events-none">{t('recordPage.manualMode.versionLabel')}</label>
                     </div>
                 </div>
 

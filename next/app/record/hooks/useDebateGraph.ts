@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from '../../../context/LanguageContext';
+import toast from 'react-hot-toast';
 
 export interface GraphData {
     speeches: { [key: string]: any[] };
@@ -11,7 +12,39 @@ export function useDebateGraph(roundName: string) {
     const [graphData, setGraphData] = useState<GraphData | null>(null);
     const [autoLoadedGraphData, setAutoLoadedGraphData] = useState<GraphData | null>(null);
     const [tryCount, setTryCount] = useState<number | null>(null);
+    const [internalTryCount, setInternalTryCount] = useState<number | null>(null);
     const { t } = useTranslation();
+
+    // Validate and set tryCount with warning
+    const handleSetTryCount = useCallback(async (newTryCount: number | null) => {
+        if (newTryCount === null) {
+            setInternalTryCount(null);
+            setTryCount(null);
+            return;
+        }
+
+        // Check if the version exists
+        if (roundName) {
+            try {
+                const url = `http://localhost:8080/rebuttal-graph/${roundName}?try_count=${newTryCount}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    // Version doesn't exist, show warning
+                    toast.error(t('recordPage.messages.matchNotFound', { count: newTryCount }), {
+                        position: 'top-center',
+                        duration: 4000,
+                    });
+                    return;
+                }
+            } catch (error) {
+                console.error('Error validating version:', error);
+            }
+        }
+
+        setInternalTryCount(newTryCount);
+        setTryCount(newTryCount);
+    }, [roundName, t]);
 
     // グラフデータを自動読み込み（サーバーから）
     const autoLoadGraphData = useCallback(async (roundNameToLoad: string, specificTryCount?: number) => {
@@ -79,8 +112,8 @@ export function useDebateGraph(roundName: string) {
         setGraphData,
         autoLoadedGraphData,
         setAutoLoadedGraphData,
-        tryCount,
-        setTryCount,
+        tryCount: internalTryCount,
+        setTryCount: handleSetTryCount,
         autoLoadGraphData,
         handleFileSelect
     };

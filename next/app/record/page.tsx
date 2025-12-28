@@ -55,7 +55,8 @@ export default function RecordPage() {
   const [rebuttalModel, setRebuttalModel] = useState("gemini-2.5-flash");
   const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
   const [manualMode, setManualMode] = useState(false);
-  const [resumeTryCount, setResumeTryCount] = useState<number | null>(null);
+  // Removed independent resumeTryCount state to synchronize with Visualization tab
+  // const [resumeTryCount, setResumeTryCount] = useState<number | null>(null);
   const { t } = useTranslation();
 
   const isInitialMount = useRef<boolean>(true);
@@ -83,6 +84,8 @@ export default function RecordPage() {
     autoLoadGraphData,
     handleFileSelect: handleFileSelectInternal
   } = useDebateGraph(roundName);
+
+  // Wrapper/Adapter removed: tryCount is now nullable and shared directly.
 
   const areAllAudioFilesReady = () => {
     const recordedSpeechIndices = Object.keys(speechRecordings)
@@ -113,8 +116,8 @@ export default function RecordPage() {
     rebuttalModel,
     transcriptionModel,
     manualMode,
-    resumeTryCount,
-    setResumeTryCount,
+    resumeTryCount: tryCount, // Synced
+    setResumeTryCount: setTryCount, // Synced
     onSuccess: (result) => {
       if (result.try_count) {
         setTryCount(result.try_count);
@@ -369,8 +372,8 @@ export default function RecordPage() {
                 manualState={manualState}
                 onManualSubmitAdu={submitManualAdu}
                 onManualSubmitRebuttal={submitManualRebuttal}
-                resumeTryCount={resumeTryCount}
-                setResumeTryCount={setResumeTryCount}
+                resumeTryCount={tryCount}
+                setResumeTryCount={setTryCount}
               />
             </div>
           )}
