@@ -39,6 +39,10 @@ body {
 
     --foreground: 0 0% 3.9%;
 
+    /* Graph Edge Colors */
+    --gov-edge-color: red;
+    --opp-edge-color: #0065bd;
+
     --card: 0 0% 100%;
 
     --card-foreground: 0 0% 3.9%;
@@ -91,6 +95,10 @@ body {
     --background: 0 0% 3.9%;
 
     --foreground: 0 0% 98%;
+
+    /* Graph Edge Colors */
+    --gov-edge-color: #f87171;
+    --opp-edge-color: #60a5fa;
 
     --card: 0 0% 3.9%;
 

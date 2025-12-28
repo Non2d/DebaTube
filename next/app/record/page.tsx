@@ -378,7 +378,7 @@ export default function RecordPage() {
           {activeTab === 'visualization' && (
             <div className="flex flex-col flex-1 min-h-0 h-full">
               {autoLoadedGraphData && (
-                <div className="flex-1 min-h-0 basis-0 grow mb-2 bg-white border border-gray-200 rounded-lg overflow-hidden relative">
+                <div className="flex-1 min-h-0 basis-0 grow mb-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg overflow-hidden relative">
                   <RebuttalGraph
                     data={autoLoadedGraphData}
                     onNodeClick={handleGraphNodeClickUnified}
