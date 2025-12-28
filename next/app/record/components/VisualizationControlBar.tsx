@@ -44,7 +44,7 @@ export default function VisualizationControlBar({
                         />
                     </div>
                     <div className="w-64 relative group h-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10 font-bold text-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 z-10 font-bold text-sm">
                             v
                         </div>
                         <input

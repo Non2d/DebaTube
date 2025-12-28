@@ -133,8 +133,8 @@ export default function GenerationControlBar({
                 {manualMode && (
                     <div className="lg:col-span-3">
                         <div className="relative group h-full">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10">
-                                <RotateCw size={18} strokeWidth={2} />
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 z-10 font-bold text-sm">
+                                v
                             </div>
                             <input
                                 type="number"
