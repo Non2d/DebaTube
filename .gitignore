@@ -11,3 +11,6 @@ storage
 fastapi/main-service/app/logs/old/*
 fastapi/main-service/app/logs/*
 fastapi/main-service/app/event-logs/*
+
+# Database backups
+backups/
