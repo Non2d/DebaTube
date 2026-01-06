@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from routers import round, audio2adu, sub_apis, audio_save
+from routers import round, audio2adu, sub_apis, audio_save, external_video
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -64,6 +64,7 @@ async def handler(request:Request, exc:RequestValidationError):
     return JSONResponse(content={}, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 app.include_router(round.router, tags=["round"])
+app.include_router(external_video.router, tags=["external-video"])
 app.include_router(audio2adu.router, tags=["audio2adu"])
 app.include_router(sub_apis.router, tags=["sub-api"])
 app.include_router(audio_save.router, tags=["audio-save"])

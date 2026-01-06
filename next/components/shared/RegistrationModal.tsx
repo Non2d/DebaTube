@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { X, Upload } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import { getAPIRoot } from '../lib/utils';
@@ -17,13 +17,32 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
   const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
   const { t } = useTranslation();
 
-  const [input, setInput] = useState({
-    youtubeUrl: '',
-    audioFile: null as File | null,
-    title: ''
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [motion, setMotion] = useState('');
+  const [style, setStyle] = useState('british_parliamentary');
+  const [videoInfo, setVideoInfo] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    publishedAt: string;
+    channelId: string;
+    channelTitle: string;
+    thumbnailUrl: string;
+    tags: string[];
+    categoryId: string;
+  }>({
+    id: '',
+    title: '',
+    description: '',
+    publishedAt: '',
+    channelId: '',
+    channelTitle: '',
+    thumbnailUrl: '',
+    tags: [],
+    categoryId: ''
   });
-  const [videoInfo, setVideoInfo] = useState({ id: '', title: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
 
   // YouTubeのURLからビデオIDを抽出
   const extractVideoId = (url: string) => {
@@ -31,40 +50,74 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
     return match?.[1] || '';
   };
 
-  // YouTube動画情報を取得
-  const fetchVideoTitle = async (videoId: string) => {
-    if (!videoId || !YOUTUBE_API_KEY) return '';
+  const fetchVideoInfo = async (videoId: string) => {
+    if (!videoId || !YOUTUBE_API_KEY) return null;
 
     try {
       const res = await fetch(
         `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`
       );
       const data = await res.json();
-      return data.items?.[0]?.snippet?.title || '';
+      const snippet = data.items?.[0]?.snippet;
+      if (snippet) {
+        return {
+          title: snippet.title,
+          description: snippet.description,
+          publishedAt: snippet.publishedAt,
+          channelId: snippet.channelId,
+          channelTitle: snippet.channelTitle,
+          thumbnailUrl: snippet.thumbnails?.maxres?.url || snippet.thumbnails?.high?.url || snippet.thumbnails?.medium?.url,
+          tags: snippet.tags || [],
+          categoryId: snippet.categoryId
+        }
+      }
+      return null;
     } catch {
-      return '';
+      return null;
     }
   };
 
-  // YouTube URL変更時の処理
   const handleYoutubeUrlChange = async (url: string) => {
-    setInput(prev => ({ ...prev, youtubeUrl: url }));
-
     const videoId = extractVideoId(url);
+    let newUrl = url;
     if (videoId) {
-      const title = await fetchVideoTitle(videoId);
-      setVideoInfo({ id: videoId, title });
-    } else {
-      setVideoInfo({ id: '', title: '' });
+      newUrl = `https://www.youtube.com/watch?v=${videoId}`;
     }
-  };
 
-  // ファイル選択処理
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const fileBaseName = file.name.replace(/\.[^/.]+$/, '');
-      setInput(prev => ({ ...prev, audioFile: file, title: fileBaseName }));
+    setYoutubeUrl(newUrl);
+
+    if (videoId) {
+      setIsLoadingInfo(true);
+      const info = await fetchVideoInfo(videoId);
+      if (info) {
+        setVideoInfo({ id: videoId, ...info });
+      } else {
+        // Fallback if API fails or no key
+        setVideoInfo({
+          id: videoId,
+          title: '',
+          description: '',
+          publishedAt: '',
+          channelId: '',
+          channelTitle: '',
+          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+          tags: [],
+          categoryId: ''
+        });
+      }
+      setIsLoadingInfo(false);
+    } else {
+      setVideoInfo({
+        id: '',
+        title: '',
+        description: '',
+        publishedAt: '',
+        channelId: '',
+        channelTitle: '',
+        thumbnailUrl: '',
+        tags: [],
+        categoryId: ''
+      });
     }
   };
 
@@ -73,75 +126,75 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
     e.preventDefault();
 
     // バリデーション
-    if (!input.youtubeUrl && !input.audioFile) {
+    if (!youtubeUrl || !videoInfo.id) {
       toast.error(t('dashboard.modal.messages.selectUrlOrFile'));
       return;
     }
 
     setIsSubmitting(true);
 
+
     try {
-      // 1. Roundを作成
+      // 1. Roundを先に作成（即座に完了）
       const roundRes = await fetch(getAPIRoot() + '/rounds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: input.title || videoInfo.title,
+          name: videoInfo.title || `YouTube Video ${videoInfo.id}`,
+          type: 'external_video',
+          style: style,
+          motion: motion || null,
           video_id: videoInfo.id,
+          owner_id: 'public',
         }),
       });
 
       if (!roundRes.ok) {
+        const errorData = await roundRes.json().catch(() => null);
+        const errorDetail = errorData?.detail || '';
+
+        if (errorDetail.includes('already registered')) {
+          throw new Error(t('dashboard.modal.messages.videoAlreadyRegistered'));
+        }
         throw new Error(t('dashboard.modal.messages.failedCreate'));
       }
 
       const roundData = await roundRes.json();
-      console.log('Round response:', roundData); // デバッグ用
-
-      // roundIdの取得（レスポンス構造に応じて調整）
       const roundId = roundData.id || roundData.round_id || roundData.data?.id;
 
       if (!roundId) {
         throw new Error(t('dashboard.modal.messages.idNotFound'));
       }
 
-      // 2. 音声処理APIを呼び出し
-      let processRes;
+      // 2. ExternalVideoを作成（transcript取得含む、1-2秒かかる）
+      const toastId = toast.loading('字幕を取得中...');
 
-      if (input.youtubeUrl && videoInfo.id) {
-        // YouTube URLの場合
-        processRes = await fetch('/api/nlp/extract-audio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: input.youtubeUrl,
-            is_playlist: false,
-            round_id: parseInt(roundId),
-            start_bg_tasks: false
-          }),
-        });
-      } else if (input.audioFile) {
-        // 音声ファイルの場合
-        const formData = new FormData();
-        formData.append('file', input.audioFile);
-        formData.append('round_id', roundId.toString());
-        formData.append('start_bg_tasks', 'false');
+      const externalVideoRes = await fetch(getAPIRoot() + '/external-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_id: videoInfo.id,
+          title: videoInfo.title,
+          description: videoInfo.description,
+          published_at: videoInfo.publishedAt,
+          channel_id: videoInfo.channelId,
+          channel_title: videoInfo.channelTitle,
+          thumbnail_url: videoInfo.thumbnailUrl,
+          tags: videoInfo.tags,
+          category_id: videoInfo.categoryId,
+        }),
+      });
 
-        processRes = await fetch('/api/nlp/upload-audio', {
-          method: 'POST',
-          body: formData,
-        });
-      }
+      toast.dismiss(toastId);
 
-      if (!processRes?.ok) {
-        throw new Error(t('dashboard.modal.messages.failedProcess'));
+      if (!externalVideoRes.ok) {
+        console.error('Failed to create external video');
+        // ExternalVideoの失敗は警告のみ（Roundは作成済み）
+        toast('動画メタデータの保存に失敗しましたが、試合は登録されました');
       }
 
       toast.success(t('dashboard.modal.messages.success'));
-
-      // リセットして閉じる
       resetForm();
-      onSuccess?.();
       onClose();
 
     } catch (error: any) {
@@ -152,13 +205,23 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
     }
   };
 
-  // フォームリセット
   const resetForm = () => {
-    setInput({ youtubeUrl: '', audioFile: null, title: '' });
-    setVideoInfo({ id: '', title: '' });
+    setYoutubeUrl('');
+    setMotion('');
+    setStyle('british_parliamentary');
+    setVideoInfo({
+      id: '',
+      title: '',
+      description: '',
+      publishedAt: '',
+      channelId: '',
+      channelTitle: '',
+      thumbnailUrl: '',
+      tags: [],
+      categoryId: ''
+    });
   };
 
-  // モーダルを閉じる
   const handleClose = () => {
     resetForm();
     onClose();
@@ -167,14 +230,14 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col max-h-[90vh]">
         {/* ヘッダー */}
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold">{t('dashboard.modal.title')}</h2>
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-slate-800/50">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{t('dashboard.modal.title')}</h2>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors"
             disabled={isSubmitting}
           >
             <X className="w-5 h-5" />
@@ -182,102 +245,108 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
         </div>
 
         {/* フォーム */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* タイトル */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              {t('dashboard.modal.labels.title')}
-            </label>
-            <textarea
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              rows={1}
-              placeholder={t('dashboard.modal.placeholders.title')}
-              value={input.title || videoInfo.title}
-              onChange={(e) => setInput(prev => ({ ...prev, title: e.target.value }))}
-              disabled={isSubmitting}
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
 
           {/* YouTube URL入力 */}
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {t('dashboard.modal.labels.youtubeUrl')}
             </label>
-            <input
-              type="text"
-              placeholder={t('dashboard.modal.placeholders.youtubeUrl')}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              value={input.youtubeUrl}
-              onChange={(e) => handleYoutubeUrlChange(e.target.value)}
-              disabled={isSubmitting}
-            />
-
-            {/* サムネイルプレビュー */}
-            {videoInfo.id && (
-              <div className="mt-3 space-y-2">
-                <Image
-                  src={`https://img.youtube.com/vi/${videoInfo.id}/mqdefault.jpg`}
-                  alt={videoInfo.title}
-                  width={320}
-                  height={180}
-                  className="rounded"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* ファイルアップロード */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              {t('dashboard.modal.labels.audioFile')}
-            </label>
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+            <div className="relative">
               <input
-                type="file"
-                className="hidden"
-                accept="audio/*"
-                onChange={handleFileSelect}
+                type="text"
+                placeholder={t('dashboard.modal.placeholders.youtubeUrl')}
+                className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all text-gray-900 dark:text-gray-100"
+                value={youtubeUrl}
+                onChange={(e) => handleYoutubeUrlChange(e.target.value)}
                 disabled={isSubmitting}
+                autoFocus
               />
-              {!input.audioFile ? (
-                <>
-                  <Upload className="w-8 h-8 mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">{t('dashboard.modal.labels.selectFile')}</p>
-                </>
-              ) : (
-                <div className="text-center">
-                  <p className="text-sm font-medium">{input.audioFile.name}</p>
-                  <button
-                    type="button"
-                    onClick={() => setInput(prev => ({ ...prev, audioFile: null }))}
-                    className="text-sm text-blue-500 hover:underline mt-1"
-                  >
-                    {t('dashboard.modal.labels.delete')}
-                  </button>
+              {isLoadingInfo && (
+                <div className="absolute right-3 top-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                 </div>
               )}
-            </label>
+            </div>
           </div>
 
-          {/* ボタン */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              disabled={isSubmitting}
-            >
-              {t('dashboard.modal.buttons.cancel')}
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-              disabled={isSubmitting || (!input.youtubeUrl && !input.audioFile)}
-            >
-              {isSubmitting ? t('dashboard.modal.buttons.processing') : t('dashboard.modal.buttons.register')}
-            </button>
+          {/* Style入力 */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              {t('dashboard.modal.labels.style')}
+            </label>
+            <div className="relative">
+              <select
+                className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all text-gray-900 dark:text-gray-100 appearance-none"
+                value={style}
+                onChange={(e) => setStyle(e.target.value)}
+                disabled={isSubmitting}
+              >
+                <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
+                <option value="north_american">{t('recordPage.formatOptions.na')}</option>
+                <option value="asian">{t('recordPage.formatOptions.asian')}</option>
+                <option value="bp_opening_half">{t('recordPage.formatOptions.openingHalfBp')}</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+              </div>
+            </div>
           </div>
+
+          {/* Motion入力 */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              {t('dashboard.modal.labels.motion')}
+            </label>
+            <textarea
+              className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all text-gray-900 dark:text-gray-100 resize-none"
+              rows={3}
+              placeholder={t('dashboard.modal.placeholders.motion')}
+              value={motion}
+              onChange={(e) => setMotion(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* ビデオ情報プレビュー */}
+          {videoInfo.id && (
+            <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 transition-all duration-300">
+              <div className="aspect-video relative rounded-lg overflow-hidden bg-black mb-4 shadow-md">
+                <Image
+                  src={videoInfo.thumbnailUrl}
+                  alt={videoInfo.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 600px"
+                />
+              </div>
+              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight">
+                {videoInfo.title || 'Loading title...'}
+              </h3>
+            </div>
+          )}
+
         </form>
+
+        {/* ボタン */}
+        <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-slate-800/50 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-slate-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors shadow-sm"
+            disabled={isSubmitting}
+          >
+            {t('dashboard.modal.buttons.cancel')}
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg shadow-md hover:shadow-lg transform transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            disabled={isSubmitting || !videoInfo.id}
+          >
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSubmitting ? t('dashboard.modal.buttons.processing') : t('dashboard.modal.buttons.register')}
+          </button>
+        </div>
       </div>
     </div>
   );

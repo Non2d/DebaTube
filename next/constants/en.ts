@@ -254,7 +254,7 @@ export const en = {
     dashboard: {
         title: "Dashboard",
         description: "Overview of all debate rounds and their statistics",
-        registerNewRound: "Register New Round",
+        registerNewRound: "Register New Round Video",
         tabs: {
             youtube: "YouTube Videos",
             record: "Recordings"
@@ -287,11 +287,14 @@ export const en = {
                 youtubeUrl: "YouTube URL",
                 audioFile: "Audio File",
                 selectFile: "Click to select file",
-                delete: "Delete"
+                delete: "Delete",
+                motion: "Motion",
+                style: "Style"
             },
             placeholders: {
                 title: "Enter title...",
-                youtubeUrl: "https://www.youtube.com/watch?v=..."
+                youtubeUrl: "https://www.youtube.com/watch?v=...",
+                motion: "Enter motion (optional)"
             },
             buttons: {
                 cancel: "Cancel",
@@ -299,12 +302,13 @@ export const en = {
                 processing: "Processing..."
             },
             messages: {
-                selectUrlOrFile: "Please select a YouTube URL or audio file",
+                selectUrlOrFile: "Please enter a YouTube URL",
                 success: "Registration completed!",
                 error: "An error occurred",
                 failedCreate: "Failed to create round",
                 failedProcess: "Failed to process audio",
-                idNotFound: "Round ID not found in response"
+                idNotFound: "Round ID not found in response",
+                videoAlreadyRegistered: "This video has already been registered."
             }
         }
     }

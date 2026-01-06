@@ -4,7 +4,7 @@
 const nextConfig = {
     basePath: process.env.NODE_ENV === 'production' ? '/debates' : '',
     images: {
-        domains: ['img.youtube.com'],
+        domains: ['img.youtube.com', 'i.ytimg.com'],
     },
 };
 

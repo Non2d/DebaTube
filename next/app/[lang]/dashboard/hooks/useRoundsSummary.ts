@@ -19,11 +19,14 @@ export interface RoundSummary {
   style: string;
 }
 
-export async function getRoundsSummary(): Promise<RoundSummary[]> {
+export async function getRoundsSummary(type?: string): Promise<RoundSummary[]> {
   const apiRoot = getAPIRoot();
 
   // Fix URL for development environment
-  const url = `${apiRoot}/rounds-summary`;
+  let url = `${apiRoot}/rounds-summary`;
+  if (type) {
+    url += `?type=${type}`;
+  }
 
   const response = await fetch(url);
 
@@ -34,7 +37,7 @@ export async function getRoundsSummary(): Promise<RoundSummary[]> {
   return response.json();
 }
 
-export function useRounds() {
+export function useRounds(type?: string) {
   const [rounds, setRounds] = useState<RoundSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +47,7 @@ export function useRounds() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getRoundsSummary();
+        const data = await getRoundsSummary(type);
         setRounds(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch rounds');
@@ -55,7 +58,7 @@ export function useRounds() {
     };
 
     fetchRounds();
-  }, []);
+  }, [type]);
 
   return { rounds, loading, error };
 }

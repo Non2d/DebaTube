@@ -256,7 +256,7 @@ export const ja: LocaleType = {
     dashboard: {
         title: "ダッシュボード",
         description: "全ディベート試合の概要と統計",
-        registerNewRound: "新しい試合を登録",
+        registerNewRound: "新しい試合動画を登録",
         tabs: {
             youtube: "YouTube動画",
             record: "録音データ"
@@ -289,11 +289,14 @@ export const ja: LocaleType = {
                 youtubeUrl: "YouTube URL",
                 audioFile: "音声ファイル",
                 selectFile: "クリックしてファイルを選択",
-                delete: "削除"
+                delete: "削除",
+                motion: "論題 (Motion)",
+                style: "形式 (Style)"
             },
             placeholders: {
                 title: "タイトルを入力...",
-                youtubeUrl: "https://www.youtube.com/watch?v=..."
+                youtubeUrl: "https://www.youtube.com/watch?v=...",
+                motion: "論題を入力してください（任意）"
             },
             buttons: {
                 cancel: "キャンセル",
@@ -301,12 +304,13 @@ export const ja: LocaleType = {
                 processing: "処理中..."
             },
             messages: {
-                selectUrlOrFile: "YouTube URLまたは音声ファイルを選択してください",
+                selectUrlOrFile: "YouTube URLを入力してください",
                 success: "登録が完了しました！",
                 error: "エラーが発生しました",
                 failedCreate: "試合の作成に失敗しました",
                 failedProcess: "音声処理に失敗しました",
-                idNotFound: "レスポンスにRound IDが見つかりません"
+                idNotFound: "レスポンスにRound IDが見つかりません",
+                videoAlreadyRegistered: "この動画は既に登録されています。"
             }
         }
     }

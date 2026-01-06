@@ -13,3 +13,4 @@ google-genai
 python-multipart
 groq
 alembic
+youtube-transcript-api

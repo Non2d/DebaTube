@@ -9,7 +9,7 @@ import { useTranslation } from '../../../../context/LanguageContext';
 import { useRouter } from 'next/navigation';
 
 export default function VideoDashboard() {
-    const { rounds, loading, error } = useRounds();
+    const { rounds, loading, error } = useRounds('external_video');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { t, language } = useTranslation();
     const router = useRouter(); // Keeping router if needed for other things, though navigation onclick is removed
@@ -142,10 +142,8 @@ export default function VideoDashboard() {
                                             ))
                                         ) : (
                                             (() => {
-                                                // Filter for External Video
-                                                const filteredRounds = rounds.filter(round => {
-                                                    return round.type === 'external_video';
-                                                });
+                                                // Filter for External Video is done by API now
+                                                const filteredRounds = [...rounds]; // Copy for sorting
 
                                                 // Sort by Title (asc) then Try Count (desc)
                                                 filteredRounds.sort((a, b) => {

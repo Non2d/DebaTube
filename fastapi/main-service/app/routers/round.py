@@ -32,6 +32,16 @@ class RoundCreate(BaseModel):
     type: RoundType = RoundType.RECORD
     style: RoundStyle = RoundStyle.BRITISH_PARLIAMENTARY
     motion: Optional[str] = None
+    video_id: Optional[str] = None
+    video_title: Optional[str] = None
+    video_description: Optional[str] = None
+    video_published_at: Optional[str] = None
+    video_channel_id: Optional[str] = None
+    video_channel_title: Optional[str] = None
+    video_thumbnail_url: Optional[str] = None
+    video_tags: Optional[list] = None
+    video_category_id: Optional[str] = None
+    owner_id: Optional[str] = None
 
 
 class RoundResponse(BaseModel):
@@ -119,13 +129,27 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
     """
     新しいラウンドを作成
     """
-    round_obj = await round_crud.create_round(
-        db, 
-        name=round_data.name,
-        type=round_data.type.value,
-        style=round_data.style.value if round_data.style else None,
-        motion=round_data.motion
-    )
+    try:
+        round_obj = await round_crud.create_round(
+            db, 
+            name=round_data.name,
+            type=round_data.type.value,
+            style=round_data.style.value if round_data.style else None,
+            motion=round_data.motion,
+            video_id=round_data.video_id,
+            video_title=round_data.video_title,
+            video_description=round_data.video_description,
+            video_published_at=round_data.video_published_at,
+            video_channel_id=round_data.video_channel_id,
+            video_channel_title=round_data.video_channel_title,
+            video_thumbnail_url=round_data.video_thumbnail_url,
+            video_tags=round_data.video_tags,
+            video_category_id=round_data.video_category_id,
+            owner_id=round_data.owner_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
     return RoundResponse(
         id=round_obj.id,
         name=round_obj.name,
@@ -207,11 +231,14 @@ class RoundSummaryResponse(BaseModel):
     try_count: int
 
 @router.get("/rounds-summary", response_model=List[RoundSummaryResponse])
-async def get_rounds_summary(db: AsyncSession = Depends(get_db)):
+async def get_rounds_summary(
+    type: Optional[str] = Query(None), 
+    db: AsyncSession = Depends(get_db)
+):
     """
     ダッシュボード用のラウンドサマリーを取得
     """
-    rounds = await round_crud.get_all_rounds_with_details(db)
+    rounds = await round_crud.get_all_rounds_with_details(db, type=type)
     
     summary_list = []
     for r in rounds:

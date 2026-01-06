@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 
 from models.round import Round, Speech, Adu, Rebuttal, Word, Sentence
+from models.external_video import ExternalVideo
 from sqlalchemy import func
 
 
@@ -15,12 +16,30 @@ async def create_round(
     type: str = "record", 
     note: str = None,
     style: str = None,
-    motion: str = None
+    motion: str = None,
+    video_id: str = None,
+    video_title: str = None,
+    video_description: str = None,
+    video_published_at: str = None,
+    video_channel_id: str = None,
+    video_channel_title: str = None,
+    video_thumbnail_url: str = None,
+    video_tags: list = None,
+    video_category_id: str = None,
+    owner_id: str = None
 ) -> Round:
     """
     新しいラウンドを作成
     同じ名前がある場合はtry_countをインクリメントして作成する
     """
+    # video_idの重複チェック（同じ動画IDのRoundが既に存在しないか）
+    if video_id:
+        existing_round_result = await db.execute(
+            select(Round).where(Round.video_id == video_id)
+        )
+        if existing_round_result.scalar_one_or_none():
+            raise ValueError("Video already registered")
+
     # 同じ名前のラウンドの最大try_countを取得
     result = await db.execute(
         select(func.max(Round.try_count)).where(Round.name == name)
@@ -31,13 +50,16 @@ async def create_round(
     if max_try_count is not None:
         new_try_count = max_try_count + 1
         
+    # Roundを作成
     round_obj = Round(
         name=name, 
         try_count=new_try_count,
         type=type,
         note=note,
         style=style,
-        motion=motion
+        motion=motion,
+        video_id=video_id,
+        owner_id=owner_id
     )
     db.add(round_obj)
     await db.commit()
@@ -80,13 +102,14 @@ async def get_all_rounds(db: AsyncSession) -> List[Round]:
     return result.scalars().all()
 
 
-async def get_all_rounds_with_details(db: AsyncSession) -> List[Round]:
+async def get_all_rounds_with_details(db: AsyncSession, type: Optional[str] = None) -> List[Round]:
     """
     すべてのラウンドを取得（統計用に詳細リレーションもロード）
+    typeが指定された場合はそのタイプのみ取得
     """
     # Round -> Speeches -> Adus -> Rebuttals(src)
     # これにより、len(r.speeches), len(s.adus), len(a.rebuttals_as_source) でカウント可能
-    result = await db.execute(
+    stmt = (
         select(Round)
         .options(
             selectinload(Round.speeches)
@@ -94,6 +117,11 @@ async def get_all_rounds_with_details(db: AsyncSession) -> List[Round]:
             .selectinload(Adu.rebuttals_as_source)
         )
     )
+
+    if type:
+        stmt = stmt.where(Round.type == type)
+
+    result = await db.execute(stmt)
     return result.scalars().all()
 
 

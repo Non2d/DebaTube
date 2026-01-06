@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from db import Base
+from models.external_video import ExternalVideo
 
 
 class Round(Base):
@@ -21,8 +22,7 @@ class Round(Base):
     note = Column(Text, nullable=True)
     style = Column(String(50), default="british_parliamentary", nullable=False) # british_parliamentary, north_american, etc.
     motion = Column(Text, nullable=True)
-    video_source_id = Column(String(255), nullable=True)
-    video_source_title = Column(String(255), nullable=True)
+    video_id = Column(String(255), nullable=True)  # 外部キー制約を削除
     owner_id = Column(String(255), nullable=True)
 
     # リレーション
