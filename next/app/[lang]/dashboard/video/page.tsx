@@ -1,18 +1,14 @@
 "use client";
 
-import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import Link from 'next/link';
 import Header from '../../../../components/shared/Header';
-import RegistrationModal from '../../../../components/shared/RegistrationModal';
 import { useRounds } from '../hooks/useRoundsSummary';
 import { useTranslation } from '../../../../context/LanguageContext';
-import { useRouter } from 'next/navigation';
 
 export default function VideoDashboard() {
     const { rounds, loading, error } = useRounds('external_video');
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const { t, language } = useTranslation();
-    const router = useRouter(); // Keeping router if needed for other things, though navigation onclick is removed
 
 
 
@@ -34,13 +30,13 @@ export default function VideoDashboard() {
                                 {t('dashboard.description')}
                             </p>
                         </div>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
+                        <Link
+                            href={`/${language}/dashboard/register`}
                             className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors shadow-md"
                         >
                             <Plus className="w-5 h-5" />
                             {t('dashboard.registerNewRound')}
-                        </button>
+                        </Link>
                     </div>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -227,14 +223,7 @@ export default function VideoDashboard() {
                 </div>
             </div>
 
-            <RegistrationModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSuccess={() => {
-                    // Optionally refresh the rounds data
-                    window.location.reload();
-                }}
-            />
+
         </>
     );
 }

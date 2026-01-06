@@ -20,6 +20,7 @@ services:
     volumes:
       - ./fastapi/main-service/app:/app
       - ./fastapi/main-service/audio-save:/app/audio-save
+      - ./fastapi/main-service/tmp-audio-save:/app/tmp-audio-save
     build:
       context: ./fastapi/main-service
       dockerfile: Dockerfile.dev

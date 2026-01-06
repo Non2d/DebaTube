@@ -283,34 +283,27 @@ export const ja: LocaleType = {
             }
         },
         modal: {
-            title: "新しい試合を登録",
             labels: {
-                title: "タイトル",
+                back: "ダッシュボードに戻る",
+                registerNewRound: "試合動画を登録",
                 youtubeUrl: "YouTube URL",
-                audioFile: "音声ファイル",
-                selectFile: "クリックしてファイルを選択",
-                delete: "削除",
+                style: "ディベートスタイル",
                 motion: "論題 (Motion)",
-                style: "形式 (Style)"
+                cancel: "キャンセル",
+                register: "登録する"
             },
             placeholders: {
-                title: "タイトルを入力...",
                 youtubeUrl: "https://www.youtube.com/watch?v=...",
-                motion: "論題を入力してください（任意）"
-            },
-            buttons: {
-                cancel: "キャンセル",
-                register: "登録",
-                processing: "処理中..."
+                motion: "This house believes that..."
             },
             messages: {
-                selectUrlOrFile: "YouTube URLを入力してください",
-                success: "登録が完了しました！",
+                urlRequired: "YouTubeのURLを入力してください",
+                idNotFound: "ラウンドIDの取得に失敗しました",
+                videoAlreadyRegistered: "この動画はすでに登録されています",
+                failedCreate: "登録に失敗しました",
+                success: "登録が完了しました",
                 error: "エラーが発生しました",
-                failedCreate: "試合の作成に失敗しました",
-                failedProcess: "音声処理に失敗しました",
-                idNotFound: "レスポンスにRound IDが見つかりません",
-                videoAlreadyRegistered: "この動画は既に登録されています。"
+                selectUrlOrFile: "ファイルを選択するかURLを入力してください"
             }
         }
     }

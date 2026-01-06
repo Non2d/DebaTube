@@ -281,34 +281,27 @@ export const en = {
             }
         },
         modal: {
-            title: "Register new round",
             labels: {
-                title: "Title",
+                back: "Back to Dashboard",
+                registerNewRound: "Register New Round Video",
                 youtubeUrl: "YouTube URL",
-                audioFile: "Audio File",
-                selectFile: "Click to select file",
-                delete: "Delete",
+                style: "Debate Style",
                 motion: "Motion",
-                style: "Style"
+                cancel: "Cancel",
+                register: "Register"
             },
             placeholders: {
-                title: "Enter title...",
                 youtubeUrl: "https://www.youtube.com/watch?v=...",
-                motion: "Enter motion (optional)"
-            },
-            buttons: {
-                cancel: "Cancel",
-                register: "Register",
-                processing: "Processing..."
+                motion: "This house believes that..."
             },
             messages: {
-                selectUrlOrFile: "Please enter a YouTube URL",
-                success: "Registration completed!",
-                error: "An error occurred",
+                urlRequired: "Please enter a YouTube URL",
+                idNotFound: "Failed to retrieve round ID",
+                videoAlreadyRegistered: "This video is already registered",
                 failedCreate: "Failed to create round",
-                failedProcess: "Failed to process audio",
-                idNotFound: "Round ID not found in response",
-                videoAlreadyRegistered: "This video has already been registered."
+                success: "Video registered successfully",
+                error: "An error occurred",
+                selectUrlOrFile: "Please select a file or enter a YouTube URL"
             }
         }
     }
