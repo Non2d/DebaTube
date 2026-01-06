@@ -40,7 +40,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }, [isMounted, setLanguage]);
 
     if (!isMounted) {
-        return null;
+        return null; //ここのおかげでhydration errorは防げてるけど，ロード時の空表示も発生させている
     }
 
     const t = (path: string, params?: Record<string, string | number>): string => {
