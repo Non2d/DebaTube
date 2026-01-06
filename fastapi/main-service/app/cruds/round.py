@@ -92,6 +92,16 @@ async def get_round(db: AsyncSession, round_name: str, try_count: Optional[int] 
     return None
 
 
+async def get_round_by_id(db: AsyncSession, round_id: int) -> Optional[Round]:
+    """
+    ラウンドをIDで取得
+    """
+    result = await db.execute(
+        select(Round).where(Round.id == round_id).options(selectinload(Round.speeches))
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_all_rounds(db: AsyncSession) -> List[Round]:
     """
     すべてのラウンドを取得

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from '../../../../../context/LanguageContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { Check, Loader2, Download, FileText, Users, MessageSquare, AlertCircle } from 'lucide-react';
 
 export type ProcessingStepStatus = 'pending' | 'processing' | 'completed' | 'error' | 'disabled';
@@ -112,19 +112,10 @@ export default function ProcessingSteps({
                             {isActive && isClickable && (
                                 <div className="p-4 pt-0 border-t border-black/5 dark:border-white/5 bg-white/50 dark:bg-black/20">
                                     <div className="mt-4">
-                                        {/* Step 1 Specific: Progress Bar */}
-                                        {step.id === 1 && status === 'processing' && (
+                                        {/* Timer for processing status */}
+                                        {status === 'processing' && (
                                             <div className="mb-4">
-                                                <div className="flex justify-between text-xs mb-1 opacity-70">
-                                                    <span>Downloading...</span>
-                                                    <span>{downloadProgress}%</span>
-                                                </div>
-                                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                                                    <div
-                                                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                                        style={{ width: `${downloadProgress}%` }}
-                                                    ></div>
-                                                </div>
+                                                <StepTimer />
                                             </div>
                                         )}
 
@@ -163,4 +154,27 @@ function ZapIcon({ size }: { size: number }) {
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
     )
+}
+
+function StepTimer() {
+    const [seconds, setSeconds] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSeconds(s => s + 1);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    return (
+        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md border border-blue-100 dark:border-blue-800">
+            <Loader2 className="animate-spin" size={14} />
+            <span className="font-medium">
+                Processing... ({minutes}m {secs}s)
+            </span>
+        </div>
+    );
 }

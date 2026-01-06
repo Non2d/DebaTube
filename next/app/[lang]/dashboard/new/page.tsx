@@ -2,15 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, Youtube, FileVideo, Video, MessageSquare, Mic, List, Info, Database } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import Header from '@/components/shared/Header';
-import { getAPIRoot } from '@/components/lib/utils';
-import { useTranslation } from '@/context/LanguageContext';
-import { DebateFormatType, DEBATE_FORMATS } from '@/constants/constants';
-import ProcessingSteps, { ProcessingStepStatus } from '@/components/shared/ProcessingSteps';
+import Header from '../../../../components/shared/Header';
+import { getAPIRoot } from '../../../../components/lib/utils';
+import { useTranslation } from '../../../../context/LanguageContext';
 
 interface VideoInfo {
     id: string;
@@ -52,13 +50,6 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingInfo, setIsLoadingInfo] = useState(false);
-
-    // Workflow State
-    const [isRegistrationComplete, setIsRegistrationComplete] = useState(false);
-    const [currentStep, setCurrentStep] = useState(1);
-    const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['disabled', 'disabled', 'disabled', 'disabled', 'disabled']);
-    const [registeredRoundId, setRegisteredRoundId] = useState<string | null>(null);
-    const [downloadProgress, setDownloadProgress] = useState(0);
 
     // YouTubeのURLからビデオIDを抽出
     const extractVideoId = (url: string) => {
@@ -136,65 +127,6 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
         }
     };
 
-    // Step 1: Audio Download Logic
-    const runAudioDownload = async () => {
-        if (!videoInfo.id) return;
-
-        const newStatus = [...stepsStatus];
-        newStatus[0] = 'processing';
-        setStepsStatus(newStatus);
-        setDownloadProgress(10); // Start progress
-
-        try {
-            // Simulated progress for UX
-            const progressInterval = setInterval(() => {
-                setDownloadProgress(prev => Math.min(prev + 5, 90));
-            }, 500);
-
-            const res = await fetch(getAPIRoot() + '/download-audio', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ video_id: videoInfo.id }),
-            });
-
-            clearInterval(progressInterval);
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.detail || 'Failed to download audio');
-            }
-
-            const data = await res.json();
-            console.log('Audio Download Success:', data);
-
-            setDownloadProgress(100);
-            const successStatus = [...stepsStatus];
-            successStatus[0] = 'completed';
-            // Enable next step
-            successStatus[1] = 'pending';
-            setStepsStatus(successStatus);
-            setCurrentStep(2);
-            toast.success('Audio downloaded successfully');
-
-        } catch (error: any) {
-            console.error('Audio Download Error:', error);
-            const errorStatus = [...stepsStatus];
-            errorStatus[0] = 'error';
-            setStepsStatus(errorStatus);
-            toast.error(`Download failed: ${error.message}`);
-        }
-    };
-
-    const handleStepAction = (stepIndex: number) => {
-        if (stepIndex === 0) {
-            runAudioDownload();
-        } else if (stepIndex === 1) {
-            console.log("Step 2: Transcription triggered");
-            // render Step 2 logic here
-        }
-        // Future steps...
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -253,7 +185,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                     thumbnail_url: videoInfo.thumbnailUrl,
                     tags: videoInfo.tags,
                     category_id: videoInfo.categoryId,
-                    round_id: roundId // Optionally link round_id here if API supports it
+                    round_id: roundId
                 }),
             });
 
@@ -266,16 +198,11 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
 
             toast.success(t('dashboard.modal.messages.success'));
 
-            // Enable Workflow UI
-            setRegisteredRoundId(roundId);
-            setIsRegistrationComplete(true);
-            setCurrentStep(1); // Start with Step 1
-            // Step 1 is pending, others disabled
-            setStepsStatus(['pending', 'disabled', 'disabled', 'disabled', 'disabled']);
+            // Redirect to the workflow page
+            router.push(`/${params.lang}/dashboard/register/${roundId}`);
 
         } catch (error: any) {
             toast.error(error.message || t('dashboard.modal.messages.failedCreate'));
-        } finally {
             setIsSubmitting(false);
         }
     };
@@ -313,7 +240,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                     onChange={(e) => handleYoutubeUrlChange(e.target.value)}
                                     placeholder={t('dashboard.modal.placeholders.youtubeUrl')}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    disabled={isSubmitting || isRegistrationComplete}
+                                    disabled={isSubmitting}
                                 />
                             </div>
 
@@ -352,7 +279,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                     value={style}
                                     onChange={(e) => setStyle(e.target.value)}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    disabled={isSubmitting || isRegistrationComplete}
+                                    disabled={isSubmitting}
                                 >
                                     <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
                                     <option value="asian_parliamentary">{t('recordPage.formatOptions.asian')}</option>
@@ -372,7 +299,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                     onChange={(e) => setMotion(e.target.value)}
                                     placeholder={t('dashboard.modal.placeholders.motion')}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    disabled={isSubmitting || isRegistrationComplete}
+                                    disabled={isSubmitting}
                                 />
                             </div>
 
@@ -380,34 +307,21 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                             <div className="flex gap-4 pt-4">
                                 <Link
                                     href={`/${params.lang}/dashboard`}
-                                    className={`flex-1 px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center ${isRegistrationComplete ? 'hidden' : ''}`}
+                                    className="flex-1 px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center"
                                 >
                                     {t('dashboard.modal.labels.cancel') || 'Cancel'}
                                 </Link>
-                                {!isRegistrationComplete && (
-                                    <button
-                                        type="submit"
-                                        disabled={isSubmitting || !videoInfo.id}
-                                        className="flex-1 px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                                        {t('dashboard.modal.labels.register')}
-                                    </button>
-                                )}
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !videoInfo.id}
+                                    className="flex-1 px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                                >
+                                    {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                                    {t('dashboard.modal.labels.register')}
+                                </button>
                             </div>
                         </form>
                     </div>
-
-                    {/* Processing Workflow */}
-                    {isRegistrationComplete && (
-                        <ProcessingSteps
-                            currentStep={currentStep}
-                            stepsStatus={stepsStatus}
-                            onStepAction={handleStepAction}
-                            downloadProgress={downloadProgress}
-                            isRegistrationComplete={isRegistrationComplete}
-                        />
-                    )}
                 </div>
             </div>
         </>

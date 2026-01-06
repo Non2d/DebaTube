@@ -64,11 +64,14 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     )
     has_rebuttals = rebuttals_exist.scalar()
     
-    # 全体の完了状況（全スピーチが完了している場合のみTrue）
-    audio_complete = all(s["has_audio"] for s in speeches_progress)
-    transcription_complete = all(s["has_transcription"] for s in speeches_progress)
-    sentences_complete = all(s["has_sentences"] for s in speeches_progress)
-    adus_complete = all(s["has_adus"] for s in speeches_progress)
+    # 全体の完了状況（全スピーチが完了している場合のみTrue、かつスピーチ数が4以上）
+    # all([]) is True, so we must check if list is not empty (user req >= 4)
+    has_enough_speeches = len(speeches_progress) >= 4
+
+    audio_complete = has_enough_speeches and all(s["has_audio"] for s in speeches_progress)
+    transcription_complete = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
+    sentences_complete = has_enough_speeches and all(s["has_sentences"] for s in speeches_progress)
+    adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals
     
     return {

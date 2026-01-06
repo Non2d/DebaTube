@@ -52,10 +52,13 @@ class RoundResponse(BaseModel):
     note: Optional[str] = None
     style: Optional[RoundStyle] = None
     motion: Optional[str] = None
+    video_id: Optional[str] = None
     created_at: str
 
     class Config:
         from_attributes = True
+
+
 
 
 class SpeechCreate(BaseModel):
@@ -158,6 +161,7 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
         note=round_obj.note,
         style=round_obj.style,
         motion=round_obj.motion,
+        video_id=round_obj.video_id,
         created_at=round_obj.created_at.isoformat()
     )
 
@@ -174,10 +178,34 @@ async def get_all_rounds(db: AsyncSession = Depends(get_db)):
             try_count=r.try_count,
             type=r.type,
             note=r.note,
+            style=r.style,
+            motion=r.motion,
+            video_id=r.video_id,
             created_at=r.created_at.isoformat()
         )
         for r in rounds
     ]
+
+
+@router.get("/rounds/{round_id:int}", response_model=RoundResponse)
+async def get_round_by_id(round_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    ラウンドをIDで取得
+    """
+    round_obj = await round_crud.get_round_by_id(db, round_id)
+    if not round_obj:
+        raise HTTPException(status_code=404, detail="Round not found")
+    return RoundResponse(
+        id=round_obj.id,
+        name=round_obj.name,
+        try_count=round_obj.try_count,
+        type=round_obj.type,
+        note=round_obj.note,
+        style=round_obj.style,
+        motion=round_obj.motion,
+        video_id=round_obj.video_id,
+        created_at=round_obj.created_at.isoformat()
+    )
 
 
 @router.get("/rounds/{round_name}", response_model=RoundResponse)
@@ -196,6 +224,9 @@ async def get_round(round_name: str, try_count: Optional[int] = None, db: AsyncS
         try_count=round_obj.try_count,
         type=round_obj.type,
         note=round_obj.note,
+        style=round_obj.style,
+        motion=round_obj.motion,
+        video_id=round_obj.video_id,
         created_at=round_obj.created_at.isoformat()
     )
 

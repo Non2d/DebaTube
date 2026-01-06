@@ -14,3 +14,6 @@ fastapi/main-service/app/event-logs/*
 
 # Database backups
 backups/
+
+# Audio files
+fastapi/main-service/tmp-audio-save/*
