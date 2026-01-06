@@ -10,6 +10,7 @@ export const metadata = {
 };
 
 import { LanguageProvider } from '../context/LanguageContext';
+import { ThemeProvider } from '../components/theme-provider';
 
 
 
@@ -19,11 +20,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <Provider>
           <Toaster position="top-right" />
-          <LanguageProvider>
-            <AppProvider>
-              {children}
-            </AppProvider>
-          </LanguageProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <LanguageProvider>
+              <AppProvider>
+                {children}
+              </AppProvider>
+            </LanguageProvider>
+          </ThemeProvider>
         </Provider>
       </body>
     </html>

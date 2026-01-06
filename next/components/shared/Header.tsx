@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Moon, Sun, Globe } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useTranslation } from '../../context/LanguageContext';
 
 interface HeaderProps {
@@ -10,10 +11,17 @@ interface HeaderProps {
 
 export default function Header({ title = "DebaTube" }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { t, language, setLanguage, isDark, toggleTheme } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+
+  const isDark = resolvedTheme === 'dark';
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ja' : 'en');
+  };
+
+  const toggleTheme = () => {
+    setTheme(isDark ? 'light' : 'dark');
   };
 
   const navBg = isDark ? 'bg-gray-900/80' : 'bg-white/80';

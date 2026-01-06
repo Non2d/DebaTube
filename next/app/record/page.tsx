@@ -313,7 +313,7 @@ export default function RecordPage() {
   return (
     <>
       <Header title="DebaTube Live" />
-      <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col pt-16 transition-colors duration-300">
+      <div className="min-h-screen bg-background text-foreground flex flex-col pt-16 transition-colors duration-300">
         <div className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-2 max-w-7xl flex flex-col">
           <TabNavigation activeTab={activeTab} onTabSwitch={handleTabSwitch} />
 

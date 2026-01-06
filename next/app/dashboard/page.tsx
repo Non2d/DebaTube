@@ -9,7 +9,6 @@ import { useTranslation } from '../../context/LanguageContext';
 import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
-  const { isDark } = useTranslation();
   const { rounds, loading, error } = useRounds();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'youtube' | 'record'>('youtube');
@@ -29,11 +28,6 @@ export default function Dashboard() {
     localStorage.setItem('dashboard_active_tab', tab);
   };
 
-  const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
-  const textColor = isDark ? 'text-white' : 'text-gray-900';
-  const cardBg = isDark ? 'bg-gray-800' : 'bg-gray-50';
-  const borderColor = isDark ? 'border-gray-700' : 'border-gray-200';
-
   // Count unique match titles (combining multiple attempts)
   const totalRounds = new Set(rounds.map(r => r.title)).size;
   const totalPois = rounds.reduce((sum, round) => sum + round.poi_count, 0);
@@ -43,7 +37,7 @@ export default function Dashboard() {
   return (
     <>
       <Header />
-      <div className={`min-h-screen ${bgColor} ${textColor} pt-16`}>
+      <div className="min-h-screen bg-background text-foreground pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8 flex justify-between items-start">
             <div>
@@ -62,7 +56,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRounds')}</h3>
               <div className="text-3xl font-bold text-blue-600">
                 {loading ? (
@@ -73,7 +67,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalPois')}</h3>
               <div className="text-3xl font-bold text-green-600">
                 {loading ? (
@@ -84,7 +78,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRebuttals')}</h3>
               <div className="text-3xl font-bold text-purple-600">
                 {loading ? (
@@ -95,7 +89,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.argumentUnits')}</h3>
               <div className="text-3xl font-bold text-orange-600">
                 {loading ? (
@@ -107,7 +101,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className={`${cardBg} p-6 rounded-lg border ${borderColor}`}>
+          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold">{t('dashboard.table.title')}</h3>
               <div className="bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl inline-flex shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 backdrop-blur-sm">

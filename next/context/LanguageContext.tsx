@@ -2,6 +2,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAtom } from 'jotai';
+import { languageAtom } from '../components/store/languageAtom';
 import { en, LocaleType } from '../constants/en';
 import { ja } from '../constants/ja';
 
@@ -12,79 +14,32 @@ interface LanguageContextType {
     setLanguage: (lang: Language) => void;
     t: (path: string, params?: Record<string, string | number>) => string;
     locale: LocaleType;
-    isDark: boolean;
-    toggleTheme: () => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguage] = useState<Language>('en');
-    const [isDark, setIsDark] = useState<boolean>(false);
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [language, setLanguage] = useAtom(languageAtom);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        // Client-side only
-        if (typeof window !== 'undefined') {
-            // 1. Language Initialization
-            const savedLang = localStorage.getItem('app_language') as Language;
-            if (savedLang && (savedLang === 'en' || savedLang === 'ja')) {
-                setLanguage(savedLang);
-            } else {
+        setIsMounted(true);
+    }, []);
+
+    // Effect to auto-detect browser language if no preference is stored
+    useEffect(() => {
+        if (isMounted) {
+            const stored = localStorage.getItem('app_language');
+            if (!stored) {
                 const browserLang = navigator.language;
                 if (browserLang.startsWith('ja')) {
                     setLanguage('ja');
                 }
             }
-
-            // 2. Theme Initialization
-            // Check 'app_theme' first (new standard), then 'theme' (legacy jotai)
-            let initialDark = false;
-            const savedAppTheme = localStorage.getItem('app_theme');
-            const savedLegacyTheme = localStorage.getItem('theme');
-
-            if (savedAppTheme) {
-                initialDark = savedAppTheme === 'dark';
-            } else if (savedLegacyTheme) {
-                // Legacy 'theme' might be "true" or "false" (strings)
-                initialDark = savedLegacyTheme === 'true';
-            } else {
-                // System preference fallback
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    initialDark = true;
-                }
-            }
-
-            setIsDark(initialDark);
-            if (initialDark) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-
-            // 3. Unblock Render
-            setIsLoaded(true);
         }
-    }, []);
+    }, [isMounted, setLanguage]);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && isLoaded) {
-            localStorage.setItem('app_language', language);
-        }
-    }, [language, isLoaded]);
-
-    useEffect(() => {
-        if (typeof window !== 'undefined' && isLoaded) {
-            localStorage.setItem('app_theme', isDark ? 'dark' : 'light');
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        }
-    }, [isDark, isLoaded]);
-
-    if (!isLoaded) {
+    if (!isMounted) {
         return null;
     }
 
@@ -128,17 +83,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         return result;
     };
 
-    const toggleTheme = () => {
-        setIsDark(prev => !prev);
-    };
-
     // Helper to get the current locale object (mixed with fallback)
     // This is hard to do perfectly recursive efficiently, so we rely on t() mostly.
     // But we can return the raw object for iteration if needed.
     const locale = language === 'ja' ? ja : en;
 
     return (
-        <LanguageContext.Provider value={{ language, setLanguage, t, locale, isDark, toggleTheme }}>
+        <LanguageContext.Provider value={{ language, setLanguage, t, locale }}>
             {children}
         </LanguageContext.Provider>
     );

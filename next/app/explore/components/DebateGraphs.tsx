@@ -15,18 +15,6 @@ interface MacroStructuralFeatures {
   order: number;
   rally: number;
 }
-//...
-// (Keep intervening interfaces - wait, replace_file_content needs exact match or smartness.)
-// I will target the imports and the hook usage separately or using a large chunk if stable.
-// Let's use simple separate replacements if possible, or one chunk if I am sure.
-// The interfaces are long. I will target Top imports first.
-
-interface MacroStructuralFeatures {
-  distance: number;
-  interval: number;
-  order: number;
-  rally: number;
-}
 
 interface DebateItem { //UI表示用にデータ生成する際のバリデーション
   id: number
@@ -64,7 +52,7 @@ interface Round { //取得時のバリデーション
 }
 
 const DebateGraphs = () => {
-  const { isDark, t } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const [ytPlayer, setYtPlayer] = useState<YT.Player | null>(null);
   const [ytId, setYtId] = useState('');
@@ -300,16 +288,12 @@ const DebateGraphs = () => {
     };
   }, []);
 
-  const bgColor = isDark ? 'bg-gray-900' : 'bg-white';
-  const textColor = isDark ? 'text-white' : 'text-gray-900';
-  const borderColor = isDark ? 'border-gray-700' : 'border-gray-100';
-
   return (
     <>
       <Header />
-      <div className={`${bgColor} ${textColor} flex flex-col w-full mx-auto p-4 gap-2 min-h-screen pt-20`}>
+      <div className="bg-background text-foreground flex flex-col w-full mx-auto p-4 gap-2 min-h-screen pt-20">
         {/* --- コンテンツヘッダー --- */}
-        <header className={`flex items-center justify-between ${bgColor} border-b ${borderColor} pb-4`}>
+        <header className="flex items-center justify-between bg-background border-b border-gray-100 dark:border-gray-700 pb-4">
           <div className="flex items-center gap-6">
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
               <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9">
@@ -391,11 +375,11 @@ const DebateGraphs = () => {
           {isLoading ? (
             <>
               {/* ローディング中のスケルトンUI（省略せず） */}
-              <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
+              <div className="relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
                   {[...Array(8)].map((_, index) => (
                     <div key={index} className="flex flex-col border-4 border-white dark:border-gray-900 animate-pulse">
-                      <div className="mb-1 flex gap-4 bg-white dark:bg-gray-900">
+                      <div className="mb-1 flex gap-4">
                         <div className="aspect-square relative bg-gray-300 dark:bg-gray-700 ml-1 mt-1 rounded-md" style={{ width: '8vh', height: '8vh' }}></div>
                         <div className="flex flex-col flex-grow">
                           <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mb-1"></div>
@@ -411,12 +395,12 @@ const DebateGraphs = () => {
           ) : (
             <>
               {/* debateItems 表示部（省略せず） */}
-              <div className="bg-white relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
+              <div className="relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
                   {displayDebateItems.map((item, index) => (
                     <div
                       key={item.id}
-                      className={`flex flex-col border-4 cursor-pointer ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-white dark:border-gray-900'}`}
+                      className={`flex flex-col border-4 cursor-pointer ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-transparent'}`}
                       onClick={() => {
                         // Navigate to Record page visualization tab with round name and try count
                         const roundName = item.title; // Assuming title is the round name
@@ -424,7 +408,7 @@ const DebateGraphs = () => {
                       }}
                       onDoubleClick={onMovieItemClicked(item.id)}
                     >
-                      <div className="mb-1 flex gap-4 bg-white dark:bg-gray-900">
+                      <div className="mb-1 flex gap-4">
                         <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
                           <Image
                             src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
@@ -451,7 +435,7 @@ const DebateGraphs = () => {
                         </div>
                       </div>
                       <div
-                        className="aspect-[16/9] relative bg-white dark:bg-gray-900"
+                        className="aspect-[16/9] relative"
                         style={{ height: '35vh' }}
                       >
                         <div
