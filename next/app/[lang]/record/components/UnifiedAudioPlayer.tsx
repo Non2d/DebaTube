@@ -251,14 +251,14 @@ export default function UnifiedAudioPlayer({
 
   if (segments.length === 0) {
     return (
-      <div className="p-4 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
+      <div className="w-full min-h-[11rem] p-6 flex items-center justify-center bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
         <p className="text-gray-600 dark:text-gray-400">{t('unifiedPlayer.noAudio')}</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg shadow-md">
+    <div className="w-full min-h-[11rem] p-6 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg shadow-md flex flex-col justify-center">
       <div className="flex items-center gap-4 mb-4">
         <button
           onClick={onPlayPause}
@@ -316,15 +316,27 @@ export default function UnifiedAudioPlayer({
         </div>
       </div>
 
-      <audio
-        ref={audioRef}
-        src={currentSrc}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
-        onError={(e) => console.error("Audio error", e)}
-        className="hidden"
-      />
+      {currentSrc && (
+        <audio
+          ref={audioRef}
+          src={currentSrc}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+          onError={(e) => {
+            const error = e.currentTarget.error;
+            // Suppress error if it's just an empty src issue during initialization
+            if (error?.code === 4 && !currentSrc) return;
+
+            console.error("Audio error details:", {
+              code: error?.code,
+              message: error?.message,
+              src: currentSrc
+            });
+          }}
+          className="hidden"
+        />
+      )}
     </div>
   );
 }
