@@ -23,6 +23,7 @@ class Round(Base):
     motion = Column(Text, nullable=True)
     video_source_id = Column(String(255), nullable=True)
     video_source_title = Column(String(255), nullable=True)
+    owner_id = Column(String(255), nullable=True)
 
     # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
