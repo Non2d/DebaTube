@@ -6,6 +6,12 @@ export const en = {
         dashboard: "Dashboard",
         record: "Record",
     },
+    nav: {
+        explore: "Explore",
+        dashboard: "Dashboard",
+        record: "Record",
+        login: "Login",
+    },
     timer: {
         overTime: "Over Time",
         recording: "Recording",

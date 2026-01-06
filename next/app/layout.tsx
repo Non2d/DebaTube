@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Created for Competitive Debaters',
 };
 
-import { LanguageProvider } from '../context/LanguageContext';
+
 import { ThemeProvider } from '../components/theme-provider';
 
 
@@ -26,11 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             enableSystem
             disableTransitionOnChange
           >
-            <LanguageProvider>
-              <AppProvider>
-                {children}
-              </AppProvider>
-            </LanguageProvider>
+            {children}
           </ThemeProvider>
         </Provider>
       </body>

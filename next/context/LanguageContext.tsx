@@ -1,9 +1,8 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAtom } from 'jotai';
-import { languageAtom } from '../components/store/languageAtom';
+import React, { createContext, useContext } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { en, LocaleType } from '../constants/en';
 import { ja } from '../constants/ja';
 
@@ -18,30 +17,30 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguage] = useAtom(languageAtom);
-    const [isMounted, setIsMounted] = useState(false);
+export function LanguageProvider({ children, lang }: { children: React.ReactNode, lang: Language }) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const params = useSearchParams();
 
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    // The language is now strictly determined by the prop passed from [lang]/layout.tsx (which comes from URL)
+    const language = lang;
 
-    // Effect to auto-detect browser language if no preference is stored
-    useEffect(() => {
-        if (isMounted) {
-            const stored = localStorage.getItem('app_language');
-            if (!stored) {
-                const browserLang = navigator.language;
-                if (browserLang.startsWith('ja')) {
-                    setLanguage('ja');
-                }
-            }
-        }
-    }, [isMounted, setLanguage]);
+    const setLanguage = (newLang: Language) => {
+        if (newLang === language) return;
 
-    if (!isMounted) {
-        return null; //ここのおかげでhydration errorは防げてるけど，ロード時の空表示も発生させている
-    }
+        // Construct new path
+        // Current pathname is like "/en/record" or "/en"
+        // We replace the first segment
+        const segments = pathname.split('/');
+        segments[1] = newLang; // segments[0] is empty string
+        const newPath = segments.join('/');
+
+        // Preserve query params
+        const queryString = params.toString();
+        const finalUrl = queryString ? `${newPath}?${queryString}` : newPath;
+
+        router.push(finalUrl);
+    };
 
     const t = (path: string, params?: Record<string, string | number>): string => {
         const keys = path.split('.');
@@ -84,8 +83,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Helper to get the current locale object (mixed with fallback)
-    // This is hard to do perfectly recursive efficiently, so we rely on t() mostly.
-    // But we can return the raw object for iteration if needed.
     const locale = language === 'ja' ? ja : en;
 
     return (

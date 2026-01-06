@@ -8,6 +8,12 @@ export const ja: LocaleType = {
         dashboard: "試合リストをみる",
         record: "試合を録音する",
     },
+    nav: {
+        explore: "探す",
+        dashboard: "ダッシュボード",
+        record: "記録",
+        login: "ログイン",
+    },
     timer: {
         overTime: "時間超過中",
         recording: "録音中",
