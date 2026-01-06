@@ -33,7 +33,7 @@ export default function Header({ title = "DebaTube" }: HeaderProps) {
 
           <div className="hidden md:flex items-center space-x-8">
             <Link href={`/${currentLang}`} className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-lg">{t('header.explore')}</Link>
-            <Link href={`/${currentLang}/dashboard`} className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-lg">{t('header.dashboard')}</Link>
+            <Link href={`/${currentLang}/dashboard/video`} className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-lg">{t('header.dashboardVideo')}</Link>
             <Link href={`/${currentLang}/record`} className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-lg">{t('header.record')}</Link>
 
             <div className="flex items-center gap-2">

@@ -6,6 +6,8 @@ export const ja: LocaleType = {
         title: "DebaTube Live",
         explore: "試合をさがす",
         dashboard: "試合リストをみる",
+        dashboardVideo: "試合動画リスト",
+        dashboardRecord: "録音データ",
         record: "試合を録音する",
     },
     nav: {
@@ -61,6 +63,7 @@ export const ja: LocaleType = {
     },
     recordPage: {
         tabs: {
+            dashboard: "ダッシュボード",
             audio: "音声",
             visualization: "可視化",
         },

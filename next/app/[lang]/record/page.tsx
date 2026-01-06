@@ -18,6 +18,7 @@ import SpeechNavigator from './components/SpeechNavigator';
 import GenerationControlBar from './components/GenerationControlBar';
 import VisualizationControlBar from './components/VisualizationControlBar';
 import GenerationStatus from './components/GenerationStatus';
+import RecordList from './components/RecordList';
 
 // Custom Hooks
 import { useRecordings } from './hooks/useRecordings';
@@ -26,7 +27,7 @@ import { useGraphGeneration } from './hooks/useGraphGeneration';
 import { useGraphNodeNavigation } from './hooks/useGraphNodeNavigation';
 
 export default function RecordPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('audio');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [roundName, setRoundName] = useState('');
   const [motion, setMotion] = useState('');
   const [debateFormat, setDebateFormat] = useState<DebateFormatType>('BP'); // Default format
@@ -318,6 +319,19 @@ export default function RecordPage() {
       <div className="min-h-screen bg-background text-foreground flex flex-col pt-16 transition-colors duration-300">
         <div className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-2 max-w-7xl flex flex-col">
           <TabNavigation activeTab={activeTab} onTabSwitch={handleTabSwitch} />
+
+          {activeTab === 'dashboard' && (
+            <div className="flex flex-col flex-1 pb-4 space-y-4">
+              <RecordList onSelectRound={(round, tryNum) => {
+                setRoundName(round);
+                setTryCount(tryNum);
+                handleTabSwitch('visualization');
+                // Since setting state happens, visualization tab will pick up new roundName and tryCount via hooks/effects
+                // But explicit autoload might be safer if hook deps aren't strict enough, but they seem to be.
+                autoLoadGraphData(round, tryNum);
+              }} />
+            </div>
+          )}
 
           {activeTab === 'audio' && (
             <div className="flex flex-col flex-1 pb-4 space-y-4">

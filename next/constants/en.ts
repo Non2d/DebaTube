@@ -3,7 +3,9 @@ export const en = {
     header: {
         title: "DebaTube Live",
         explore: "Explore",
-        dashboard: "Dashboard",
+        dashboard: "Dashboard", // keeping purely for backward compat if needed, or I can remove. I'll keep it for now.
+        dashboardVideo: "Round Videos",
+        dashboardRecord: "Recordings",
         record: "Record",
     },
     nav: {
@@ -59,6 +61,7 @@ export const en = {
     },
     recordPage: {
         tabs: {
+            dashboard: "Dashboard",
             audio: "Audio",
             visualization: "Visualization",
         },
@@ -104,7 +107,7 @@ export const en = {
             confirmGenerate: "Generate graph?\n\nThis may take several minutes to complete.",
             invalidTryCount: 'Invalid Try Count. The next valid Try Count is {{next}}. You cannot skip numbers.',
             matchNotFound: 'Data for version {count} does not exist.',
-            matchNotFoundReverting: 'Match data not found. Reverting to valid Try Count: {{next}}.',
+            matchNotFoundReverting: 'Round data not found. Reverting to valid Try Count: {{next}}.',
             invalidJson: "Invalid JSON format. Please ensure it contains 'speeches' and 'rebuttals' properties.",
             failedJson: "Failed to parse JSON file: {error}",
             micDenied: "Microphone access denied. Please check your browser settings.",
@@ -133,7 +136,7 @@ export const en = {
         },
         manualMode: {
             title: "Manual Mode",
-            initialButton: "Create New Match Data & Transcribe (Manual)",
+            initialButton: "Create New Round Data & Transcribe (Manual)",
             processingAudio: "Processing Audio...",
             step1Title: "Step 1: Transcription",
             step2Title: "Step 2: ADU Segmentation",
