@@ -32,6 +32,10 @@ services:
     environment:
       PYTHONPATH: /app
       ENV: development
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ""
+      MYSQL_HOST: db
+      MYSQL_DATABASE: debate
 
   db: #ユーザ名：root, パスワード：なし
     container_name: db

@@ -4,8 +4,13 @@
 BACKUP_DIR="./backups"
 mkdir -p "$BACKUP_DIR"
 
-# タイムスタンプの取得 (YYYYMMDD_HHMMSS)
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+# タイムスタンプの取得 (引数があればそれを使用、なければ現在時刻)
+if [ -n "$1" ]; then
+  TIMESTAMP="$1"
+else
+  TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+fi
+
 FILENAME="$BACKUP_DIR/backup_$TIMESTAMP.sql"
 
 # バックアップ実行

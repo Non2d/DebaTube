@@ -21,6 +21,8 @@ class Round(Base):
     note = Column(Text, nullable=True)
     style = Column(String(50), default="british_parliamentary", nullable=False) # british_parliamentary, north_american, etc.
     motion = Column(Text, nullable=True)
+    video_source_id = Column(String(255), nullable=True)
+    video_source_title = Column(String(255), nullable=True)
 
     # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
@@ -40,7 +42,7 @@ class Speech(Base):
     __tablename__ = "speeches"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    round_id = Column(Integer, ForeignKey("rounds.id", ondelete="CASCADE"), nullable=False, index=True)
+    round_id = Column(Integer, ForeignKey("rounds.id", ondelete="CASCADE"), nullable=False)
     # round_name は削除
     
     position = Column(String(64), nullable=False)  # Proposition_1st, Opposition_1st, etc.
@@ -53,6 +55,10 @@ class Speech(Base):
     adus = relationship("Adu", back_populates="speech", cascade="all, delete-orphan")
     words = relationship("Word", back_populates="speech", cascade="all, delete-orphan")
     sentences = relationship("Sentence", back_populates="speech", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('fk_speeches_round_id', 'round_id'),
+    )
 
     def __repr__(self):
         return f"<Speech(id={self.id}, round_id={self.round_id}, position={self.position})>"
@@ -115,7 +121,7 @@ class Adu(Base):
     __tablename__ = "adus"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 全スピーチ通しの連番
-    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False, index=True)
+    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False)
     start_sentence_index = Column(Integer, nullable=False)
     end_sentence_index = Column(Integer, nullable=False)
     text = Column(Text, nullable=False)
@@ -139,6 +145,10 @@ class Adu(Base):
         cascade="all, delete-orphan"
     )
 
+    __table_args__ = (
+        Index('ix_adus_speech_id', 'speech_id'),
+    )
+
     def __repr__(self):
         return f"<Adu(id={self.id}, speech_id={self.speech_id}, role={self.role})>"
 
@@ -150,12 +160,14 @@ class Rebuttal(Base):
     __tablename__ = "rebuttals"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    src_adu_id = Column(Integer, ForeignKey("adus.id", ondelete="CASCADE"), nullable=False, index=True)  # 反論している側
-    tgt_adu_id = Column(Integer, ForeignKey("adus.id", ondelete="CASCADE"), nullable=False, index=True)  # 反論されている側
+    src_adu_id = Column(Integer, ForeignKey("adus.id", ondelete="CASCADE"), nullable=False)  # 反論している側
+    tgt_adu_id = Column(Integer, ForeignKey("adus.id", ondelete="CASCADE"), nullable=False)  # 反論されている側
 
     # リレーション
     source_adu = relationship("Adu", foreign_keys=[src_adu_id], back_populates="rebuttals_as_source")
     target_adu = relationship("Adu", foreign_keys=[tgt_adu_id], back_populates="rebuttals_as_target")
 
-    def __repr__(self):
-        return f"<Rebuttal(id={self.id}, src={self.src_adu_id}, tgt={self.tgt_adu_id})>"
+    __table_args__ = (
+        Index('idx_rebuttals_src', 'src_adu_id'),
+        Index('idx_rebuttals_tgt', 'tgt_adu_id'),
+    )

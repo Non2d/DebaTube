@@ -46,6 +46,15 @@ def get_url():
     db = os.getenv("MYSQL_DATABASE", "debate")
     return f"mysql+pymysql://{user}:{password}@{host}/{db}"
 
+def process_revision_directives(context, revision, directives):
+    """
+    If the script has no operations, skip the revision.
+    """
+    if config.cmd_opts and getattr(config.cmd_opts, 'autogenerate', False):
+        script = directives[0]
+        if script.upgrade_ops.is_empty():
+            directives[:] = []
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -64,6 +73,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        process_revision_directives=process_revision_directives,
     )
 
     with context.begin_transaction():
@@ -87,7 +97,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            process_revision_directives=process_revision_directives,
         )
 
         with context.begin_transaction():
