@@ -97,7 +97,6 @@ export default function RecordList({ onSelectRound }: RecordListProps) {
                                     <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
                                     <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.pois')}</th>
                                     <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.rebuttals')}</th>
-                                    <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.speeches')}</th>
                                     <th className="text-left py-2 px-4 w-[100px]">{t('dashboard.table.headers.arguments')}</th>
                                 </tr>
                             </thead>
@@ -113,9 +112,6 @@ export default function RecordList({ onSelectRound }: RecordListProps) {
                                             </td>
                                             <td className="py-2 px-4">
                                                 <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-48 rounded"></div>
-                                            </td>
-                                            <td className="py-2 px-4">
-                                                <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-8 rounded"></div>
                                             </td>
                                             <td className="py-2 px-4">
                                                 <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-8 rounded"></div>
@@ -146,7 +142,7 @@ export default function RecordList({ onSelectRound }: RecordListProps) {
                                         if (filteredRounds.length === 0) {
                                             return (
                                                 <tr>
-                                                    <td colSpan={7} className="py-8 text-center text-gray-500">
+                                                    <td colSpan={6} className="py-8 text-center text-gray-500">
                                                         {t('dashboard.table.noRounds')}
                                                     </td>
                                                 </tr>
@@ -205,7 +201,6 @@ export default function RecordList({ onSelectRound }: RecordListProps) {
                                                     </td>
                                                     <td className="py-2 px-4">{round.poi_count}</td>
                                                     <td className="py-2 px-4">{round.rebuttal_count}</td>
-                                                    <td className="py-2 px-4">{round.speech_count}</td>
                                                     <td className="py-2 px-4">{round.total_argument_units}</td>
                                                 </tr>
                                             );

@@ -5,7 +5,6 @@ export const en = {
         explore: "Explore",
         dashboard: "Dashboard", // keeping purely for backward compat if needed, or I can remove. I'll keep it for now.
         dashboardVideo: "Round Videos",
-        dashboardRecord: "Recordings",
         record: "Record",
     },
     nav: {

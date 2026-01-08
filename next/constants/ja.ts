@@ -7,7 +7,6 @@ export const ja: LocaleType = {
         explore: "試合をさがす",
         dashboard: "試合リストをみる",
         dashboardVideo: "試合動画リスト",
-        dashboardRecord: "録音データ",
         record: "試合を録音する",
     },
     nav: {
