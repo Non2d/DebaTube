@@ -268,7 +268,7 @@ export default function UnifiedAudioPlayer({
           {isPlaying ? <Pause size={24} /> : <Play size={24} />}
         </button>
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-2 text-sm text-white font-medium">
+          <div className="flex items-center justify-between mb-2 text-sm text-black dark:text-white font-medium">
             <span>{formatTime(currentGlobalTime)}</span>
             <span>{formatTime(totalDuration)}</span>
           </div>

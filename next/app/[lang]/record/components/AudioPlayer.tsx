@@ -210,7 +210,7 @@ export default function AudioPlayer({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2 text-sm text-white">
+      <div className="flex items-center justify-between mb-2 text-sm text-black dark:text-white">
         <span>{formatTime(currentTime)}</span>
         <span>{formatTime(recordingDuration)}</span>
       </div>
