@@ -8,7 +8,9 @@ import toast from 'react-hot-toast';
 import Header from '../../../../../components/shared/Header';
 import { getAPIRoot } from '../../../../../components/lib/utils';
 import { useTranslation } from '../../../../../context/LanguageContext';
+
 import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components/shared/ProcessingSteps';
+import { testColabConnection } from './actions';
 
 export default function VideoDetailPage({ params }: { params: { lang: string, id: string } }) {
     const { t } = useTranslation();
@@ -20,6 +22,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled', 'disabled']);
     const [currentStep, setCurrentStep] = useState(1);
     const [downloadProgress, setDownloadProgress] = useState(0);
+
+    // New State for Colab Integration
+    const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
+    const [colabUrl, setColabUrl] = useState("");
+    const [isTestingConnection, setIsTestingConnection] = useState(false);
 
     const fetchRoundData = async () => {
         try {
@@ -142,7 +149,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             const formData = new FormData();
             formData.append('files', audioBlob, `${roundData.video_id}.m4a`);
             formData.append('match_name', roundData.name || 'default');
-            formData.append('transcription_model', 'openai-whisper');
+            formData.append('transcription_model', transcriptionModel);
+            if (transcriptionModel === 'custom-colab-whisper' && colabUrl) {
+                formData.append('colab_url', colabUrl);
+            }
 
             const transRes = await fetch(getAPIRoot() + '/audio-to-transcript-batch', {
                 method: 'POST',
@@ -167,6 +177,84 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const handleStepAction = (stepIndex: number) => {
         if (stepIndex === 1) runAudioDownload();
         else if (stepIndex === 2) runTranscription();
+    };
+
+    const handleTestConnection = async () => {
+        if (!colabUrl) {
+            toast.error("URLを入力してください");
+            return;
+        }
+        setIsTestingConnection(true);
+        try {
+            // Use Server Action to bypass CORS
+            const result = await testColabConnection(colabUrl);
+
+            if (result.success) {
+                toast.success("接続成功！ (Connection Successful)");
+            } else {
+                toast.error(`接続失敗: ${result.message}`);
+            }
+        } catch (error: any) {
+            toast.error(`エラー: ${error.message}`);
+        } finally {
+            setIsTestingConnection(false);
+        }
+    };
+
+    const renderStepExtras = (stepId: number) => {
+        if (stepId !== 2) return null;
+
+        return (
+            <div className="mt-4 mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="flex flex-col gap-4">
+                    {/* Transcription Model Selection */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            Transcription Model
+                        </label>
+                        <select
+                            value={transcriptionModel}
+                            onChange={(e) => setTranscriptionModel(e.target.value)}
+                            className="h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
+                        >
+                            <option value="groq-whisper-large-v3-turbo">groq-whisper-large-v3-turbo</option>
+                            <option value="custom-colab-whisper">Custom Colab Whisper</option>
+                        </select>
+                    </div>
+
+                    {/* Colab URL Input & Test Button */}
+                    {transcriptionModel === 'custom-colab-whisper' && (
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                Cloudflare API URL
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={colabUrl}
+                                    onChange={(e) => setColabUrl(e.target.value)}
+                                    placeholder="https://xxxx.trycloudflare.com"
+                                    className="flex-1 h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
+                                />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTestConnection();
+                                    }}
+                                    disabled={isTestingConnection || !colabUrl}
+                                    className={`h-9 px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${isTestingConnection
+                                        ? 'bg-slate-100 text-slate-400 cursor-wait'
+                                        : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900'
+                                        }`}
+                                >
+                                    {isTestingConnection ? 'Testing...' : 'Test Connection'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     if (loading) {
@@ -239,6 +327,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             onStepAction={handleStepAction}
                             downloadProgress={downloadProgress}
                             isRegistrationComplete={true}
+                            renderStepContent={renderStepExtras}
                         />
                     </div>
                 </div>

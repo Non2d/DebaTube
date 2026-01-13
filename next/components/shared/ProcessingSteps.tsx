@@ -18,6 +18,7 @@ interface ProcessingStepsProps {
     isRegistrationComplete: boolean;
     // videoInfo: any; // Removed unused prop to clean up
     downloadProgress?: number;
+    renderStepContent?: (stepId: number) => React.ReactNode;
 }
 
 export default function ProcessingSteps({
@@ -25,7 +26,8 @@ export default function ProcessingSteps({
     stepsStatus,
     onStepAction,
     isRegistrationComplete,
-    downloadProgress = 0
+    downloadProgress = 0,
+    renderStepContent
 }: ProcessingStepsProps) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -123,6 +125,9 @@ export default function ProcessingSteps({
                                         <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                                             {step.description}
                                         </p>
+
+                                        {/* Custom Content for this step */}
+                                        {renderStepContent && renderStepContent(step.id)}
 
                                         <div className="flex justify-end gap-2">
                                             <button
