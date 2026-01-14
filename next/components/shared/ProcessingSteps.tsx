@@ -26,6 +26,7 @@ interface ProcessingStepsProps {
     // videoInfo: any; // Removed unused prop to clean up
     downloadProgress?: number;
     renderStepContent?: (stepId: number) => React.ReactNode;
+    jobProgress?: any;
 }
 
 export default function ProcessingSteps({
@@ -34,7 +35,8 @@ export default function ProcessingSteps({
     onStepAction,
     isRegistrationComplete,
     downloadProgress = 0,
-    renderStepContent
+    renderStepContent,
+    jobProgress
 }: ProcessingStepsProps) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -53,8 +55,9 @@ export default function ProcessingSteps({
             description: t('dashboard.steps.transcriptGenerationDesc') || 'Download audio and generate transcript',
             icon: <FileText size={18} />,
             subSteps: [
-                { id: '1a', title: 'Audio Download', description: 'Download audio from YouTube' },
-                { id: '1b', title: 'Transcription', description: 'Transcribe audio to text' }
+                { id: '1a', title: 'Download Audio', description: 'Download audio from YouTube' },
+                { id: '1b', title: 'Transcribe Words', description: 'Transcribe audio to text' },
+                { id: '1c', title: 'Group Words into Sentences', description: 'Group words into sentences' }
             ]
         },
         // Old Step 3 becomes Step 2
@@ -148,20 +151,27 @@ export default function ProcessingSteps({
                                         {step.subSteps && (
                                             <div className="mb-6 flex flex-col gap-2">
                                                 {step.subSteps.map((subStep, subIndex) => {
-                                                    // Determine status of sub-step based on overall step status and progress
-                                                    // This is a simplified logic; ideally props would pass granular status
+                                                    // Determine status based on jobProgress data
                                                     let subStatus: 'pending' | 'processing' | 'completed' = 'pending';
 
                                                     if (status === 'completed') {
                                                         subStatus = 'completed';
-                                                    } else if (status === 'processing') {
-                                                        // HACK: Use downloadProgress to guess sub-step state for Step 1
-                                                        // 100 means audio (1A) done, moving to 1B
+                                                    } else if (jobProgress && step.id === 1) {
+                                                        // Use jobProgress data for Step 1 sub-steps
+                                                        // 1A: audio_complete, 1B: transcription_complete, 1C: sentences_complete
                                                         if (subIndex === 0) {
-                                                            subStatus = downloadProgress >= 100 ? 'completed' : 'processing';
+                                                            subStatus = jobProgress.audio_complete ? 'completed' :
+                                                                (status === 'processing' ? 'processing' : 'pending');
                                                         } else if (subIndex === 1) {
-                                                            subStatus = downloadProgress >= 100 ? 'processing' : 'pending';
+                                                            subStatus = jobProgress.transcription_complete ? 'completed' :
+                                                                (status === 'processing' && jobProgress.audio_complete) ? 'processing' : 'pending';
+                                                        } else if (subIndex === 2) {
+                                                            subStatus = jobProgress.sentences_complete ? 'completed' :
+                                                                (status === 'processing' && jobProgress.transcription_complete) ? 'processing' : 'pending';
                                                         }
+                                                    } else if (status === 'processing') {
+                                                        // Fallback: show all as processing if no jobProgress data
+                                                        subStatus = 'processing';
                                                     }
 
                                                     return (

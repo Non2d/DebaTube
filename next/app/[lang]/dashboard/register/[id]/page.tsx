@@ -22,6 +22,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled']);
     const [currentStep, setCurrentStep] = useState(1);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [jobProgress, setJobProgress] = useState<any>(null);
 
     // New State for Colab Integration
     const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
@@ -48,6 +49,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             const res = await fetch(getAPIRoot() + `/job-progress/${roundId}`);
             if (res.ok) {
                 const progress = await res.json();
+                setJobProgress(progress); // Store progress data
 
                 // Map job-progress to stepsStatus (Merged Step 1 & 2)
                 const newStatus: ProcessingStepStatus[] = [...stepsStatus];
@@ -338,6 +340,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             downloadProgress={downloadProgress}
                             isRegistrationComplete={true}
                             renderStepContent={renderStepExtras}
+                            jobProgress={jobProgress}
                         />
                     </div>
                 </div>

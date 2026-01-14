@@ -24,6 +24,7 @@ class Round(Base):
     motion = Column(Text, nullable=True)
     video_id = Column(String(255), nullable=True)  # 外部キー制約を削除
     owner_id = Column(String(255), nullable=True)
+    raw_transcription = Column(JSON, nullable=True)  # Full transcription before diarization
 
     # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")

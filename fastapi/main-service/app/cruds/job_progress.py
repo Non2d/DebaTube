@@ -89,7 +89,13 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     
     has_enough_speeches = len(speeches_progress) >= 4
 
-    transcription_complete = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
+    # Check if Round has raw_transcription (full transcription before diarization)
+    # If it exists, transcription is considered complete even without individual speech transcriptions
+    if round_obj and round_obj.raw_transcription:
+        transcription_complete = True
+    else:
+        transcription_complete = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
+    
     sentences_complete = has_enough_speeches and all(s["has_sentences"] for s in speeches_progress)
     adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals

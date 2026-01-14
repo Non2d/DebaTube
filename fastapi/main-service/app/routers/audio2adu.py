@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, RootModel, ValidationError
 from log_config import logger
@@ -9,6 +9,7 @@ from datetime import datetime
 import asyncio
 import time
 import shutil
+import httpx
 
 from google import genai
 from groq import AsyncGroq
@@ -635,8 +636,8 @@ async def audio_to_transcript_batch(
 
 @router.post("/transcribe-youtube-via-external")
 async def transcribe_youtube_via_external(
-    url: str,
-    round_id: int,
+    url: str = Body(...),
+    round_id: int = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -662,7 +663,7 @@ async def transcribe_youtube_via_external(
 
 
     # Call local proxy endpoint (which handles external GPU communication)
-    proxy_url = "http://localhost:8000/external-gpu-transcribe"
+    proxy_url = "http://localhost:8080/external-gpu-transcribe"
     
     try:
         # 1. Call local proxy (which forwards to external GPU server)
@@ -670,7 +671,11 @@ async def transcribe_youtube_via_external(
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 proxy_url,
-                json={"url": url},
+                json={
+                    "url": url,
+                    "num_chunks": 4,
+                    "max_workers": 2
+                },
                 timeout=None  # Wait indefinitely for transcription
             )
         
@@ -692,6 +697,11 @@ async def transcribe_youtube_via_external(
         except ValidationError as val_error:
             logger.error(f"Validation failed for external transcription: {val_error}")
             raise HTTPException(status_code=500, detail=f"Invalid transcription format: {val_error}")
+
+        # Save transcription to Round table
+        round_obj.raw_transcription = transcription_result
+        await db.commit()
+        logger.info(f"Saved raw_transcription to Round {round_id}")
 
         elapsed_time = time.time() - start_time
         print(f"[/transcribe-youtube-via-external] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
