@@ -284,8 +284,8 @@ export const ja = {
         modal: {
             labels: {
                 back: "ダッシュボードに戻る",
-                registerNewRound: "試合動画を登録",
-                registerRound: "試合を登録する",
+                registerNewRound: "試合動画を新規登録",
+                registerRound: "試合を登録",
                 youtubeUrl: "YouTube URL",
                 style: "ディベートスタイル",
                 motion: "論題 (Motion)",
