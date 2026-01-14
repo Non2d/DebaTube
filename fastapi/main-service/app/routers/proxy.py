@@ -1,11 +1,9 @@
 from fastapi import APIRouter, HTTPException, Response
 import httpx
 import os
+import json
 from dotenv import load_dotenv
 from pydantic import BaseModel
-import httpx
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -46,6 +44,8 @@ async def check_gpu_health():
 
 class TranscribeRequest(BaseModel):
     url: str
+    num_chunks: int = 4
+    max_workers: int = 2
 
 @router.post("/external-gpu-transcribe")
 async def proxy_transcribe(
@@ -53,6 +53,7 @@ async def proxy_transcribe(
 ):
     """
     Proxy endpoint to forward transcription requests (YouTube URL) to the external GPU server.
+    Converts the response from segments-based format to standard Whisper verbose format.
     """
     if not TRANSCRIPTION_API_URL:
         raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
@@ -69,11 +70,53 @@ async def proxy_transcribe(
                 timeout=None
             )
             
-            # Forward the content and status
+            if resp.status_code != 200:
+                # Forward error response
+                return Response(
+                    content=resp.content, 
+                    status_code=resp.status_code, 
+                    media_type=resp.headers.get("content-type")
+                )
+            
+            # Parse external GPU response
+            external_result = resp.json()
+            
+            # Convert from segments-based format to standard Whisper verbose format
+            # External format: { "text": str, "segments": [...], "language": str }
+            # Target format: { "task": str, "language": str, "duration": float, "text": str, "words": [...] }
+            
+            all_words = []
+            duration = 0.0
+            
+            # Extract words from all segments
+            if "segments" in external_result:
+                for segment in external_result["segments"]:
+                    if "words" in segment:
+                        for word_obj in segment["words"]:
+                            all_words.append({
+                                "word": word_obj.get("word", ""),
+                                "start": word_obj.get("start", 0.0),
+                                "end": word_obj.get("end", 0.0)
+                            })
+                    # Update duration based on segment end time
+                    segment_end = segment.get("end", 0.0)
+                    if segment_end > duration:
+                        duration = segment_end
+            
+            # Build standard Whisper verbose response
+            standard_response = {
+                "task": "transcribe",
+                "language": external_result.get("language", "en"),
+                "duration": duration,
+                "text": external_result.get("text", ""),
+                "words": all_words
+            }
+            
+            # Return as JSON
             return Response(
-                content=resp.content, 
-                status_code=resp.status_code, 
-                media_type=resp.headers.get("content-type")
+                content=json.dumps(standard_response),
+                status_code=200,
+                media_type="application/json"
             )
             
     except httpx.RequestError as e:
@@ -83,3 +126,4 @@ async def proxy_transcribe(
     except Exception as e:
         print(f"Transcription Proxy General Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Proxy Error During Transcription")
+

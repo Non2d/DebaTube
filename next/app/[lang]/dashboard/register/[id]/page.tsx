@@ -98,7 +98,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
-    // Unified Step 1 Function: Audio Download -> Transcription
+    // Unified Step 1 Function: Direct to External GPU Server
     const runStep1 = async () => {
         if (!roundData?.video_id) return;
 
@@ -106,31 +106,31 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const newStatus = [...stepsStatus];
         newStatus[0] = 'processing';
         setStepsStatus(newStatus);
-        setDownloadProgress(10); // Start progress for SubStep 1A
+        setDownloadProgress(20); // Fake progress
 
         try {
-            // --- SubStep 1A: Audio Download ---
-            const progressInterval = setInterval(() => {
-                setDownloadProgress(prev => Math.min(prev + 5, 90));
-            }, 500);
-
-            const res = await fetch(getAPIRoot() + '/download-audio', {
+            // Call new External GPU endpoint
+            // This replaces both download-audio and audio-to-transcript-batch
+            const res = await fetch(getAPIRoot() + '/transcribe-youtube-via-external', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ video_id: roundData.video_id }),
+                body: JSON.stringify({
+                    url: `https://www.youtube.com/watch?v=${roundData.video_id}`,
+                    round_id: roundData.id
+                }),
             });
 
-            clearInterval(progressInterval);
-            if (!res.ok) throw new Error('Download failed');
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'External Transcription failed');
+            }
 
-            setDownloadProgress(100); // 1A Complete
-            toast.success('Audio downloaded, starting transcription...');
-
-            // --- SubStep 1B: Transcription ---
-            // Automatically trigger transcription logic
-            await runTranscriptionInternal();
+            setDownloadProgress(100);
+            fetchJobProgress();
+            toast.success('External GPU Transcription completed');
 
         } catch (error: any) {
+            console.error(error);
             const errStatus = [...stepsStatus];
             errStatus[0] = 'error';
             setStepsStatus(errStatus);
@@ -138,36 +138,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
-    const runTranscriptionInternal = async () => {
-        try {
-            const audioRes = await fetch(getAPIRoot() + `/audio/${roundData.video_id}`);
-            if (!audioRes.ok) throw new Error('Failed to retrieve audio file.');
+    // runTranscriptionInternal is no longer used but kept empty or removed to avoid errors if referenced elsewhere?
+    // It's only called by runStep1, so removing it is fine.
+    // However, I need to make sure I don't leave a dangling reference.
+    // The previous runStep1 called it. I am replacing runStep1 AND runTranscriptionInternal.
 
-            const audioBlob = await audioRes.blob();
-            const formData = new FormData();
-            formData.append('files', audioBlob, `${roundData.video_id}.m4a`);
-            formData.append('match_name', roundData.name || 'default');
-            formData.append('transcription_model', transcriptionModel);
-            if (transcriptionModel === 'custom-colab-whisper' && colabUrl) {
-                formData.append('colab_url', colabUrl);
-            }
-
-            const transRes = await fetch(getAPIRoot() + '/audio-to-transcript-batch', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!transRes.ok) {
-                const err = await transRes.json();
-                throw new Error(err.detail || 'Transcription failed');
-            }
-
-            fetchJobProgress();
-            toast.success('Transcription completed');
-        } catch (error: any) {
-            throw error; // Propagate error to parent try-catch
-        }
-    };
 
     const handleStepAction = (stepIndex: number) => {
         if (stepIndex === 1) runStep1();
@@ -224,9 +199,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             onChange={(e) => setTranscriptionModel(e.target.value)}
                             className="h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
                         >
-                            <option value="groq-whisper-large-v3-turbo">groq-whisper-large-v3-turbo</option>
-                            <option value="custom-colab-whisper">Custom Colab Whisper</option>
-                            <option value="external-gpu-server">External GPU Server</option>
+                            <option value="groq-whisper-large-v3-turbo">whisper-large-v3 (Groq API)</option>
+                            <option value="custom-colab-whisper">faster-whisper-whisper-large-v2 (Colab)</option>
+                            <option value="external-gpu-server">faster-whisper-whisper-large-v2 (External GPU Server)</option>
                         </select>
                     </div>
 
@@ -342,7 +317,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                         rel="noopener noreferrer"
                                         className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
                                     >
-                                        Watch Video <ExternalLink size={14} />
+                                        {`https://www.youtube.com/watch?v=${roundData.video_id}`} <ExternalLink size={14} />
                                     </a>
                                 </div>
                             )}

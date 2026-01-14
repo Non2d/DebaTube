@@ -632,6 +632,87 @@ async def audio_to_transcript_batch(
             status_code=500, detail=f"Batch transcription failed: {str(e)}"
         )
 
+
+@router.post("/transcribe-youtube-via-external")
+async def transcribe_youtube_via_external(
+    url: str,
+    round_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Experimental: Transcribe YouTube video via External GPU Server.
+    - Input: url (YouTube URL), round_id (int)
+    - Output: Saves transcription result to results_{round_name}/...
+    """
+    start_time = time.time()
+    print(f"[/transcribe-youtube-via-external] 処理開始")
+
+    # Fetch Round from DB
+    try:
+        round_result = await db.execute(select(Round).where(Round.id == round_id))
+        round_obj = round_result.scalar_one_or_none()
+        if not round_obj:
+            raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+        
+        match_name = round_obj.name
+
+    except Exception as db_e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
+
+
+
+    # Call local proxy endpoint (which handles external GPU communication)
+    proxy_url = "http://localhost:8000/external-gpu-transcribe"
+    
+    try:
+        # 1. Call local proxy (which forwards to external GPU server)
+        print(f"Calling local proxy: {proxy_url} with URL: {url}")
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                proxy_url,
+                json={"url": url},
+                timeout=None  # Wait indefinitely for transcription
+            )
+        
+        if resp.status_code != 200:
+            error_detail = resp.text
+            try:
+                error_json = resp.json()
+                error_detail = error_json.get("detail", resp.text)
+            except:
+                pass
+            raise HTTPException(status_code=resp.status_code, detail=f"Proxy Error: {error_detail}")
+
+        transcription_result = resp.json()
+        
+        # Validate the response format
+        try:
+            validated_data = VerboseTranscriptionResponse(**transcription_result)
+            logger.info(f"External transcription validated successfully for round {round_id}")
+        except ValidationError as val_error:
+            logger.error(f"Validation failed for external transcription: {val_error}")
+            raise HTTPException(status_code=500, detail=f"Invalid transcription format: {val_error}")
+
+        elapsed_time = time.time() - start_time
+        print(f"[/transcribe-youtube-via-external] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "round_id": round_id,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except httpx.RequestError as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/transcribe-youtube-via-external] Proxy Request Error: {str(e)}")
+        logger.error(f"Error calling proxy: {str(e)}")
+        raise HTTPException(status_code=503, detail="Failed to reach proxy server")
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/transcribe-youtube-via-external] Error: {str(e)}")
+        logger.error(f"Error in external transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/transcript-to-adu-batch")
 async def transcript_to_adu_batch(
     batch_request: BatchTranscriptRequest,
