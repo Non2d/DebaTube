@@ -56,7 +56,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
     // Workflow State
     const [isRegistrationComplete, setIsRegistrationComplete] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
-    const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['disabled', 'disabled', 'disabled', 'disabled', 'disabled']);
+    const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['disabled', 'disabled', 'disabled', 'disabled']);
     const [registeredRoundId, setRegisteredRoundId] = useState<string | null>(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
 
@@ -271,7 +271,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
             setIsRegistrationComplete(true);
             setCurrentStep(1); // Start with Step 1
             // Step 1 is pending, others disabled
-            setStepsStatus(['pending', 'disabled', 'disabled', 'disabled', 'disabled']);
+            setStepsStatus(['pending', 'disabled', 'disabled', 'disabled']);
 
         } catch (error: any) {
             toast.error(error.message || t('dashboard.modal.messages.failedCreate'));
@@ -295,7 +295,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                             {t('dashboard.modal.labels.back') || 'Back to Dashboard'}
                         </Link>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {t('dashboard.modal.labels.registerNewRound')}
+                            {t('dashboard.modal.labels.registerRound')}
                         </h1>
                     </div>
 

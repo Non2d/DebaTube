@@ -4,11 +4,18 @@ import { Check, Loader2, Download, FileText, Users, MessageSquare, AlertCircle }
 
 export type ProcessingStepStatus = 'pending' | 'processing' | 'completed' | 'error' | 'disabled';
 
+interface SubStep {
+    id: string;
+    title: string;
+    description: string;
+}
+
 interface Step {
     id: number;
     title: string;
     description: string;
     icon: React.ReactNode;
+    subSteps?: SubStep[];
 }
 
 interface ProcessingStepsProps {
@@ -40,11 +47,22 @@ export default function ProcessingSteps({
     }, [currentStep, isRegistrationComplete]);
 
     const steps: Step[] = [
-        { id: 1, title: 'Audio Download', description: 'Download audio from YouTube', icon: <Download size={18} /> },
-        { id: 2, title: 'Transcription', description: 'Transcribe and segment sentences', icon: <FileText size={18} /> },
-        { id: 3, title: 'Speaker Diarization', description: 'Assign speakers to segments', icon: <Users size={18} /> },
-        { id: 4, title: 'ADU Segmentation', description: 'Identify arguments and POIs', icon: <MessageSquare size={18} /> },
-        { id: 5, title: 'Rebuttal Detection', description: 'Identify rebuttal relationships', icon: <AlertCircle size={18} /> },
+        {
+            id: 1,
+            title: t('dashboard.steps.transcriptGeneration') || 'Transcript Generation',
+            description: t('dashboard.steps.transcriptGenerationDesc') || 'Download audio and generate transcript',
+            icon: <FileText size={18} />,
+            subSteps: [
+                { id: '1a', title: 'Audio Download', description: 'Download audio from YouTube' },
+                { id: '1b', title: 'Transcription', description: 'Transcribe audio to text' }
+            ]
+        },
+        // Old Step 3 becomes Step 2
+        { id: 2, title: 'Speaker Diarization', description: 'Assign speakers to segments', icon: <Users size={18} /> },
+        // Old Step 4 becomes Step 3
+        { id: 3, title: 'ADU Segmentation', description: 'Identify arguments and POIs', icon: <MessageSquare size={18} /> },
+        // Old Step 5 becomes Step 4
+        { id: 4, title: 'Rebuttal Detection', description: 'Identify rebuttal relationships', icon: <AlertCircle size={18} /> },
     ];
 
     const getStatusColor = (status: ProcessingStepStatus) => {
@@ -66,7 +84,7 @@ export default function ProcessingSteps({
     };
 
     return (
-        <div className="w-full space-y-4 mt-8">
+        <div className="w-full space-y-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 px-1">
                 Processing Workflow
             </h3>
@@ -125,6 +143,49 @@ export default function ProcessingSteps({
                                         <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
                                             {step.description}
                                         </p>
+
+                                        {/* Sub-steps Visualization */}
+                                        {step.subSteps && (
+                                            <div className="mb-6 flex flex-col gap-2">
+                                                {step.subSteps.map((subStep, subIndex) => {
+                                                    // Determine status of sub-step based on overall step status and progress
+                                                    // This is a simplified logic; ideally props would pass granular status
+                                                    let subStatus: 'pending' | 'processing' | 'completed' = 'pending';
+
+                                                    if (status === 'completed') {
+                                                        subStatus = 'completed';
+                                                    } else if (status === 'processing') {
+                                                        // HACK: Use downloadProgress to guess sub-step state for Step 1
+                                                        // 100 means audio (1A) done, moving to 1B
+                                                        if (subIndex === 0) {
+                                                            subStatus = downloadProgress >= 100 ? 'completed' : 'processing';
+                                                        } else if (subIndex === 1) {
+                                                            subStatus = downloadProgress >= 100 ? 'processing' : 'pending';
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <div key={subStep.id} className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
+                                                            <div className={`
+                                                                w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                                                                ${subStatus === 'completed' ? 'bg-green-500 text-white' :
+                                                                    subStatus === 'processing' ? 'bg-blue-500 text-white animate-pulse' :
+                                                                        'bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400'}
+                                                            `}>
+                                                                {subStatus === 'completed' ? <Check size={12} /> :
+                                                                    subStatus === 'processing' ? <Loader2 size={12} className="animate-spin" /> :
+                                                                        String.fromCharCode(65 + subIndex)}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className={`text-sm font-medium ${subStatus === 'pending' ? 'text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                                    {subStep.title}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
 
                                         {/* Custom Content for this step */}
                                         {renderStepContent && renderStepContent(step.id)}

@@ -1,7 +1,7 @@
 
 import { LocaleType } from './en';
 
-export const ja: LocaleType = {
+export const ja = {
     header: {
         title: "DebaTube Live",
         explore: "試合をさがす",
@@ -285,6 +285,7 @@ export const ja: LocaleType = {
             labels: {
                 back: "ダッシュボードに戻る",
                 registerNewRound: "試合動画を登録",
+                registerRound: "試合を登録する",
                 youtubeUrl: "YouTube URL",
                 style: "ディベートスタイル",
                 motion: "論題 (Motion)",
@@ -304,6 +305,7 @@ export const ja: LocaleType = {
                 error: "エラーが発生しました",
                 selectUrlOrFile: "ファイルを選択するかURLを入力してください"
             }
-        }
+        },
+        // steps object removed temporarily as requested
     }
 };

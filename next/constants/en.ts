@@ -283,6 +283,7 @@ export const en = {
             labels: {
                 back: "Back to Dashboard",
                 registerNewRound: "Register New Round Video",
+                registerRound: "Register a Round",
                 youtubeUrl: "YouTube URL",
                 style: "Debate Style",
                 motion: "Motion",
@@ -302,6 +303,10 @@ export const en = {
                 error: "An error occurred",
                 selectUrlOrFile: "Please select a file or enter a YouTube URL"
             }
+        },
+        steps: {
+            transcriptGeneration: "Transcript Generation",
+            transcriptGenerationDesc: "Download audio and generate transcript"
         }
     }
 };

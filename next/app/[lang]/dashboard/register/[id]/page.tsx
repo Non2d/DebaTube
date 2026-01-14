@@ -19,7 +19,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
     const [loading, setLoading] = useState(true);
     const [roundData, setRoundData] = useState<any>(null);
-    const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled', 'disabled']);
+    const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled']);
     const [currentStep, setCurrentStep] = useState(1);
     const [downloadProgress, setDownloadProgress] = useState(0);
 
@@ -49,32 +49,28 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             if (res.ok) {
                 const progress = await res.json();
 
-                // Map job-progress to stepsStatus
+                // Map job-progress to stepsStatus (Merged Step 1 & 2)
                 const newStatus: ProcessingStepStatus[] = [...stepsStatus];
 
-                // Step 1: Audio
-                if (progress.audio_complete) newStatus[0] = 'completed';
+                // Step 1: Transcript Generation (Audio + Transcript)
+                const isStep1Complete = progress.audio_complete && progress.transcription_complete;
+                if (isStep1Complete) newStatus[0] = 'completed';
                 else if (newStatus[0] !== 'processing') newStatus[0] = 'pending';
 
-                // Step 2: Transcription
-                if (progress.transcription_complete) newStatus[1] = 'completed';
+                // Step 2: Diarization (was Step 3)
+                if (progress.sentences_complete) newStatus[1] = 'completed';
                 else if (newStatus[0] === 'completed' && newStatus[1] !== 'processing') newStatus[1] = 'pending';
                 else if (newStatus[0] !== 'completed') newStatus[1] = 'disabled';
 
-                // Step 3: Diarization (Using sentences_complete as proxy)
-                if (progress.sentences_complete) newStatus[2] = 'completed';
+                // Step 3: ADU (was Step 4)
+                if (progress.adus_complete) newStatus[2] = 'completed';
                 else if (newStatus[1] === 'completed' && newStatus[2] !== 'processing') newStatus[2] = 'pending';
                 else if (newStatus[1] !== 'completed') newStatus[2] = 'disabled';
 
-                // Step 4: ADU
-                if (progress.adus_complete) newStatus[3] = 'completed';
+                // Step 4: Rebuttal (was Step 5)
+                if (progress.rebuttals_complete) newStatus[3] = 'completed';
                 else if (newStatus[2] === 'completed' && newStatus[3] !== 'processing') newStatus[3] = 'pending';
                 else if (newStatus[2] !== 'completed') newStatus[3] = 'disabled';
-
-                // Step 5: Rebuttal
-                if (progress.rebuttals_complete) newStatus[4] = 'completed';
-                else if (newStatus[3] === 'completed' && newStatus[4] !== 'processing') newStatus[4] = 'pending';
-                else if (newStatus[3] !== 'completed') newStatus[4] = 'disabled';
 
                 setStepsStatus(newStatus);
 
@@ -83,8 +79,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 else if (newStatus[1] === 'pending' || newStatus[1] === 'processing') setCurrentStep(2);
                 else if (newStatus[2] === 'pending' || newStatus[2] === 'processing') setCurrentStep(3);
                 else if (newStatus[3] === 'pending' || newStatus[3] === 'processing') setCurrentStep(4);
-                else if (newStatus[4] === 'pending' || newStatus[4] === 'processing') setCurrentStep(5);
-                else if (newStatus[4] === 'completed') setCurrentStep(5);
+                else if (newStatus[3] === 'completed') setCurrentStep(4);
             }
         } catch (e) {
             console.error(e);
@@ -103,14 +98,18 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
-    const runAudioDownload = async () => {
+    // Unified Step 1 Function: Audio Download -> Transcription
+    const runStep1 = async () => {
         if (!roundData?.video_id) return;
+
+        // Start processing Step 1
         const newStatus = [...stepsStatus];
         newStatus[0] = 'processing';
         setStepsStatus(newStatus);
-        setDownloadProgress(10);
+        setDownloadProgress(10); // Start progress for SubStep 1A
 
         try {
+            // --- SubStep 1A: Audio Download ---
             const progressInterval = setInterval(() => {
                 setDownloadProgress(prev => Math.min(prev + 5, 90));
             }, 500);
@@ -124,9 +123,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             clearInterval(progressInterval);
             if (!res.ok) throw new Error('Download failed');
 
-            setDownloadProgress(100);
-            fetchJobProgress(); // Refresh immediately
-            toast.success('Audio downloaded/verified');
+            setDownloadProgress(100); // 1A Complete
+            toast.success('Audio downloaded, starting transcription...');
+
+            // --- SubStep 1B: Transcription ---
+            // Automatically trigger transcription logic
+            await runTranscriptionInternal();
+
         } catch (error: any) {
             const errStatus = [...stepsStatus];
             errStatus[0] = 'error';
@@ -135,15 +138,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
-    const runTranscription = async () => {
-        if (!roundData?.video_id) return;
-        const newStatus = [...stepsStatus];
-        newStatus[1] = 'processing';
-        setStepsStatus(newStatus);
-
+    const runTranscriptionInternal = async () => {
         try {
             const audioRes = await fetch(getAPIRoot() + `/audio/${roundData.video_id}`);
-            if (!audioRes.ok) throw new Error('Failed to retrieve audio file. Please run Step 1 first.');
+            if (!audioRes.ok) throw new Error('Failed to retrieve audio file.');
 
             const audioBlob = await audioRes.blob();
             const formData = new FormData();
@@ -167,16 +165,14 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             fetchJobProgress();
             toast.success('Transcription completed');
         } catch (error: any) {
-            const errStatus = [...stepsStatus];
-            errStatus[1] = 'error';
-            setStepsStatus(errStatus);
-            toast.error(error.message);
+            throw error; // Propagate error to parent try-catch
         }
     };
 
     const handleStepAction = (stepIndex: number) => {
-        if (stepIndex === 1) runAudioDownload();
-        else if (stepIndex === 2) runTranscription();
+        if (stepIndex === 1) runStep1();
+        // Step 2, 3... can execute normally or via existing logic if implemented
+        // Since original code only had Step 1 & 2 actions implemented here...
     };
 
     const handleTestConnection = async () => {
@@ -202,7 +198,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     };
 
     const renderStepExtras = (stepId: number) => {
-        if (stepId !== 2) return null;
+        if (stepId !== 1) return null; // Model selection moved to Step 1
 
         return (
             <div className="mt-4 mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -244,7 +240,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                     disabled={isTestingConnection || !colabUrl}
                                     className={`h-9 px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${isTestingConnection
                                         ? 'bg-slate-100 text-slate-400 cursor-wait'
-                                        : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900'
+                                        : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md hover:shadow-lg dark:bg-indigo-600 dark:hover:bg-indigo-700'
                                         }`}
                                 >
                                     {isTestingConnection ? 'Testing...' : 'Test Connection'}
@@ -286,37 +282,40 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             <ArrowLeft className="w-4 h-4" />
                             {t('dashboard.modal.labels.back') || 'Back to Dashboard'}
                         </Link>
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                            {t('dashboard.modal.labels.registerRound')}
+                        </h1>
+                    </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                                {roundData.name}
-                            </h1>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                            {roundData.name}
+                        </h2>
 
-                            <div className="flex flex-wrap gap-6 text-sm">
-                                <div>
-                                    <span className="block text-gray-500 dark:text-gray-400 mb-1">Style</span>
-                                    <span className="font-medium">{roundData.style || '-'}</span>
-                                </div>
-                                {roundData.video_id && (
-                                    <div>
-                                        <span className="block text-gray-500 dark:text-gray-400 mb-1">YouTube URL</span>
-                                        <a
-                                            href={`https://www.youtube.com/watch?v=${roundData.video_id}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
-                                        >
-                                            Watch Video <ExternalLink size={14} />
-                                        </a>
-                                    </div>
-                                )}
-                                {roundData.motion && (
-                                    <div className="w-full">
-                                        <span className="block text-gray-500 dark:text-gray-400 mb-1">Motion</span>
-                                        <span className="font-medium">{roundData.motion}</span>
-                                    </div>
-                                )}
+                        <div className="flex flex-wrap gap-6 text-sm">
+                            <div>
+                                <span className="block text-gray-500 dark:text-gray-400 mb-1">Style</span>
+                                <span className="font-medium">{roundData.style || '-'}</span>
                             </div>
+                            {roundData.video_id && (
+                                <div>
+                                    <span className="block text-gray-500 dark:text-gray-400 mb-1">YouTube URL</span>
+                                    <a
+                                        href={`https://www.youtube.com/watch?v=${roundData.video_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
+                                    >
+                                        Watch Video <ExternalLink size={14} />
+                                    </a>
+                                </div>
+                            )}
+                            {roundData.motion && (
+                                <div className="w-full">
+                                    <span className="block text-gray-500 dark:text-gray-400 mb-1">Motion</span>
+                                    <span className="font-medium">{roundData.motion}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
