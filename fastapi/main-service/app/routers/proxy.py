@@ -32,6 +32,10 @@ async def check_gpu_health():
             )
     except httpx.RequestError as e:
         # Network error (timeout, connection failed)
-        raise HTTPException(status_code=503, detail=f"GPU Server Unreachable: {str(e)}")
+        # Log the error internally
+        print(f"Proxy Request Error: {str(e)}")
+        # Return generic error to client to hide URL
+        raise HTTPException(status_code=503, detail="GPU Server Unreachable")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Proxy Error: {str(e)}")
+        print(f"Proxy General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Proxy Error")
