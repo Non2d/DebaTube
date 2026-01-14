@@ -51,21 +51,18 @@ export default function ProcessingSteps({
     const steps: Step[] = [
         {
             id: 1,
-            title: t('dashboard.steps.transcriptGeneration') || 'Transcript Generation',
-            description: t('dashboard.steps.transcriptGenerationDesc') || 'Download audio and generate transcript',
+            title: t('dashboard.steps.transcriptGeneration'),
+            description: t('dashboard.steps.transcriptGenerationDesc'),
             icon: <FileText size={18} />,
             subSteps: [
-                { id: '1a', title: 'Download Audio', description: 'Download audio from YouTube' },
-                { id: '1b', title: 'Transcribe Words', description: 'Transcribe audio to text' },
-                { id: '1c', title: 'Group Words into Sentences', description: 'Group words into sentences' }
+                { id: '1a', title: t('dashboard.steps.subSteps.downloadAudio'), description: t('dashboard.steps.transcriptGenerationDesc') },
+                { id: '1b', title: t('dashboard.steps.subSteps.transcribeWords'), description: t('dashboard.steps.transcriptGenerationDesc') },
+                { id: '1c', title: t('dashboard.steps.subSteps.groupSentences'), description: t('dashboard.steps.transcriptGenerationDesc') }
             ]
         },
-        // Old Step 3 becomes Step 2
-        { id: 2, title: 'Speaker Diarization', description: 'Assign speakers to segments', icon: <Users size={18} /> },
-        // Old Step 4 becomes Step 3
-        { id: 3, title: 'ADU Segmentation', description: 'Identify arguments and POIs', icon: <MessageSquare size={18} /> },
-        // Old Step 5 becomes Step 4
-        { id: 4, title: 'Rebuttal Detection', description: 'Identify rebuttal relationships', icon: <AlertCircle size={18} /> },
+        { id: 2, title: t('dashboard.steps.speakerDiarization'), description: t('dashboard.steps.speakerDiarizationDesc'), icon: <Users size={18} /> },
+        { id: 3, title: t('dashboard.steps.aduSegmentation'), description: t('dashboard.steps.aduSegmentationDesc'), icon: <MessageSquare size={18} /> },
+        { id: 4, title: t('dashboard.steps.rebuttalDetection'), description: t('dashboard.steps.rebuttalDetectionDesc'), icon: <AlertCircle size={18} /> }
     ];
 
     const getStatusColor = (status: ProcessingStepStatus) => {
@@ -89,7 +86,7 @@ export default function ProcessingSteps({
     return (
         <div className="w-full space-y-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 px-1">
-                Processing Workflow
+                {t('dashboard.steps.title')}
             </h3>
 
             <div className="space-y-3">
@@ -126,7 +123,7 @@ export default function ProcessingSteps({
 
                                 {status === 'processing' && (
                                     <span className="text-xs font-medium px-2 py-1 bg-white/50 dark:bg-black/20 rounded-md ml-2">
-                                        Processing...
+                                        {t('dashboard.steps.status.processing')}
                                     </span>
                                 )}
                             </div>
@@ -210,7 +207,7 @@ export default function ProcessingSteps({
                                                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                             >
                                                 {status === 'processing' ? <Loader2 className="animate-spin" size={14} /> : <ZapIcon size={14} />}
-                                                Run Step
+                                                {status === 'processing' ? t('dashboard.steps.actions.running') : t('dashboard.steps.actions.runStep')}
                                             </button>
                                         </div>
                                     </div>

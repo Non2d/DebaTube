@@ -306,6 +306,35 @@ export const ja = {
                 selectUrlOrFile: "ファイルを選択するかURLを入力してください"
             }
         },
+        steps: {
+            title: "ワークフロー",
+            transcriptGeneration: "文字起こし生成",
+            transcriptGenerationDesc: "音声をダウンロードして文字起こしを生成",
+            speakerDiarization: "話者識別",
+            speakerDiarizationDesc: "セグメントに話者を割り当て",
+            aduSegmentation: "ADUセグメンテーション",
+            aduSegmentationDesc: "議論とPOIを識別",
+            rebuttalDetection: "反論検出",
+            rebuttalDetectionDesc: "反論関係を識別",
+            subSteps: {
+                downloadAudio: "音声ダウンロード",
+                transcribeWords: "単語の文字起こし",
+                groupSentences: "文へのグループ化"
+            },
+            status: {
+                processing: "処理中...",
+                completed: "完了",
+                pending: "待機中",
+                error: "エラー"
+            },
+            actions: {
+                runStep: "ステップを実行",
+                running: "実行中..."
+            },
+            timer: {
+                processing: "処理中... ({minutes}分 {seconds}秒)"
+            }
+        },
         // steps object removed temporarily as requested
     }
 };

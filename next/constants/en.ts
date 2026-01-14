@@ -305,8 +305,33 @@ export const en = {
             }
         },
         steps: {
+            title: "Processing Workflow",
             transcriptGeneration: "Transcript Generation",
-            transcriptGenerationDesc: "Download audio and generate transcript"
+            transcriptGenerationDesc: "Download audio and generate transcript",
+            speakerDiarization: "Speaker Diarization",
+            speakerDiarizationDesc: "Assign speakers to segments",
+            aduSegmentation: "ADU Segmentation",
+            aduSegmentationDesc: "Identify arguments and POIs",
+            rebuttalDetection: "Rebuttal Detection",
+            rebuttalDetectionDesc: "Identify rebuttal relationships",
+            subSteps: {
+                downloadAudio: "Download Audio",
+                transcribeWords: "Transcribe Words",
+                groupSentences: "Group Words into Sentences"
+            },
+            status: {
+                processing: "Processing...",
+                completed: "Completed",
+                pending: "Pending",
+                error: "Error"
+            },
+            actions: {
+                runStep: "Run Step",
+                running: "Running..."
+            },
+            timer: {
+                processing: "Processing... ({minutes}m {seconds}s)"
+            }
         }
     }
 };
