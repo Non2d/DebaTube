@@ -176,19 +176,30 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     };
 
     const handleTestConnection = async () => {
-        if (!colabUrl) {
-            toast.error("URLを入力してください");
-            return;
-        }
         setIsTestingConnection(true);
         try {
-            // Use Server Action to bypass CORS
-            const result = await testColabConnection(colabUrl);
-
-            if (result.success) {
-                toast.success("接続成功！ (Connection Successful)");
-            } else {
-                toast.error(`接続失敗: ${result.message}`);
+            if (transcriptionModel === 'custom-colab-whisper') {
+                if (!colabUrl) {
+                    toast.error("URLを入力してください");
+                    setIsTestingConnection(false);
+                    return;
+                }
+                // Use Server Action to bypass CORS for Colab
+                const result = await testColabConnection(colabUrl);
+                if (result.success) {
+                    toast.success("接続成功！ (Connection Successful)");
+                } else {
+                    toast.error(`接続失敗: ${result.message}`);
+                }
+            } else if (transcriptionModel === 'external-gpu-server') {
+                // Use local proxy
+                const res = await fetch(getAPIRoot() + '/external-gpu-health');
+                if (res.ok) {
+                    toast.success("External GPU Server 接続成功！");
+                } else {
+                    const err = await res.json().catch(() => ({ detail: res.statusText }));
+                    toast.error(`接続失敗: ${err.detail || res.status}`);
+                }
             }
         } catch (error: any) {
             toast.error(`エラー: ${error.message}`);
@@ -215,10 +226,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         >
                             <option value="groq-whisper-large-v3-turbo">groq-whisper-large-v3-turbo</option>
                             <option value="custom-colab-whisper">Custom Colab Whisper</option>
+                            <option value="external-gpu-server">External GPU Server</option>
                         </select>
                     </div>
 
-                    {/* Colab URL Input & Test Button */}
+                    {/* Colab URL Input & Test Button (Custom Colab) */}
                     {transcriptionModel === 'custom-colab-whisper' && (
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -244,6 +256,30 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                         }`}
                                 >
                                     {isTestingConnection ? 'Testing...' : 'Test Connection'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* External GPU Server Test Button (No URL Input) */}
+                    {transcriptionModel === 'external-gpu-server' && (
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                Connection Check
+                            </label>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTestConnection();
+                                    }}
+                                    disabled={isTestingConnection}
+                                    className={`h-9 px-4 rounded-lg text-xs font-bold transition-all whitespace-nowrap w-full ${isTestingConnection
+                                        ? 'bg-slate-100 text-slate-400 cursor-wait'
+                                        : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md hover:shadow-lg dark:bg-indigo-600 dark:hover:bg-indigo-700'
+                                        }`}
+                                >
+                                    {isTestingConnection ? 'Testing External Server...' : 'Test Connection to External GPU'}
                                 </button>
                             </div>
                         </div>

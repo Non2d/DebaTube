@@ -8,7 +8,8 @@ from routers import (
     audio_save,
     external_video,
     job_progress,
-    audio_download
+    audio_download,
+    proxy # Added proxy router
 )
 
 from fastapi.exceptions import RequestValidationError
@@ -79,6 +80,7 @@ app.include_router(audio_download.router, tags=["job-progress"])
 app.include_router(audio2adu.router, tags=["audio2adu"])
 app.include_router(sub_apis.router, tags=["sub-api"])
 app.include_router(audio_save.router, tags=["audio-save"])
+app.include_router(proxy.router, tags=["proxy"]) # Include proxy router
 
 
 # Import logs router inside function or at top, here we do at top but for replace convenience:
