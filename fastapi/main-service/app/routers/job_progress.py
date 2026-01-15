@@ -22,6 +22,7 @@ class JobProgressResponse(BaseModel):
     """ラウンド全体の処理進捗"""
     round_id: int
     audio_complete: bool
+    audio_file_exists: bool  # 物理ファイルが存在するか（再実行用）
     transcription_complete: bool
     sentences_complete: bool
     adus_complete: bool

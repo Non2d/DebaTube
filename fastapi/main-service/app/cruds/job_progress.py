@@ -17,6 +17,7 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     
     # 音声ファイルの存在確認 (1試合に1つのファイル)
     audio_complete = False
+    audio_file_exists = False # 今後，External GPU ServerやCollab上に音声ファイルがあるかに対応させる
     if round_obj and round_obj.video_id:
         # Check standard path
         audio_path = f"/app/tmp-audio-save/{round_obj.video_id}/full_audio.m4a"
@@ -87,7 +88,7 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     # 全体の完了状況
     # audio_completeは上記でファイルチェック済み
     
-    has_enough_speeches = len(speeches_progress) >= 4
+    has_enough_speeches = len(speeches_progress) >= 4 # 本当はスタイルごとに設定すべき
 
     # Check if Round has raw_transcription (full transcription before diarization)
     # If it exists, transcription is considered complete even without individual speech transcriptions
@@ -96,6 +97,10 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     else:
         transcription_complete = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
     
+    # If transcription is complete, audio download must have been completed (even if file is now deleted)
+    if transcription_complete:
+        audio_complete = True
+    
     sentences_complete = has_enough_speeches and all(s["has_sentences"] for s in speeches_progress)
     adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals
@@ -103,6 +108,7 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     return {
         "round_id": round_id,
         "audio_complete": audio_complete,
+        "audio_file_exists": audio_file_exists,
         "transcription_complete": transcription_complete,
         "sentences_complete": sentences_complete,
         "adus_complete": adus_complete,
