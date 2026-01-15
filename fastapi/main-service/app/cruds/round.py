@@ -222,13 +222,9 @@ async def create_words_batch(
     db: AsyncSession,
     words_data: List[Dict[str, Any]]
 ) -> List[Word]:
-    """
-    複数の単語を一括作成
-    """
     words = [
         Word(
-            speech_id=w["speech_id"],
-            index=w["index"],
+            round_id=w["round_id"],
             text=w["text"],
             start_time=w["start_time"],
             end_time=w["end_time"],
@@ -245,47 +241,64 @@ async def create_sentences_batch(
     db: AsyncSession,
     sentences_data: List[Dict[str, Any]]
 ) -> List[Sentence]:
-    """
-    複数の文を一括作成
-    """
     sentences = [
         Sentence(
-            speech_id=s["speech_id"],
-            index=s["index"],
+            round_id=s["round_id"],
             text=s["text"],
-            start_word_index=s["start_word_index"],
-            end_word_index=s["end_word_index"]
+            first_word_id=s["first_word_id"],
+            last_word_id=s["last_word_id"]
         )
         for s in sentences_data
     ]
     db.add_all(sentences)
     await db.commit()
-    # Refresh to get IDs
     for s in sentences:
         await db.refresh(s)
     return sentences
 
 
 async def get_sentences_by_speech(db: AsyncSession, speech_id: int) -> List[Sentence]:
-    """
-    スピーチIDで文一覧を取得（インデックス順）
-    """
     result = await db.execute(
         select(Sentence)
-        .where(Sentence.speech_id == speech_id)
-        .order_by(Sentence.index)
+        .join(Speech, Sentence.round_id == Speech.round_id)
+        .where(Speech.id == speech_id)
+        .order_by(Sentence.id)
+    )
+    return result.scalars().all()
+
+
+async def get_sentences_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Sentence]:
+    round_obj = await get_round(db, round_name, try_count)
+    if not round_obj:
+        return []
+    
+    result = await db.execute(
+        select(Sentence)
+        .where(Sentence.round_id == round_obj.id)
+        .order_by(Sentence.id)
     )
     return result.scalars().all()
 
 
 async def get_words_by_speech(db: AsyncSession, speech_id: int) -> List[Word]:
-    """
-    スピーチIDで単語一覧を取得（インデックス順）
-    """
     result = await db.execute(
         select(Word)
-        .where(Word.speech_id == speech_id)
-        .order_by(Word.index)
+        .join(Speech, Word.round_id == Speech.round_id)
+        .where(Speech.id == speech_id)
+        .order_by(Word.id)
+    )
+    return result.scalars().all()
+
+
+async def get_words_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Word]:
+    round_obj = await get_round(db, round_name, try_count)
+    if not round_obj:
+        return []
+    
+    result = await db.execute(
+        select(Word)
+        .where(Word.round_id == round_obj.id)
+        .order_by(Word.id)
     )
     return result.scalars().all()
 
@@ -295,8 +308,8 @@ async def get_words_by_speech(db: AsyncSession, speech_id: int) -> List[Word]:
 async def create_adu(
     db: AsyncSession,
     speech_id: int,
-    start_sentence_index: int,
-    end_sentence_index: int,
+    first_sentence_id: int,
+    last_sentence_id: int,
     text: str,
     role: str
 ) -> Adu:
@@ -305,8 +318,8 @@ async def create_adu(
     """
     adu = Adu(
         speech_id=speech_id,
-        start_sentence_index=start_sentence_index,
-        end_sentence_index=end_sentence_index,
+        first_sentence_id=first_sentence_id,
+        last_sentence_id=last_sentence_id,
         text=text,
         role=role
     )
@@ -320,14 +333,11 @@ async def create_adus_batch(
     db: AsyncSession,
     adus_data: List[Dict[str, Any]]
 ) -> List[Adu]:
-    """
-    複数のADUを一括作成
-    """
     adus = [
         Adu(
             speech_id=adu_data["speech_id"],
-            start_sentence_index=adu_data["start_sentence_index"],
-            end_sentence_index=adu_data["end_sentence_index"],
+            first_sentence_id=adu_data["first_sentence_id"],
+            last_sentence_id=adu_data["last_sentence_id"],
             text=adu_data["text"],
             role=adu_data["role"]
         )
@@ -336,7 +346,6 @@ async def create_adus_batch(
     db.add_all(adus)
     await db.commit()
 
-    # Refresh all to get IDs
     for adu in adus:
         await db.refresh(adu)
 

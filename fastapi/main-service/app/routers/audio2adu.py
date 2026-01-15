@@ -1199,73 +1199,57 @@ async def create_rebuttal_prompt_data(
     local_id_to_db_id = {}
     global_adu_index = 0
     
-    # 1. Collect speech IDs
     speech_ids = [s.id for s in speeches]
+    round_id = speeches[0].round_id if speeches else None
     
-    # 2. Batch fetch all related data
+    if not round_id:
+        raise HTTPException(status_code=404, detail="Round ID not found")
+    
     res_adus = await db.execute(select(Adu).where(Adu.speech_id.in_(speech_ids)).order_by(Adu.id))
     all_adus = res_adus.scalars().all()
     
-    res_sents = await db.execute(select(Sentence).where(Sentence.speech_id.in_(speech_ids)).order_by(Sentence.index))
+    res_sents = await db.execute(select(Sentence).where(Sentence.round_id == round_id).order_by(Sentence.id))
     all_sents = res_sents.scalars().all()
     
-    res_words = await db.execute(select(Word).where(Word.speech_id.in_(speech_ids)).order_by(Word.index))
+    res_words = await db.execute(select(Word).where(Word.round_id == round_id).order_by(Word.id))
     all_words = res_words.scalars().all()
     
-    # 3. Group by speech_id
     speech_adus = {sid: [] for sid in speech_ids}
     for a in all_adus:
         if a.speech_id in speech_adus:
              speech_adus[a.speech_id].append(a)
-             
-    speech_sents = {sid: [] for sid in speech_ids}
-    for s in all_sents:
-        if s.speech_id in speech_sents:
-             speech_sents[s.speech_id].append(s)
-             
-    speech_words = {sid: [] for sid in speech_ids}
-    for w in all_words:
-        if w.speech_id in speech_words:
-             speech_words[w.speech_id].append(w)
+    
+    sentences_map = {s.id: s for s in all_sents}
+    words_map = {w.id: w for w in all_words}
 
     for speech in speeches:
         speech_key = speech.position
         speeches_data[speech_key] = []
 
-        # Get data from memory
         adus = speech_adus.get(speech.id, [])
-        sentences = speech_sents.get(speech.id, [])
-        words = speech_words.get(speech.id, [])
-
-        sentences_map = {s.index: s for s in sentences}
-        words_map = {w.index: w for w in words}
 
         if adus:
             markdown_lines.append(f"## {speech_key}")
             markdown_lines.append("")
 
         for adu in adus:
-            # Increment global sequential ID
             global_adu_index += 1
             local_id_to_db_id[global_adu_index] = adu.id
 
-            # Calculate timestamp
             start_time = 0.0
-            if adu.start_sentence_index in sentences_map:
-                sent = sentences_map[adu.start_sentence_index]
-                if sent.start_word_index in words_map:
-                    start_time = words_map[sent.start_word_index].start_time
+            if adu.first_sentence_id in sentences_map:
+                sent = sentences_map[adu.first_sentence_id]
+                if sent.first_word_id in words_map:
+                    start_time = words_map[sent.first_word_id].start_time
 
-            # Format: {id, type, text, start}
             adu_data = {
-                "id": global_adu_index,  # Use local sequential ID for output
+                "id": global_adu_index,
                 "type": adu.role,
                 "text": adu.text,
                 "start": round(start_time, 1),
             }
             speeches_data[speech_key].append(adu_data)
 
-            # Build markdown for Gemini using Sequential ID
             markdown_lines.append(f"id:{global_adu_index}, {adu.text}")
             markdown_lines.append("")
 
@@ -1478,7 +1462,7 @@ async def audio_to_debate_graph_batch(
                      if s_adus:
                          adus_by_speech[s_key] = s_adus
         
-        # Save Words, Sentences, and ADUs to DB
+        
         total_adus_saved = 0
         
         for speech_key, trans_data in batch_results.items():
@@ -1487,7 +1471,6 @@ async def audio_to_debate_graph_batch(
                 logger.error(f"No speech_id found for {speech_key}")
                 continue
 
-            # 1. Prepare Words Data
             words_raw = trans_data.get("words", [])
             words_data = [
                 {
@@ -1498,53 +1481,61 @@ async def audio_to_debate_graph_batch(
                 for word in words_raw
             ]
             
-            # Save Words
             words_to_create = [
                 {
-                    "speech_id": speech_id,
-                    "index": i,
+                    "round_id": current_round_id,
                     "text": w.get("word", w.get("text", "")),
                     "start_time": w["start"],
                     "end_time": w["end"],
                     "confidence": w.get("probability", w.get("confidence"))
                 }
-                for i, w in enumerate(words_data)
+                for w in words_data
             ]
-            await round_crud.create_words_batch(db, words_to_create)
+            created_words = await round_crud.create_words_batch(db, words_to_create)
+            
+            word_index_to_id = {i: word.id for i, word in enumerate(created_words)}
 
-            # 2. Prepare Sentences Data
             transcript_text = trans_data.get("text", "")
             sentences_data = group_words_into_sentences(transcript_text, words_data)
             
-            # Save Sentences
-            sentences_to_create = [
-                {
-                    "speech_id": speech_id,
-                    "index": s["id"],
-                    "text": s["text"],
-                    "start_word_index": s["start_word_index"],
-                    "end_word_index": s["end_word_index"]
-                }
-                for s in sentences_data
-            ]
-            await round_crud.create_sentences_batch(db, sentences_to_create)
+            sentences_to_create = []
+            for s in sentences_data:
+                start_word_idx = s["start_word_index"]
+                end_word_idx = s["end_word_index"]
+                
+                if start_word_idx in word_index_to_id and end_word_idx in word_index_to_id:
+                    sentences_to_create.append({
+                        "round_id": current_round_id,
+                        "text": s["text"],
+                        "first_word_id": word_index_to_id[start_word_idx],
+                        "last_word_id": word_index_to_id[end_word_idx]
+                    })
+            
+            created_sentences = await round_crud.create_sentences_batch(db, sentences_to_create)
+            
+            sentence_index_to_id = {s["id"]: created_sentences[i].id for i, s in enumerate(sentences_data) if i < len(created_sentences)}
 
-            # 3. Save ADUs (if available - NOT available in Manual Mode yet)
             if speech_key in adus_by_speech:
                 adus_list = adus_by_speech[speech_key]
-                adus_data = [
-                    {
-                        "speech_id": speech_id,
-                        "start_sentence_index": adu.get("start_sentence_index"),
-                        "end_sentence_index": adu.get("end_sentence_index"),
-                        "text": adu.get("text"),
-                        "role": adu.get("role")
-                    }
-                    for adu in adus_list
-                ]
-                saved_adus = await round_crud.create_adus_batch(db, adus_data)
-                total_adus_saved += len(saved_adus)
-                logger.info(f"Saved {len(words_to_create)} words, {len(sentences_to_create)} sentences, {len(saved_adus)} ADUs for {speech_key}")
+                adus_data = []
+                
+                for adu in adus_list:
+                    start_sent_idx = adu.get("start_sentence_index")
+                    end_sent_idx = adu.get("end_sentence_index")
+                    
+                    if start_sent_idx in sentence_index_to_id and end_sent_idx in sentence_index_to_id:
+                        adus_data.append({
+                            "speech_id": speech_id,
+                            "first_sentence_id": sentence_index_to_id[start_sent_idx],
+                            "last_sentence_id": sentence_index_to_id[end_sent_idx],
+                            "text": adu.get("text"),
+                            "role": adu.get("role")
+                        })
+                
+                if adus_data:
+                    saved_adus = await round_crud.create_adus_batch(db, adus_data)
+                    total_adus_saved += len(saved_adus)
+                    logger.info(f"Saved {len(created_words)} words, {len(created_sentences)} sentences, {len(saved_adus)} ADUs for {speech_key}")
             else:
                 if manual_mode:
                     logger.info(f"Manual mode: Saved words/sentences for {speech_key}, waiting for ADU input.")
@@ -1617,40 +1608,54 @@ async def get_rebuttal_graph(round_name: str, try_count: Optional[int] = None, d
                 status_code=404, detail=f"No speeches found for round {round_name}"
             )
 
-        # Build speeches data structure
         speeches_data = {}
+        
+        round_id = speeches[0].round_id if speeches else None
+        if not round_id:
+            raise HTTPException(status_code=404, detail="Round ID not found")
+        
+        sentences_all = await round_crud.get_sentences_by_round(db, round_name, try_count=try_count)
+        words_all = await round_crud.get_words_by_round(db, round_name, try_count=try_count)
+        
+        sentences_map = {s.id: s for s in sentences_all}
+        words_map = {w.id: w for w in words_all}
+        
+        db_id_to_local_id = {}
+        global_adu_index = 0
+        
         for speech in speeches:
             speech_key = speech.position
             speeches_data[speech_key] = []
 
-            # そのスピーチのADU、文、単語を取得
             adus = await round_crud.get_adus_by_speech(db, speech.id)
-            sentences = await round_crud.get_sentences_by_speech(db, speech.id)
-            words = await round_crud.get_words_by_speech(db, speech.id)
-
-            sentences_map = {s.index: s for s in sentences}
-            words_map = {w.index: w for w in words}
 
             for adu in adus:
-                # Calculate timestamp
+                global_adu_index += 1
+                db_id_to_local_id[adu.id] = global_adu_index
+                
                 start_time = 0.0
-                if adu.start_sentence_index in sentences_map:
-                    sent = sentences_map[adu.start_sentence_index]
-                    if sent.start_word_index in words_map:
-                        start_time = words_map[sent.start_word_index].start_time
+                if adu.first_sentence_id in sentences_map:
+                    sent = sentences_map[adu.first_sentence_id]
+                    if sent.first_word_id in words_map:
+                        start_time = words_map[sent.first_word_id].start_time
 
-                # Format: {id, type, text, start}
                 adu_data = {
-                    "id": adu.id,
+                    "id": global_adu_index,
                     "type": adu.role,
                     "text": adu.text,
-                    "start": round(start_time, 1),  # 小数第1位に丸める
+                    "start": round(start_time, 1),
                 }
                 speeches_data[speech_key].append(adu_data)
 
         # DBから反論関係を取得
         rebuttals = await round_crud.get_rebuttals_by_round(db, round_name, try_count=try_count)
-        rebuttal_pairs = [[r.src_adu_id, r.tgt_adu_id] for r in rebuttals]
+        rebuttal_pairs = []
+        for r in rebuttals:
+            if r.src_adu_id in db_id_to_local_id and r.tgt_adu_id in db_id_to_local_id:
+                rebuttal_pairs.append([
+                    db_id_to_local_id[r.src_adu_id],
+                    db_id_to_local_id[r.tgt_adu_id]
+                ])
 
         graph_data = {
             "speeches": speeches_data,
@@ -1733,9 +1738,6 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
             
             speech_id = speech_map[position]
             
-            # Note: We append new tries, so we don't necessarily delete old ones unless we want to clear the slate for THIS try count.
-            # Ideally we should clear ADUs for this speech_id AND try_count to avoid duplicates if user clicks submit multiple times.
-            # But here we assume the user manages try_count or we just append.
             # To be safe, let's delete existing ADUs for this try_count if any (optional but cleaner)
             await db.execute(delete(Adu).where(Adu.speech_id == speech_id)) # WARNING: This deletes ALL ADUs for speech, not just this try? 
             # Adu model DOES NOT HAVE try_count column based on models.round.py! 
@@ -1746,17 +1748,21 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
             # So yes, speech_id is unique to (round_name, try_count).
             # So deleting all ADUs for speech_id is correct for a re-submission.
             
+            sentences = await round_crud.get_sentences_by_speech(db, speech_id)
+            sentence_index_to_id = {i: sent.id for i, sent in enumerate(sentences)}
+            
             for adu in speech_item.get("adus", []):
-                # Calculate start/end indices or validation?
-                # Manual input might need validation.
+                start_sent_idx = adu.get("start_sentence_index", 0)
+                end_sent_idx = adu.get("end_sentence_index", 0)
                 
-                adus_to_create.append({
-                    "speech_id": speech_id,
-                    "start_sentence_index": adu.get("start_sentence_index", 0),
-                    "end_sentence_index": adu.get("end_sentence_index", 0),
-                    "text": adu.get("text", ""),
-                    "role": adu.get("role", "claim")
-                })
+                if start_sent_idx in sentence_index_to_id and end_sent_idx in sentence_index_to_id:
+                    adus_to_create.append({
+                        "speech_id": speech_id,
+                        "first_sentence_id": sentence_index_to_id[start_sent_idx],
+                        "last_sentence_id": sentence_index_to_id[end_sent_idx],
+                        "text": adu.get("text", ""),
+                        "role": adu.get("role", "claim")
+                    })
         
         if adus_to_create:
             await round_crud.create_adus_batch(db, adus_to_create)
@@ -1994,8 +2000,7 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
             raise HTTPException(status_code=500, detail=f"Failed to generate rebuttal prompt: {e}")
 
     # 3. Check Sentences
-    stmt_sen = select(Sentence).join(Speech, Sentence.speech_id == Speech.id)\
-                .where(Speech.round_id == round_obj.id)
+    stmt_sen = select(Sentence).where(Sentence.round_id == round_obj.id)
     result_sen = await db.execute(stmt_sen)
     first_sen = result_sen.scalars().first()
 
@@ -2017,23 +2022,21 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
         # Batch fetch all sentences
         speech_ids = [s.id for s in speeches]
         if speech_ids:
-            stmt_all_s = select(Sentence).where(Sentence.speech_id.in_(speech_ids)).order_by(Sentence.speech_id, Sentence.index)
+            stmt_all_s = select(Sentence).where(Sentence.round_id == round_obj.id).order_by(Sentence.id)
             res_all_s = await db.execute(stmt_all_s)
             all_sentences = res_all_s.scalars().all()
             
-            # Group by speech_id
-            for s in all_sentences:
-                if s.speech_id not in speech_id_to_sentences:
-                    speech_id_to_sentences[s.speech_id] = []
-                speech_id_to_sentences[s.speech_id].append(s)
+            sentences_by_id = {s.id: s for s in all_sentences}
         
         for speech in speeches:
-            # Get sentences for this speech from memory
-            sentences = speech_id_to_sentences.get(speech.id, [])
-            
-            # Prepare prompt data directly
-            role = speech.position
-            transcripts_data[role] = sentences
+            if speech.first_sentence_id and speech.last_sentence_id:
+                speech_sentences = []
+                for sent_id in range(speech.first_sentence_id, speech.last_sentence_id + 1):
+                    if sent_id in sentences_by_id:
+                        speech_sentences.append(sentences_by_id[sent_id])
+                
+                role = speech.position
+                transcripts_data[role] = speech_sentences
             
         # Generate prompt manually to ensure we use db sentences
         prompt_content_parts = []
@@ -2064,7 +2067,7 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
         for role in sorted_speech_keys:
              sents = transcripts_data[role] # list of Sentence objects
              prompt_sentences_data = [
-                 {"id": s.index, "text": s.text} for s in sents
+                 {"id": i, "text": s.text} for i, s in enumerate(sents)
              ]
              
              prompt_content_parts.append(f"## Speech: {role}")

@@ -86,25 +86,20 @@ class SpeechResponse(BaseModel):
 
 
 class AduCreate(BaseModel):
-    """ADU作成リクエスト"""
     speech_id: int
-    start_sentence_index: int
-    end_sentence_index: int
+    first_sentence_id: int
+    last_sentence_id: int
     text: str
     role: str
-    start_time: float
-    end_time: float
 
 
 class AduResponse(BaseModel):
     id: int
     speech_id: int
-    start_sentence_index: int
-    end_sentence_index: int
+    first_sentence_id: int
+    last_sentence_id: int
     text: str
     role: str
-    start_time: float
-    end_time: float
 
     class Config:
         from_attributes = True
@@ -371,12 +366,10 @@ async def create_adu(
     adu_obj = await round_crud.create_adu(
         db,
         speech_id=adu.speech_id,
-        start_sentence_index=adu.start_sentence_index,
-        end_sentence_index=adu.end_sentence_index,
+        first_sentence_id=adu.first_sentence_id,
+        last_sentence_id=adu.last_sentence_id,
         text=adu.text,
-        role=adu.role,
-        start_time=adu.start_time,
-        end_time=adu.end_time
+        role=adu.role
     )
     return adu_obj
 
@@ -465,16 +458,10 @@ async def get_round_graph(round_id: int, db: AsyncSession = Depends(get_db)):
     
     adu_start_times = {}
     if speech_ids:
-        # Query: Select ADU.id, Word.start_time 
-        #        FROM adus 
-        #        JOIN sentences ON adus.speech_id = sentences.speech_id AND adus.start_sentence_index = sentences.index
-        #        JOIN words ON sentences.speech_id = words.speech_id AND sentences.start_word_index = words.index
-        #        WHERE adus.speech_id IN speech_ids
-        
         time_stmt = (
             select(Adu.id, Word.start_time)
-            .join(Sentence, (Adu.speech_id == Sentence.speech_id) & (Adu.start_sentence_index == Sentence.index))
-            .join(Word, (Sentence.speech_id == Word.speech_id) & (Sentence.start_word_index == Word.index))
+            .join(Sentence, Adu.first_sentence_id == Sentence.id)
+            .join(Word, Sentence.first_word_id == Word.id)
             .where(Adu.speech_id.in_(speech_ids))
         )
         
