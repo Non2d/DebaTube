@@ -110,6 +110,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
         try {
             setDownloadProgress(30);
+
+            // Step 1-A&B: Audio Download + Transcribe
             const res = await fetch(getAPIRoot() + '/transcribe-youtube-via-external', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -126,6 +128,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
             setDownloadProgress(60);
             toast.success('Step 1-B: Transcription completed');
+            await fetchJobProgress();
 
             // Step 1-C: Extract Words
             setDownloadProgress(70);
@@ -139,6 +142,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 throw new Error(err.detail || 'Word extraction failed');
             }
             toast.success('Step 1-C: Words registered');
+            await fetchJobProgress();
 
             // Step 1-D: Group Sentences
             setDownloadProgress(85);

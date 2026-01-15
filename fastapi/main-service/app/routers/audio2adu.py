@@ -804,9 +804,7 @@ async def group_sentences_from_words(
         if not round_obj:
             raise HTTPException(status_code=404, detail="Round not found")
         
-        speeches = await round_crud.get_speeches_by_round(db, round_obj.name, try_count=round_obj.try_count)
-        if not speeches:
-            raise HTTPException(status_code=404, detail="No speeches found for this round")
+        # speeches fetching removed - processing at round level now
         
         total_sentences_created = 0
         
@@ -815,80 +813,60 @@ async def group_sentences_from_words(
         if not words_all:
             raise HTTPException(status_code=404, detail="No words found for this round. Please run transcription first.")
         
-        # Sort words by start_time to make searching easier if needed, though we will filter.
-        # Since words are fetched by ID order (creation order), and we created them sequentially by speech,
-        # we can just iterate through them matching the counts.
+        if not words_all:
+            raise HTTPException(status_code=404, detail="No words found for this round. Please run transcription (Step 1-B/1-C) first.")
         
-        # Current index in words_all
-        current_word_idx = 0
-        total_words_count = len(words_all)
-        
-        for speech in speeches:
-            if not speech.raw_transcription:
-                continue
-            
-            transcript_text = speech.raw_transcription.get("text", "")
-            words_raw = speech.raw_transcription.get("words", [])
-            
-            if not transcript_text or not words_raw:
-                continue
+        # Get full transcript text for punctuation (from Round.raw_transcription if available, else construct from words)
+        transcript_text = ""
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if round_obj and round_obj.raw_transcription and "text" in round_obj.raw_transcription:
+            transcript_text = round_obj.raw_transcription["text"]
+        else:
+            # Fallback: Join words (assuming basic spacing)
+            # This is a fallback and might miss punctuation if words don't have it
+            transcript_text = "".join([w.text for w in words_all])
 
-            num_speech_words = len(words_raw)
-            # Assuming words are stored mostly in order of speeches because we created them in speech loop order.
-            # We can slice the words_sorted based on count.
-            
-            if current_word_idx + num_speech_words > total_words_count:
-                logger.warning(f"Word count mismatch for speech {speech.id}. Expecting {num_speech_words}, remaining {total_words_count - current_word_idx}")
-                # Fallback or break? Let's try to proceed with what we have
-            
-            # Extract words for this speech
-            speech_db_words = words_all[current_word_idx : current_word_idx + num_speech_words]
-            current_word_idx += num_speech_words
-            
-            if not speech_db_words:
-                 continue
-                 
-            # Prepare data for grouping function (needs dicts with start/end)
-            speech_words_data = [
-                {
-                    "start": w.start_time,
-                    "end": w.end_time,
-                    "text": w.text,
-                    "db_id": w.id
-                } for w in speech_db_words
-            ]
-            
-            sentences_data = group_words_into_sentences(transcript_text, speech_words_data)
-            
-            sentences_to_create = []
-            for s in sentences_data:
-                start_w_idx = s["start_word_index"]
-                end_w_idx = s["end_word_index"]
-                
-                # These indices are local to speech_words_data list
-                if start_w_idx < len(speech_db_words) and end_w_idx < len(speech_db_words):
-                    first_wid = speech_db_words[start_w_idx].id
-                    last_wid = speech_db_words[end_w_idx].id
-                    
-                    sentences_to_create.append({
-                        "round_id": round_id,
-                        "text": s["text"],
-                        "first_word_id": first_wid,
-                        "last_word_id": last_wid
-                    })
-            
-            created_sentences = await round_crud.create_sentences_batch(db, sentences_to_create)
-            total_sentences_created += len(created_sentences)
-            
-            # Update Speech with sentence range
-            if created_sentences:
-                speech.first_sentence_id = created_sentences[0].id
-                speech.last_sentence_id = created_sentences[-1].id
-                db.add(speech) # Ensure speech is marked for update
-            
-            logger.info(f"Created {len(created_sentences)} sentences for speech {speech.id}")
+        # Prepare data for grouping function
+        words_data = [
+            {
+                "start": w.start_time,
+                "end": w.end_time,
+                "text": w.text,
+                "db_id": w.id
+            } for w in words_all
+        ]
         
-        await db.commit() # Commit all speech updates and sentences
+        # Group words into sentences using the utility function
+        # This function matches the transcript_text (with punctuation) to the words_data
+        sentences_data = group_words_into_sentences(transcript_text, words_data)
+        
+        sentences_to_create = []
+        for s in sentences_data:
+            start_w_idx = s["start_word_index"]
+            end_w_idx = s["end_word_index"]
+            
+            if start_w_idx < len(words_all) and end_w_idx < len(words_all):
+                first_wid = words_all[start_w_idx].id
+                last_wid = words_all[end_w_idx].id
+                
+                sentences_to_create.append({
+                    "round_id": round_id,
+                    "text": s["text"],
+                    "first_word_id": first_wid,
+                    "last_word_id": last_wid
+                })
+        
+        # Batch insert sentences
+        created_sentences = await round_crud.create_sentences_batch(db, sentences_to_create)
+        total_sentences_created = len(created_sentences)
+        
+        # Note: We are NO LONGER updating speeches here because Step 1 happens before diarization.
+        # Sentences created here are unassigned to speeches. 
+        # They will be assigned to speeches during Step 2 (Diarization) or Step 3.
+        
+        logger.info(f"Created {total_sentences_created} sentences for round {round_id}")
+        
+        await db.commit()
         
         elapsed_time = time.time() - start_time
         print(f"[/group-sentences-from-words] Completed - {total_sentences_created} sentences created in {elapsed_time:.2f}s")

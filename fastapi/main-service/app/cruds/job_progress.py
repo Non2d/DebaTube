@@ -103,7 +103,9 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     # words_registered is already calculated above
 
     # 1-D: Sentence Grouping (Sentences exist in DB)
-    sentences_registered = has_enough_speeches and all(s["has_sentences"] for s in speeches_progress)
+    stmt = select(func.count(Sentence.id)).where(Sentence.round_id == round_id)
+    sentence_count = (await db.execute(stmt)).scalar() or 0
+    sentences_registered = sentence_count >= 3
     
     adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals
