@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, insert
 from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 
@@ -235,6 +235,22 @@ async def create_words_batch(
     db.add_all(words)
     await db.commit()
     return words
+
+
+async def create_words_batch_fast(
+    db: AsyncSession,
+    words_data: List[Dict[str, Any]]
+) -> int:
+    """
+    SQLAlchemy Coreを使用した高速な一括挿入
+    戻り値は挿入件数のみで、作成されたオブジェクトやIDは返さない
+    """
+    if not words_data:
+        return 0
+    stmt = insert(Word).values(words_data)
+    await db.execute(stmt)
+    await db.commit()
+    return len(words_data)
 
 
 async def create_sentences_batch(

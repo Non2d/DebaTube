@@ -57,7 +57,8 @@ export default function ProcessingSteps({
             subSteps: [
                 { id: '1a', title: t('dashboard.steps.subSteps.downloadAudio'), description: t('dashboard.steps.transcriptGenerationDesc') },
                 { id: '1b', title: t('dashboard.steps.subSteps.transcribeWords'), description: t('dashboard.steps.transcriptGenerationDesc') },
-                { id: '1c', title: t('dashboard.steps.subSteps.groupSentences'), description: t('dashboard.steps.transcriptGenerationDesc') }
+                { id: '1c', title: t('dashboard.steps.subSteps.registerWords'), description: t('dashboard.steps.transcriptGenerationDesc') },
+                { id: '1d', title: t('dashboard.steps.subSteps.groupSentences'), description: t('dashboard.steps.transcriptGenerationDesc') }
             ]
         },
         { id: 2, title: t('dashboard.steps.speakerDiarization'), description: t('dashboard.steps.speakerDiarizationDesc'), icon: <Users size={18} /> },
@@ -155,7 +156,7 @@ export default function ProcessingSteps({
                                                         subStatus = 'completed';
                                                     } else if (jobProgress && step.id === 1) {
                                                         // Use jobProgress data for Step 1 sub-steps
-                                                        // 1A: audio_complete, 1B: transcription_complete, 1C: sentences_complete
+                                                        // 1A: audio_complete, 1B: transcription_complete, 1C: words_registered, 1D: sentences_registered
                                                         if (subIndex === 0) {
                                                             subStatus = jobProgress.audio_complete ? 'completed' :
                                                                 (status === 'processing' ? 'processing' : 'pending');
@@ -163,8 +164,11 @@ export default function ProcessingSteps({
                                                             subStatus = jobProgress.transcription_complete ? 'completed' :
                                                                 (status === 'processing' && jobProgress.audio_complete) ? 'processing' : 'pending';
                                                         } else if (subIndex === 2) {
-                                                            subStatus = jobProgress.sentences_complete ? 'completed' :
+                                                            subStatus = jobProgress.words_registered ? 'completed' :
                                                                 (status === 'processing' && jobProgress.transcription_complete) ? 'processing' : 'pending';
+                                                        } else if (subIndex === 3) {
+                                                            subStatus = jobProgress.sentences_registered ? 'completed' :
+                                                                (status === 'processing' && jobProgress.words_registered) ? 'processing' : 'pending';
                                                         }
                                                     } else if (status === 'processing') {
                                                         // Fallback: show all as processing if no jobProgress data

@@ -24,7 +24,9 @@ class JobProgressResponse(BaseModel):
     audio_complete: bool
     audio_file_exists: bool  # 物理ファイルが存在するか（再実行用）
     transcription_complete: bool
-    sentences_complete: bool
+    words_registered: bool
+    sentences_registered: bool
+    speeches_complete: bool
     adus_complete: bool
     rebuttals_complete: bool
     speeches: List[SpeechProgress]

@@ -55,7 +55,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 const newStatus: ProcessingStepStatus[] = [...stepsStatus];
 
                 // Step 1: Transcript Generation (Audio + Transcript + Sentences)
-                const isStep1Complete = progress.audio_complete && progress.transcription_complete && progress.sentences_complete;
+                const isStep1Complete = progress.audio_complete && progress.transcription_complete && progress.words_registered && progress.sentences_registered;
                 if (isStep1Complete) newStatus[0] = 'completed';
                 else if (newStatus[0] !== 'processing') newStatus[0] = 'pending';
 
@@ -100,19 +100,16 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
-    // Unified Step 1 Function: Direct to External GPU Server
     const runStep1 = async () => {
         if (!roundData?.video_id) return;
 
-        // Start processing Step 1
         const newStatus = [...stepsStatus];
         newStatus[0] = 'processing';
         setStepsStatus(newStatus);
-        setDownloadProgress(20); // Fake progress
+        setDownloadProgress(20);
 
         try {
-            // Call new External GPU endpoint
-            // This replaces both download-audio and audio-to-transcript-batch
+            setDownloadProgress(30);
             const res = await fetch(getAPIRoot() + '/transcribe-youtube-via-external', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -127,9 +124,38 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 throw new Error(err.detail || 'External Transcription failed');
             }
 
+            setDownloadProgress(60);
+            toast.success('Step 1-B: Transcription completed');
+
+            // Step 1-C: Extract Words
+            setDownloadProgress(70);
+            const extractRes = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!extractRes.ok) {
+                const err = await extractRes.json();
+                throw new Error(err.detail || 'Word extraction failed');
+            }
+            toast.success('Step 1-C: Words registered');
+
+            // Step 1-D: Group Sentences
+            setDownloadProgress(85);
+            const sentenceRes = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!sentenceRes.ok) {
+                const err = await sentenceRes.json();
+                throw new Error(err.detail || 'Sentence generation failed');
+            }
+
+            const sentenceData = await sentenceRes.json();
             setDownloadProgress(100);
             fetchJobProgress();
-            toast.success('External GPU Transcription completed');
+            toast.success(`Completed! ${sentenceData.total_sentences} sentences created`);
 
         } catch (error: any) {
             console.error(error);

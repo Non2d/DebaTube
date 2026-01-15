@@ -698,10 +698,14 @@ async def transcribe_youtube_via_external(
             logger.error(f"Validation failed for external transcription: {val_error}")
             raise HTTPException(status_code=500, detail=f"Invalid transcription format: {val_error}")
 
-        # Save transcription to Round table
         round_obj.raw_transcription = transcription_result
         await db.commit()
         logger.info(f"Saved raw_transcription to Round {round_id}")
+        
+        # Update Step 1-B: Transcription Complete
+        # Words registration (Step 1-C) is now handled by /extract-words-from-transcript endpoint
+        
+        logger.info(f"Step 1-B Complete: Raw transcription saved for {round_id}")
 
         elapsed_time = time.time() - start_time
         print(f"[/transcribe-youtube-via-external] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
@@ -721,6 +725,187 @@ async def transcribe_youtube_via_external(
         elapsed_time = time.time() - start_time
         print(f"[/transcribe-youtube-via-external] Error: {str(e)}")
         logger.error(f"Error in external transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/transcribe-youtube-via-external] Error: {str(e)}")
+        logger.error(f"Error in external transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/extract-words-from-transcript/{round_id}")
+async def extract_words_from_transcript(
+    round_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Extract words from existing Round.raw_transcription and save to Words table.
+    Useful for recovery if transcription succeeded but word creation failed.
+    """
+    start_time = time.time()
+    print(f"[/extract-words-from-transcript] Processing round_id: {round_id}")
+    
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail="Round not found")
+            
+        if not round_obj.raw_transcription:
+            raise HTTPException(status_code=404, detail="No raw_transcription found for this round")
+        
+        words_raw = round_obj.raw_transcription.get("words", [])
+        if not words_raw:
+             raise HTTPException(status_code=404, detail="No words found in raw_transcription")
+            
+        words_to_create = [
+            {
+                "round_id": round_id,
+                "text": w.get("word", w.get("text", "")),
+                "start_time": round(w.get("start", 0), 1),
+                "end_time": round(w.get("end", 0), 1),
+                "confidence": w.get("probability", w.get("confidence"))
+            }
+            for w in words_raw
+        ]
+        
+        # Batch insert
+        created_count = await round_crud.create_words_batch_fast(db, words_to_create)
+        total_words_created = created_count
+        
+        logger.info(f"Created {total_words_created} words from Round raw_transcription")
+        
+        elapsed_time = time.time() - start_time
+        print(f"[/extract-words-from-transcript] Completed - {total_words_created} words created in {elapsed_time:.2f}s")
+        
+        return {
+            "status": "success",
+            "round_id": round_id,
+            "total_words": total_words_created,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[/extract-words-from-transcript] Error: {str(e)}")
+        logger.error(f"Error in extract words: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/group-sentences-from-words/{round_id}")
+async def group_sentences_from_words(
+    round_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    start_time = time.time()
+    print(f"[/group-sentences-from-words] Processing round_id: {round_id}")
+    
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail="Round not found")
+        
+        speeches = await round_crud.get_speeches_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        if not speeches:
+            raise HTTPException(status_code=404, detail="No speeches found for this round")
+        
+        total_sentences_created = 0
+        
+        # Fetch all words for the round
+        words_all = await round_crud.get_words_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        if not words_all:
+            raise HTTPException(status_code=404, detail="No words found for this round. Please run transcription first.")
+        
+        # Sort words by start_time to make searching easier if needed, though we will filter.
+        # Since words are fetched by ID order (creation order), and we created them sequentially by speech,
+        # we can just iterate through them matching the counts.
+        
+        # Current index in words_all
+        current_word_idx = 0
+        total_words_count = len(words_all)
+        
+        for speech in speeches:
+            if not speech.raw_transcription:
+                continue
+            
+            transcript_text = speech.raw_transcription.get("text", "")
+            words_raw = speech.raw_transcription.get("words", [])
+            
+            if not transcript_text or not words_raw:
+                continue
+
+            num_speech_words = len(words_raw)
+            # Assuming words are stored mostly in order of speeches because we created them in speech loop order.
+            # We can slice the words_sorted based on count.
+            
+            if current_word_idx + num_speech_words > total_words_count:
+                logger.warning(f"Word count mismatch for speech {speech.id}. Expecting {num_speech_words}, remaining {total_words_count - current_word_idx}")
+                # Fallback or break? Let's try to proceed with what we have
+            
+            # Extract words for this speech
+            speech_db_words = words_all[current_word_idx : current_word_idx + num_speech_words]
+            current_word_idx += num_speech_words
+            
+            if not speech_db_words:
+                 continue
+                 
+            # Prepare data for grouping function (needs dicts with start/end)
+            speech_words_data = [
+                {
+                    "start": w.start_time,
+                    "end": w.end_time,
+                    "text": w.text,
+                    "db_id": w.id
+                } for w in speech_db_words
+            ]
+            
+            sentences_data = group_words_into_sentences(transcript_text, speech_words_data)
+            
+            sentences_to_create = []
+            for s in sentences_data:
+                start_w_idx = s["start_word_index"]
+                end_w_idx = s["end_word_index"]
+                
+                # These indices are local to speech_words_data list
+                if start_w_idx < len(speech_db_words) and end_w_idx < len(speech_db_words):
+                    first_wid = speech_db_words[start_w_idx].id
+                    last_wid = speech_db_words[end_w_idx].id
+                    
+                    sentences_to_create.append({
+                        "round_id": round_id,
+                        "text": s["text"],
+                        "first_word_id": first_wid,
+                        "last_word_id": last_wid
+                    })
+            
+            created_sentences = await round_crud.create_sentences_batch(db, sentences_to_create)
+            total_sentences_created += len(created_sentences)
+            
+            # Update Speech with sentence range
+            if created_sentences:
+                speech.first_sentence_id = created_sentences[0].id
+                speech.last_sentence_id = created_sentences[-1].id
+                db.add(speech) # Ensure speech is marked for update
+            
+            logger.info(f"Created {len(created_sentences)} sentences for speech {speech.id}")
+        
+        await db.commit() # Commit all speech updates and sentences
+        
+        elapsed_time = time.time() - start_time
+        print(f"[/group-sentences-from-words] Completed - {total_sentences_created} sentences created in {elapsed_time:.2f}s")
+        
+        return {
+            "status": "success",
+            "round_id": round_id,
+            "total_sentences": total_sentences_created,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/group-sentences-from-words] Error: {str(e)}")
+        logger.error(f"Error grouping sentences from words: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/transcript-to-adu-batch")

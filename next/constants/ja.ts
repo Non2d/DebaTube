@@ -318,7 +318,8 @@ export const ja = {
             rebuttalDetectionDesc: "反論関係を識別",
             subSteps: {
                 downloadAudio: "音声ダウンロード",
-                transcribeWords: "単語の文字起こし",
+                transcribeWords: "文字起こし",
+                registerWords: "単語の登録",
                 groupSentences: "文へのグループ化"
             },
             status: {

@@ -316,7 +316,8 @@ export const en = {
             rebuttalDetectionDesc: "Identify rebuttal relationships",
             subSteps: {
                 downloadAudio: "Download Audio",
-                transcribeWords: "Transcribe Words",
+                transcribeWords: "Transcribe Audio",
+                registerWords: "Register Words",
                 groupSentences: "Group Words into Sentences"
             },
             status: {

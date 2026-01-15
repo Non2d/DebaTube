@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, exists, and_
+from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 
@@ -14,6 +14,8 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     # Round情報を取得してvideo_idを確認
     round_result = await db.execute(select(Round).where(Round.id == round_id))
     round_obj = round_result.scalar_one_or_none()
+
+    has_round_transcription = round_obj and round_obj.raw_transcription is not None
     
     # 音声ファイルの存在確認 (1試合に1つのファイル)
     audio_complete = False
@@ -31,42 +33,31 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
 
     # このラウンドの全スピーチを取得
     speeches_result = await db.execute(
-        select(Speech.id, Speech.position, Speech.audio_path, Speech.raw_transcription).where(
-            Speech.round_id == round_id
-        ).order_by(Speech.id)
+        select(Speech).where(Speech.round_id == round_id).order_by(Speech.id)
     )
-    speeches = speeches_result.all()
+    speeches = speeches_result.scalars().all()
     
     speeches_progress = []
     
-    for speech_id, position, audio_path, raw_transcription in speeches:
+    for speech in speeches:
         # 音声ファイルの有無: 個別スピーチではなく全体で管理するため、ここではaudio_completeを使うか、空にする
-        # フロントエンドの仕様に合わせて一応返す
         has_audio = audio_complete
         
-        # 文字起こしの有無（raw_transcriptionまたはwords）
-        has_transcription = raw_transcription is not None
-        if not has_transcription:
-            # wordsテーブルをチェック
-            words_exist = await db.execute(
-                select(exists().where(Word.speech_id == speech_id))
-            )
-            has_transcription = words_exist.scalar()
+        # 文字起こしの有無 (Wordの存在確認)
+        # 文字起こしの有無
+        has_transcription = speech.raw_transcription is not None
         
         # 文の有無
-        sentences_exist = await db.execute(
-            select(exists().where(Sentence.speech_id == speech_id))
-        )
-        has_sentences = sentences_exist.scalar()
+        has_sentences = speech.first_sentence_id is not None
         
         # ADUの有無
         adus_exist = await db.execute(
-            select(exists().where(Adu.speech_id == speech_id))
+            select(exists().where(Adu.speech_id == speech.id))
         )
         has_adus = adus_exist.scalar()
         
         speeches_progress.append({
-            "position": position,
+            "position": speech.position,
             "has_audio": has_audio,
             "has_transcription": has_transcription,
             "has_sentences": has_sentences,
@@ -86,31 +77,45 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     has_rebuttals = rebuttals_exist.scalar()
     
     # 全体の完了状況
-    # audio_completeは上記でファイルチェック済み
-    
-    has_enough_speeches = len(speeches_progress) >= 4 # 本当はスタイルごとに設定すべき
+    has_enough_speeches = len(speeches_progress) >= 4 
 
-    # Check if Round has raw_transcription (full transcription before diarization)
-    # If it exists, transcription is considered complete even without individual speech transcriptions
-    if round_obj and round_obj.raw_transcription:
-        transcription_complete = True
-    else:
-        transcription_complete = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
+    # Check if Round has at least 3 words
+    stmt_count = select(func.count(Word.id)).where(Word.round_id == round_id)
+    count_res = await db.execute(stmt_count)
+    word_count = count_res.scalar()
+    if word_count is None:
+        word_count = 0
+
+    all_speeches_have_transcription = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
+    transcription_complete = all_speeches_have_transcription or has_round_transcription
+    
+    words_registered = word_count >= 3
     
     # If transcription is complete, audio download must have been completed (even if file is now deleted)
+    # 1-A: Audio Download
     if transcription_complete:
         audio_complete = True
     
-    sentences_complete = has_enough_speeches and all(s["has_sentences"] for s in speeches_progress)
+    # 1-B: Transcription (Raw Transcript exists)
+    # transcription_complete is already calculated above
+    
+    # 1-C: Word Registration (Words exist in DB)
+    # words_registered is already calculated above
+
+    # 1-D: Sentence Grouping (Sentences exist in DB)
+    sentences_registered = has_enough_speeches and all(s["has_sentences"] for s in speeches_progress)
+    
     adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals
     
     return {
         "round_id": round_id,
-        "audio_complete": audio_complete,
+        "audio_complete": audio_complete,           # 1-A
         "audio_file_exists": audio_file_exists,
-        "transcription_complete": transcription_complete,
-        "sentences_complete": sentences_complete,
+        "transcription_complete": transcription_complete, # 1-B
+        "words_registered": words_registered,       # 1-C
+        "sentences_registered": sentences_registered, # 1-D
+        "speeches_complete": has_enough_speeches,   # 2 (Diarization)
         "adus_complete": adus_complete,
         "rebuttals_complete": rebuttals_complete,
         "speeches": speeches_progress
