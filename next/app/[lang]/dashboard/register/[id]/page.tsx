@@ -54,13 +54,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 // Map job-progress to stepsStatus (Merged Step 1 & 2)
                 const newStatus: ProcessingStepStatus[] = [...stepsStatus];
 
-                // Step 1: Transcript Generation (Audio + Transcript)
-                const isStep1Complete = progress.audio_complete && progress.transcription_complete;
+                // Step 1: Transcript Generation (Audio + Transcript + Sentences)
+                const isStep1Complete = progress.audio_complete && progress.transcription_complete && progress.sentences_complete;
                 if (isStep1Complete) newStatus[0] = 'completed';
                 else if (newStatus[0] !== 'processing') newStatus[0] = 'pending';
 
-                // Step 2: Diarization (was Step 3)
-                if (progress.sentences_complete) newStatus[1] = 'completed';
+                // Step 2: Diarization (Speaker Separation)
+                if (progress.speeches_complete) newStatus[1] = 'completed';
                 else if (newStatus[0] === 'completed' && newStatus[1] !== 'processing') newStatus[1] = 'pending';
                 else if (newStatus[0] !== 'completed') newStatus[1] = 'disabled';
 

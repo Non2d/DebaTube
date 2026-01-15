@@ -26,8 +26,9 @@ class Round(Base):
     owner_id = Column(String(255), nullable=True)
     raw_transcription = Column(JSON, nullable=True)  # Full transcription before diarization
 
-    # リレーション
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
+    sentences = relationship("Sentence", back_populates="round", cascade="all, delete-orphan")
+    words = relationship("Word", back_populates="round", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint('name', 'try_count', name='idx_rounds_name_try_count'),
@@ -45,18 +46,17 @@ class Speech(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     round_id = Column(Integer, ForeignKey("rounds.id", ondelete="CASCADE"), nullable=False)
-    # round_name は削除
     
-    position = Column(String(64), nullable=False)  # Proposition_1st, Opposition_1st, etc.
-    audio_path = Column(String(512), nullable=True)  # 音声ファイルのパス
-    duration = Column(Float, nullable=True)  # 音声の長さ（秒）
-    raw_transcription = Column(JSON, nullable=True)  # Whisperの生出力をそのまま格納
+    position = Column(String(64), nullable=False)
+    audio_path = Column(String(512), nullable=True)
+    duration = Column(Float, nullable=True)
+    raw_transcription = Column(JSON, nullable=True)
+    
+    first_sentence_id = Column(Integer, ForeignKey("sentences.id"), nullable=True)
+    last_sentence_id = Column(Integer, ForeignKey("sentences.id"), nullable=True)
 
-    # リレーション
     round = relationship("Round", back_populates="speeches")
     adus = relationship("Adu", back_populates="speech", cascade="all, delete-orphan")
-    words = relationship("Word", back_populates="speech", cascade="all, delete-orphan")
-    sentences = relationship("Sentence", back_populates="speech", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('fk_speeches_round_id', 'round_id'),
@@ -73,22 +73,17 @@ class Word(Base):
     __tablename__ = "words"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False, index=True)
-    index = Column(Integer, nullable=False)  # 0-indexed position in speech
+    round_id = Column(Integer, ForeignKey("rounds.id", ondelete="CASCADE"), nullable=False, index=True)
+    
     text = Column(String(255), nullable=False)
     start_time = Column(Float, nullable=False)
     end_time = Column(Float, nullable=False)
     confidence = Column(Float, nullable=True)
 
-    # リレーション
-    speech = relationship("Speech", back_populates="words")
-
-    __table_args__ = (
-        Index('idx_words_speech_id_index', 'speech_id', 'index'),
-    )
+    round = relationship("Round", back_populates="words")
 
     def __repr__(self):
-        return f"<Word(id={self.id}, speech_id={self.speech_id}, index={self.index}, text={self.text})>"
+        return f"<Word(id={self.id}, round_id={self.round_id}, text={self.text})>"
 
 
 class Sentence(Base):
@@ -98,21 +93,17 @@ class Sentence(Base):
     __tablename__ = "sentences"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False, index=True)
-    index = Column(Integer, nullable=False)  # 0-indexed position in speech
-    text = Column(Text, nullable=False)  # Cached text for convenience
-    start_word_index = Column(Integer, nullable=False)
-    end_word_index = Column(Integer, nullable=False)
+    round_id = Column(Integer, ForeignKey("rounds.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    text = Column(Text, nullable=False)
+    
+    first_word_id = Column(Integer, ForeignKey("words.id"), nullable=False)
+    last_word_id = Column(Integer, ForeignKey("words.id"), nullable=False)
 
-    # リレーション
-    speech = relationship("Speech", back_populates="sentences")
-
-    __table_args__ = (
-        Index('idx_sentences_speech_id_index', 'speech_id', 'index'),
-    )
+    round = relationship("Round", back_populates="sentences")
 
     def __repr__(self):
-        return f"<Sentence(id={self.id}, speech_id={self.speech_id}, index={self.index})>"
+        return f"<Sentence(id={self.id}, round_id={self.round_id})>"
 
 
 class Adu(Base):
@@ -122,24 +113,22 @@ class Adu(Base):
     """
     __tablename__ = "adus"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 全スピーチ通しの連番
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     speech_id = Column(Integer, ForeignKey("speeches.id", ondelete="CASCADE"), nullable=False)
-    start_sentence_index = Column(Integer, nullable=False)
-    end_sentence_index = Column(Integer, nullable=False)
+    
+    first_sentence_id = Column(Integer, ForeignKey("sentences.id"), nullable=False)
+    last_sentence_id = Column(Integer, ForeignKey("sentences.id"), nullable=False)
+    
     text = Column(Text, nullable=False)
-    role = Column(String(64), nullable=False)  # introduction, definition, claim, rebuttal, etc.
-    # start_time / end_time are removed, derived from sentences -> words
+    role = Column(String(64), nullable=False)
 
-    # リレーション
     speech = relationship("Speech", back_populates="adus")
-    # 反論関係（src側）
     rebuttals_as_source = relationship(
         "Rebuttal",
         foreign_keys="Rebuttal.src_adu_id",
         back_populates="source_adu",
         cascade="all, delete-orphan"
     )
-    # 反論関係（tgt側）
     rebuttals_as_target = relationship(
         "Rebuttal",
         foreign_keys="Rebuttal.tgt_adu_id",
