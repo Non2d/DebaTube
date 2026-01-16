@@ -24,10 +24,34 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [downloadProgress, setDownloadProgress] = useState(0);
     const [jobProgress, setJobProgress] = useState<any>(null);
 
-    // New State for Colab Integration
-    const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
-    const [colabUrl, setColabUrl] = useState("");
+    // New State for Colab Integration - Initialize from localStorage
+    const [transcriptionModel, setTranscriptionModel] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('transcriptionModel') || "groq-whisper-large-v3-turbo";
+        }
+        return "groq-whisper-large-v3-turbo";
+    });
+    const [colabUrl, setColabUrl] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('colabUrl') || "";
+        }
+        return "";
+    });
     const [isTestingConnection, setIsTestingConnection] = useState(false);
+
+    // Save transcription model to localStorage when it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('transcriptionModel', transcriptionModel);
+        }
+    }, [transcriptionModel]);
+
+    // Save Colab URL to localStorage when it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('colabUrl', colabUrl);
+        }
+    }, [colabUrl]);
 
     const fetchRoundData = async () => {
         try {
