@@ -10,6 +10,7 @@ import os, json, csv, time, re, tempfile
 from datetime import datetime, timezone, timedelta
 import asyncio
 from google import genai
+from groq import Groq
 from openai import OpenAI, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +34,7 @@ client_gemini = genai.Client()
 
 client = OpenAI()
 async_client = AsyncOpenAI()
+groq_client = Groq()
 
 # ===== Pydantic Models =====
 
@@ -917,3 +919,75 @@ async def create_round_from_jsons(
         logger.error(f"Error in create_round_from_jsons: {str(e)}")
         # 必要に応じてロールバックなど検討
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/groq-transcribe")
+async def groq_transcribe(file: UploadFile = File(...)):
+    """
+    Groqを使って音声ファイルを文字起こしするAPI
+    - Input: 音声ファイル (m4a, mp3, wav, etc.)
+    - Output: Whisper transcription with word-level timestamps (verbose_json format)
+    - Model: whisper-large-v3
+    """
+    start_time = time.time()
+    print(f"[/groq-transcribe] 処理開始 - ファイル名: {file.filename}")
+    
+    temp_file_path = None
+    try:
+        # 一時ファイルとして保存
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Groq Whisper APIで文字起こし
+            with open(temp_file_path, "rb") as audio_file:
+                transcription = groq_client.audio.transcriptions.create(
+                    file=(file.filename, audio_file.read()),
+                    model="whisper-large-v3",
+                    temperature=0,
+                    response_format="verbose_json",
+                    timestamp_granularities=["word"],
+                )
+            
+            logger.info(f"Groq transcription completed for {file.filename}")
+        
+        finally:
+            # 一時ファイルを削除
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+        
+        # レスポンスをdictに変換
+        response_dict = transcription.model_dump() if hasattr(transcription, 'model_dump') else dict(transcription)
+        
+        # 結果をsub-transcriptsディレクトリに保存
+        os.makedirs(SUB_TRANSCRIPTS_DIR, exist_ok=True)
+        audio_filename_base = os.path.splitext(file.filename)[0]
+        jst = timezone(timedelta(hours=9))
+        timestamp = datetime.now(jst).strftime("%Y%m%d_%H%M%S_%f")[:-5]
+        json_filename = f"{audio_filename_base}_groq_{timestamp}.json"
+        json_path = os.path.join(SUB_TRANSCRIPTS_DIR, json_filename)
+        
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(response_dict, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"Groq transcription saved to: {json_path}")
+        
+        elapsed_time = time.time() - start_time
+        print(f"[/groq-transcribe] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+        
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "transcription": response_dict,
+            "saved_to": json_path,
+            "file_exists": os.path.exists(json_path),
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+    
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/groq-transcribe] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during Groq transcription for {file.filename}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Groq transcription failed: {str(e)}")
