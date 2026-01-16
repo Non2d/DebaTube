@@ -2,8 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
-
-
+import httpx
 import os
 
 async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
@@ -18,11 +17,22 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     has_round_transcription = round_obj and round_obj.raw_transcription is not None
     
     # Step 1-A: Audio Download Complete
-    # Note: Round.video_id is set at creation time, so we can't use it to determine if download is complete
-    # For now, we consider audio download complete if transcription exists (Step 1-B complete)
-    # This means Step 1-A progress won't be tracked separately
-    # TODO: Add a dedicated `audio_downloaded` boolean field to Round model
-    audio_complete = has_round_transcription
+    # Check if Round.video_id exists in the external GPU server's cache
+    audio_complete = False
+    if round_obj and round_obj.video_id:
+        try:
+            # Call the proxy endpoint to get cached video IDs
+            async with httpx.AsyncClient() as client:
+                cache_resp = await client.get("http://localhost:8080/cached_video_ids", timeout=5.0)
+                if cache_resp.status_code == 200:
+                    cache_data = cache_resp.json()
+                    # Expected format: { "total": 4, "cached_video_ids": ["video_id1", "video_id2", ...] }
+                    cached_video_ids = cache_data.get("cached_video_ids", [])
+                    audio_complete = round_obj.video_id in cached_video_ids
+        except Exception as e:
+            # If cache check fails, fall back to checking transcription existence
+            print(f"Failed to check cached video IDs: {str(e)}")
+            audio_complete = has_round_transcription
     
     # Audio file existence check (for external GPU server or Colab)
     audio_file_exists = False
@@ -96,11 +106,6 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     transcription_complete = all_speeches_have_transcription or has_round_transcription
     
     words_registered = word_count >= 3
-    
-    # If transcription is complete, audio download must have been completed (even if file is now deleted)
-    # 1-A: Audio Download
-    if transcription_complete:
-        audio_complete = True
     
     # 1-B: Transcription (Raw Transcript exists)
     # transcription_complete is already calculated above

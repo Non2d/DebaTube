@@ -80,23 +80,39 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
                 // Step 1: Transcript Generation (Audio + Transcript + Sentences)
                 const isStep1Complete = progress.audio_complete && progress.transcription_complete && progress.words_registered && progress.sentences_registered;
-                if (isStep1Complete) newStatus[0] = 'completed';
-                else if (newStatus[0] !== 'processing') newStatus[0] = 'pending';
+                if (isStep1Complete) {
+                    newStatus[0] = 'completed';
+                } else if (newStatus[0] !== 'processing' && newStatus[0] !== 'error') {
+                    // Only set to pending if not currently processing or in error state
+                    newStatus[0] = 'pending';
+                }
 
                 // Step 2: Diarization (Speaker Separation)
-                if (progress.speeches_complete) newStatus[1] = 'completed';
-                else if (newStatus[0] === 'completed' && newStatus[1] !== 'processing') newStatus[1] = 'pending';
-                else if (newStatus[0] !== 'completed') newStatus[1] = 'disabled';
+                if (progress.speeches_complete) {
+                    newStatus[1] = 'completed';
+                } else if (newStatus[0] === 'completed' && newStatus[1] !== 'processing' && newStatus[1] !== 'error') {
+                    newStatus[1] = 'pending';
+                } else if (newStatus[0] !== 'completed' && newStatus[1] !== 'processing') {
+                    newStatus[1] = 'disabled';
+                }
 
                 // Step 3: ADU (was Step 4)
-                if (progress.adus_complete) newStatus[2] = 'completed';
-                else if (newStatus[1] === 'completed' && newStatus[2] !== 'processing') newStatus[2] = 'pending';
-                else if (newStatus[1] !== 'completed') newStatus[2] = 'disabled';
+                if (progress.adus_complete) {
+                    newStatus[2] = 'completed';
+                } else if (newStatus[1] === 'completed' && newStatus[2] !== 'processing' && newStatus[2] !== 'error') {
+                    newStatus[2] = 'pending';
+                } else if (newStatus[1] !== 'completed' && newStatus[2] !== 'processing') {
+                    newStatus[2] = 'disabled';
+                }
 
                 // Step 4: Rebuttal (was Step 5)
-                if (progress.rebuttals_complete) newStatus[3] = 'completed';
-                else if (newStatus[2] === 'completed' && newStatus[3] !== 'processing') newStatus[3] = 'pending';
-                else if (newStatus[2] !== 'completed') newStatus[3] = 'disabled';
+                if (progress.rebuttals_complete) {
+                    newStatus[3] = 'completed';
+                } else if (newStatus[2] === 'completed' && newStatus[3] !== 'processing' && newStatus[3] !== 'error') {
+                    newStatus[3] = 'pending';
+                } else if (newStatus[2] !== 'completed' && newStatus[3] !== 'processing') {
+                    newStatus[3] = 'disabled';
+                }
 
                 setStepsStatus(newStatus);
 

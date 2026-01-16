@@ -634,10 +634,13 @@ async def audio_to_transcript_batch(
         )
 
 
+class DownloadAudioRequestBody(BaseModel):
+    url: str
+
 @router.post("/download-audio/{round_id}")
 async def download_audio(
     round_id: int,
-    url: str = Body(...),
+    request: DownloadAudioRequestBody,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -661,12 +664,12 @@ async def download_audio(
     download_proxy_url = "http://localhost:8080/external-gpu-download-audio"
     
     try:
-        print(f"Downloading audio via {download_proxy_url} with URL: {url}")
+        print(f"Downloading audio via {download_proxy_url} with URL: {request.url}")
         async with httpx.AsyncClient() as client:
             download_resp = await client.post(
                 download_proxy_url,
                 json={
-                    "url": url,
+                    "url": request.url,
                     "num_chunks": 4
                 },
                 timeout=None  # Wait indefinitely for download

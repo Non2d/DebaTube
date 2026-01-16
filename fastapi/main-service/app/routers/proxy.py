@@ -162,3 +162,41 @@ async def proxy_transcribe(
         print(f"Transcription Proxy General Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Proxy Error During Transcription")
 
+@router.get("/cached_video_ids")
+async def get_cached_video_ids():
+    """
+    Proxy endpoint to get the list of currently cached (downloaded) video IDs from external GPU server.
+    Calls GET /cache on the external GPU API.
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+    
+    target_url = f"{TRANSCRIPTION_API_URL}/cache"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(target_url, timeout=5.0)
+            
+            if resp.status_code != 200:
+                # Forward error response
+                return Response(
+                    content=resp.content,
+                    status_code=resp.status_code,
+                    media_type=resp.headers.get("content-type")
+                )
+            
+            # Parse and return the list of video IDs
+            # Expected format: { "total": 4, "cached_video_ids": ["video_id1", "video_id2", ...] }
+            return Response(
+                content=resp.content,
+                status_code=200,
+                media_type="application/json"
+            )
+            
+    except httpx.RequestError as e:
+        print(f"Cache Proxy Request Error: {str(e)}")
+        raise HTTPException(status_code=503, detail="GPU Server Cache Check Failed (Unreachable)")
+    except Exception as e:
+        print(f"Cache Proxy General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Proxy Error During Cache Check")
+
