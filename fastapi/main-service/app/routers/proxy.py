@@ -42,17 +42,55 @@ async def check_gpu_health():
         print(f"Proxy General Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Proxy Error")
 
-class TranscribeRequest(BaseModel):
+class DownloadAudioRequest(BaseModel):
     url: str
     num_chunks: int = 4
+
+class TranscribeRequest(BaseModel):
+    video_id: str
     max_workers: int = 2
+
+@router.post("/external-gpu-download-audio")
+async def proxy_download_audio(
+    request: DownloadAudioRequest
+):
+    """
+    Proxy endpoint to download and split audio from YouTube URL via external GPU server.
+    Returns video_id for subsequent transcription.
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+    
+    target_url = f"{TRANSCRIPTION_API_URL}/download-and-split-audio"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json=request.model_dump(),
+                timeout=None  # Download may take time
+            )
+            
+            # Forward the response
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                media_type=resp.headers.get("content-type")
+            )
+            
+    except httpx.RequestError as e:
+        print(f"Download Proxy Request Error: {str(e)}")
+        raise HTTPException(status_code=503, detail="GPU Server Download Failed (Unreachable)")
+    except Exception as e:
+        print(f"Download Proxy General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Proxy Error During Download")
 
 @router.post("/external-gpu-transcribe")
 async def proxy_transcribe(
     request: TranscribeRequest
 ):
     """
-    Proxy endpoint to forward transcription requests (YouTube URL) to the external GPU server.
+    Proxy endpoint to transcribe audio via external GPU server using video_id.
     Converts the response from segments-based format to standard Whisper verbose format.
     """
     if not TRANSCRIPTION_API_URL:
@@ -82,11 +120,12 @@ async def proxy_transcribe(
             external_result = resp.json()
             
             # Convert from segments-based format to standard Whisper verbose format
-            # External format: { "text": str, "segments": [...], "language": str }
+            # External format: { "video_id": str, "duration": float, "text": str, "segments": [...], "language": str, ... }
             # Target format: { "task": str, "language": str, "duration": float, "text": str, "words": [...] }
+            # Note: Extra fields in external_result are ignored
             
             all_words = []
-            duration = 0.0
+            duration = external_result.get("duration", 0.0)
             
             # Extract words from all segments
             if "segments" in external_result:
@@ -98,10 +137,6 @@ async def proxy_transcribe(
                                 "start": word_obj.get("start", 0.0),
                                 "end": word_obj.get("end", 0.0)
                             })
-                    # Update duration based on segment end time
-                    segment_end = segment.get("end", 0.0)
-                    if segment_end > duration:
-                        duration = segment_end
             
             # Build standard Whisper verbose response
             standard_response = {

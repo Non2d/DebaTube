@@ -106,32 +106,53 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const newStatus = [...stepsStatus];
         newStatus[0] = 'processing';
         setStepsStatus(newStatus);
-        setDownloadProgress(20);
+        setDownloadProgress(0);
 
         try {
-            setDownloadProgress(30);
+            // Step 1-A: Download Audio
+            setDownloadProgress(10);
+            toast.loading('Step 1-A: Downloading audio...', { id: 'step1a' });
 
-            // Step 1-A&B: Audio Download + Transcribe
-            const res = await fetch(getAPIRoot() + '/transcribe-youtube-via-external', {
+            const downloadRes = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    url: `https://www.youtube.com/watch?v=${roundData.video_id}`,
-                    round_id: roundData.id
+                    url: `https://www.youtube.com/watch?v=${roundData.video_id}`
                 }),
             });
 
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.detail || 'External Transcription failed');
+            if (!downloadRes.ok) {
+                const err = await downloadRes.json();
+                throw new Error(err.detail || 'Audio download failed');
+            }
+
+            const downloadData = await downloadRes.json();
+            setDownloadProgress(25);
+            toast.success(`Step 1-A: Audio downloaded (video_id: ${downloadData.video_id})`, { id: 'step1a' });
+            await fetchJobProgress();
+
+            // Step 1-B: Transcribe Audio
+            setDownloadProgress(30);
+            toast.loading('Step 1-B: Transcribing audio...', { id: 'step1b' });
+
+            const transcribeRes = await fetch(getAPIRoot() + `/transcribe-audio/${roundData.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!transcribeRes.ok) {
+                const err = await transcribeRes.json();
+                throw new Error(err.detail || 'Transcription failed');
             }
 
             setDownloadProgress(60);
-            toast.success('Step 1-B: Transcription completed');
+            toast.success('Step 1-B: Transcription completed', { id: 'step1b' });
             await fetchJobProgress();
 
             // Step 1-C: Extract Words
             setDownloadProgress(70);
+            toast.loading('Step 1-C: Extracting words...', { id: 'step1c' });
+
             const extractRes = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -141,11 +162,15 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 const err = await extractRes.json();
                 throw new Error(err.detail || 'Word extraction failed');
             }
-            toast.success('Step 1-C: Words registered');
+
+            setDownloadProgress(80);
+            toast.success('Step 1-C: Words registered', { id: 'step1c' });
             await fetchJobProgress();
 
             // Step 1-D: Group Sentences
             setDownloadProgress(85);
+            toast.loading('Step 1-D: Grouping sentences...', { id: 'step1d' });
+
             const sentenceRes = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -158,8 +183,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
             const sentenceData = await sentenceRes.json();
             setDownloadProgress(100);
-            fetchJobProgress();
-            toast.success(`Completed! ${sentenceData.total_sentences} sentences created`);
+            toast.success(`Step 1-D: ${sentenceData.total_sentences} sentences created`, { id: 'step1d' });
+            await fetchJobProgress();
+
+            toast.success('Step 1 Complete!');
 
         } catch (error: any) {
             console.error(error);

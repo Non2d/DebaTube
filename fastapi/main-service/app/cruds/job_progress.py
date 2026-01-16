@@ -17,19 +17,25 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
 
     has_round_transcription = round_obj and round_obj.raw_transcription is not None
     
-    # 音声ファイルの存在確認 (1試合に1つのファイル)
-    audio_complete = False
-    audio_file_exists = False # 今後，External GPU ServerやCollab上に音声ファイルがあるかに対応させる
+    # Step 1-A: Audio Download Complete
+    # Note: Round.video_id is set at creation time, so we can't use it to determine if download is complete
+    # For now, we consider audio download complete if transcription exists (Step 1-B complete)
+    # This means Step 1-A progress won't be tracked separately
+    # TODO: Add a dedicated `audio_downloaded` boolean field to Round model
+    audio_complete = has_round_transcription
+    
+    # Audio file existence check (for external GPU server or Colab)
+    audio_file_exists = False
     if round_obj and round_obj.video_id:
-        # Check standard path
+        # Check standard path on external GPU server
         audio_path = f"/app/tmp-audio-save/{round_obj.video_id}/full_audio.m4a"
         if os.path.exists(audio_path):
-            audio_complete = True
+            audio_file_exists = True
         else:
             # Fallback check for old path
             old_path = f"/app/tmp-audio-save/{round_obj.video_id}.m4a"
             if os.path.exists(old_path):
-                audio_complete = True
+                audio_file_exists = True
 
     # このラウンドの全スピーチを取得
     speeches_result = await db.execute(

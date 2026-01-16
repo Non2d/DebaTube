@@ -634,46 +634,130 @@ async def audio_to_transcript_batch(
         )
 
 
-@router.post("/transcribe-youtube-via-external")
-async def transcribe_youtube_via_external(
+@router.post("/download-audio/{round_id}")
+async def download_audio(
+    round_id: int,
     url: str = Body(...),
-    round_id: int = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Experimental: Transcribe YouTube video via External GPU Server.
-    - Input: url (YouTube URL), round_id (int)
-    - Output: Saves transcription result to results_{round_name}/...
+    Step 1-A: Download and split audio from YouTube URL via External GPU Server.
+    - Input: round_id (int), url (YouTube URL)
+    - Output: Saves video_id to Round.video_id for subsequent transcription
     """
     start_time = time.time()
-    print(f"[/transcribe-youtube-via-external] 処理開始")
+    print(f"[Step 1-A: /download-audio] 処理開始 - round_id: {round_id}")
 
     # Fetch Round from DB
     try:
-        round_result = await db.execute(select(Round).where(Round.id == round_id))
-        round_obj = round_result.scalar_one_or_none()
+        round_obj = await round_crud.get_round_by_id(db, round_id)
         if not round_obj:
             raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
-        
-        match_name = round_obj.name
 
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-
-
-    # Call local proxy endpoint (which handles external GPU communication)
-    proxy_url = "http://localhost:8080/external-gpu-transcribe"
+    # Call local proxy endpoint for audio download
+    download_proxy_url = "http://localhost:8080/external-gpu-download-audio"
     
     try:
-        # 1. Call local proxy (which forwards to external GPU server)
-        print(f"Calling local proxy: {proxy_url} with URL: {url}")
+        print(f"Downloading audio via {download_proxy_url} with URL: {url}")
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                proxy_url,
+            download_resp = await client.post(
+                download_proxy_url,
                 json={
                     "url": url,
-                    "num_chunks": 4,
+                    "num_chunks": 4
+                },
+                timeout=None  # Wait indefinitely for download
+            )
+        
+        if download_resp.status_code != 200:
+            error_detail = download_resp.text
+            try:
+                error_json = download_resp.json()
+                error_detail = error_json.get("detail", download_resp.text)
+            except:
+                pass
+            raise HTTPException(status_code=download_resp.status_code, detail=f"Download Error: {error_detail}")
+        
+        download_result = download_resp.json()
+        video_id = download_result.get("video_id")
+        if not video_id:
+            raise HTTPException(status_code=500, detail="No video_id returned from download")
+        
+        # Verify video_id matches (should be the same YouTube video ID)
+        if round_obj.video_id and round_obj.video_id != video_id:
+            logger.warning(f"video_id mismatch: Round has {round_obj.video_id}, download returned {video_id}")
+        
+        # Ensure video_id is set (in case it wasn't set during Round creation)
+        if not round_obj.video_id:
+            round_obj.video_id = video_id
+            await db.commit()
+        
+        logger.info(f"Step 1-A Complete: Audio downloaded for video_id={video_id}, Round {round_id}")
+
+        elapsed_time = time.time() - start_time
+        print(f"[Step 1-A: /download-audio] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "round_id": round_id,
+            "video_id": video_id,
+            "is_cached": download_result.get("is_cached", False),
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except httpx.RequestError as e:
+        elapsed_time = time.time() - start_time
+        print(f"[Step 1-A: /download-audio] Proxy Request Error: {str(e)}")
+        logger.error(f"Error calling download proxy: {str(e)}")
+        raise HTTPException(status_code=503, detail="Failed to reach download proxy server")
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[Step 1-A: /download-audio] Error: {str(e)}")
+        logger.error(f"Error in audio download: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/transcribe-audio/{round_id}")
+async def transcribe_audio(
+    round_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Step 1-B: Transcribe audio using video_id from Step 1-A.
+    - Input: round_id (int)
+    - Output: Saves transcription result to Round.raw_transcription
+    """
+    start_time = time.time()
+    print(f"[Step 1-B: /transcribe-audio] 処理開始 - round_id: {round_id}")
+
+    # Fetch Round from DB
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+        
+        video_id = round_obj.video_id
+        if not video_id:
+            raise HTTPException(status_code=400, detail="No video_id found. Please run Step 1-A (download-audio) first.")
+
+    except HTTPException:
+        raise
+    except Exception as db_e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
+
+    # Call local proxy endpoint for transcription
+    transcribe_proxy_url = "http://localhost:8080/external-gpu-transcribe"
+    
+    try:
+        print(f"Transcribing via {transcribe_proxy_url} with video_id: {video_id}")
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                transcribe_proxy_url,
+                json={
+                    "video_id": video_id,
                     "max_workers": 2
                 },
                 timeout=None  # Wait indefinitely for transcription
@@ -686,7 +770,7 @@ async def transcribe_youtube_via_external(
                 error_detail = error_json.get("detail", resp.text)
             except:
                 pass
-            raise HTTPException(status_code=resp.status_code, detail=f"Proxy Error: {error_detail}")
+            raise HTTPException(status_code=resp.status_code, detail=f"Transcription Error: {error_detail}")
 
         transcription_result = resp.json()
         
@@ -698,17 +782,14 @@ async def transcribe_youtube_via_external(
             logger.error(f"Validation failed for external transcription: {val_error}")
             raise HTTPException(status_code=500, detail=f"Invalid transcription format: {val_error}")
 
+        # Save transcription to Round
         round_obj.raw_transcription = transcription_result
         await db.commit()
-        logger.info(f"Saved raw_transcription to Round {round_id}")
         
-        # Update Step 1-B: Transcription Complete
-        # Words registration (Step 1-C) is now handled by /extract-words-from-transcript endpoint
-        
-        logger.info(f"Step 1-B Complete: Raw transcription saved for {round_id}")
+        logger.info(f"Step 1-B Complete: Raw transcription saved for Round {round_id}")
 
         elapsed_time = time.time() - start_time
-        print(f"[/transcribe-youtube-via-external] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+        print(f"[Step 1-B: /transcribe-audio] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
 
         return {
             "status": "success",
@@ -718,19 +799,13 @@ async def transcribe_youtube_via_external(
 
     except httpx.RequestError as e:
         elapsed_time = time.time() - start_time
-        print(f"[/transcribe-youtube-via-external] Proxy Request Error: {str(e)}")
-        logger.error(f"Error calling proxy: {str(e)}")
-        raise HTTPException(status_code=503, detail="Failed to reach proxy server")
+        print(f"[Step 1-B: /transcribe-audio] Proxy Request Error: {str(e)}")
+        logger.error(f"Error calling transcribe proxy: {str(e)}")
+        raise HTTPException(status_code=503, detail="Failed to reach transcribe proxy server")
     except Exception as e:
         elapsed_time = time.time() - start_time
-        print(f"[/transcribe-youtube-via-external] Error: {str(e)}")
-        logger.error(f"Error in external transcription: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        print(f"[/transcribe-youtube-via-external] Error: {str(e)}")
-        logger.error(f"Error in external transcription: {str(e)}")
+        print(f"[Step 1-B: /transcribe-audio] Error: {str(e)}")
+        logger.error(f"Error in transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/extract-words-from-transcript/{round_id}")
