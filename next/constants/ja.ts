@@ -339,7 +339,7 @@ export const ja = {
                 resetDialogCancel: "キャンセル",
                 copyPrompt: "プロンプトをコピー",
                 registerVerify: "登録確認",
-                updateContinue: "更新して次へ",
+                updateContinue: "更新",
                 resetToLastSaved: "編集前に戻す",
             },
             subStep2A: {

@@ -253,100 +253,117 @@ export function TimelineEditor({
 
             {/* Timeline Editor */}
             <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                    <Label className="font-semibold">{t('dashboard.steps.labels.speakerTimeline') || "Speaker Timeline"}</Label>
-                </div>
-
-                {/* Time Labels */}
-                <div className="flex justify-between text-xs text-slate-500 px-1">
-                    <span>0:00</span>
-                    <span>{new Date(duration * 1000).toISOString().substr(11, 8)}</span>
-                </div>
-
                 <div
                     ref={timelineRef}
-                    className="relative h-24 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer select-none border-2 border-slate-300 dark:border-slate-600"
+                    className="relative h-24 bg-slate-50 dark:bg-slate-900 rounded-lg cursor-pointer select-none border border-slate-200 dark:border-slate-700 mt-10 mb-8"
                     onClick={handleTimelineClick}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
                 >
-                    {/* Speaker Bars */}
-                    {localSpeeches.map((speech, idx) => {
-                        if (!speech.first_sentence_id || !speech.last_sentence_id || duration === 0) return null;
+                    {/* Speaker Bars & Guides */}
+                    {[...localSpeeches]
+                        .sort((a, b) => (a.first_sentence_id || 0) - (b.first_sentence_id || 0))
+                        .map((speech, sortedIdx) => {
+                            if (!speech.first_sentence_id || !speech.last_sentence_id || duration === 0) return null;
 
-                        const startTime = getTimeFromSentenceId(speech.first_sentence_id);
-                        const endTime = getEndTimeFromSentenceId(speech.last_sentence_id);
-                        const left = (startTime / duration) * 100;
-                        const width = ((endTime - startTime) / duration) * 100;
+                            // Find the index in the original array to safely update state
+                            const originalIndex = localSpeeches.indexOf(speech);
 
-                        const isProposition = speech.position.includes('Proposition');
-                        const color = isProposition ? 'bg-red-500' : 'bg-blue-500';
-                        const hoverColor = isProposition ? 'hover:bg-red-600' : 'hover:bg-blue-600';
+                            const startTime = getTimeFromSentenceId(speech.first_sentence_id);
+                            const endTime = getEndTimeFromSentenceId(speech.last_sentence_id);
+                            const left = (startTime / duration) * 100;
+                            const width = ((endTime - startTime) / duration) * 100;
+                            const right = left + width;
 
-                        // Two rows: Proposition (Top), Opposition (Bottom)
-                        const topPosition = isProposition ? '10px' : '50px';
+                            const isProposition = speech.position.includes('Proposition');
+                            const baseColor = isProposition ? 'bg-red-500' : 'bg-blue-500';
+                            const borderColor = isProposition ? 'border-red-500' : 'border-blue-500';
+                            const textColor = isProposition ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-400';
 
-                        return (
-                            <div
-                                key={idx}
-                                className={`absolute h-8 ${color} opacity-70 hover:opacity-90 transition-opacity rounded`}
-                                style={{
-                                    left: `${left}%`,
-                                    width: `${width}%`,
-                                    top: topPosition
-                                }}
-                            >
-                                {/* Start Handle */}
-                                <div
-                                    className={`absolute left-0 top-0 w-2 h-full ${hoverColor} cursor-ew-resize`}
-                                    onMouseDown={(e) => handleBarMouseDown(idx, 'start', e)}
-                                />
+                            // Strict Layout: Even Index (in sorted time order) = Top, Odd = Bottom
+                            const isEven = sortedIdx % 2 === 0;
 
-                                {/* Label */}
-                                <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold px-2 truncate pointer-events-none">
-                                    {speech.position.replace(/_/g, ' ')}
-                                </div>
+                            // Compact vertical layout:
+                            // Top row: 12px
+                            // Bottom row: 52px (leaving 16px vertical gap between rows)
+                            const barTop = isEven ? '12px' : '52px';
 
-                                {/* End Handle */}
-                                <div
-                                    className={`absolute right-0 top-0 w-2 h-full ${hoverColor} cursor-ew-resize`}
-                                    onMouseDown={(e) => handleBarMouseDown(idx, 'end', e)}
-                                />
-                            </div>
-                        );
-                    })}
+                            // Labels follow the bar position but sit OUTSIDE the container
+                            const labelStyle = isEven
+                                ? { top: '-20px', bottom: 'auto' }
+                                : { top: 'auto', bottom: '-20px' };
+
+                            const shortLabel = speech.position.split('_').pop();
+
+                            return (
+                                <React.Fragment key={sortedIdx}>
+                                    {/* Vertical Guide Lines & Labels */}
+                                    <div
+                                        className="absolute top-0 bottom-0 pointer-events-none w-[2px] text-slate-400 dark:text-slate-500 z-0"
+                                        style={{
+                                            left: `${left}%`,
+                                            background: 'linear-gradient(to bottom, currentColor 50%, transparent 50%)',
+                                            backgroundSize: '2px 12px' // 6px dash, 6px gap
+                                        }}
+                                    >
+                                        <span className={`absolute -translate-x-1/2 text-[10px] font-mono font-bold ${textColor}`} style={labelStyle}>
+                                            #{getSentenceLocalIndex(speech.first_sentence_id)}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className="absolute top-0 bottom-0 pointer-events-none w-[2px] text-slate-400 dark:text-slate-500 z-0"
+                                        style={{
+                                            left: `${right}%`,
+                                            background: 'linear-gradient(to bottom, currentColor 50%, transparent 50%)',
+                                            backgroundSize: '2px 12px' // 6px dash, 6px gap
+                                        }}
+                                    >
+                                        <span className={`absolute -translate-x-1/2 text-[10px] font-mono font-bold ${textColor}`} style={labelStyle}>
+                                            #{getSentenceLocalIndex(speech.last_sentence_id)}
+                                        </span>
+                                    </div>
+
+                                    {/* Interactive Bar */}
+                                    <div
+                                        className={`absolute h-6 ${baseColor} border ${borderColor} bg-opacity-20 hover:bg-opacity-40 transition-all rounded shadow-sm z-10 group`}
+                                        style={{
+                                            left: `${left}%`,
+                                            width: `${width}%`,
+                                            top: barTop
+                                        }}
+                                    >
+                                        {/* Start Handle */}
+                                        <div
+                                            className="absolute left-0 top-0 w-2 h-full cursor-ew-resize hover:bg-black/10 transition-colors"
+                                            onMouseDown={(e) => handleBarMouseDown(originalIndex, 'start', e)}
+                                        />
+
+                                        {/* Label in Bar (Shortened) */}
+                                        <div className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold px-1 truncate pointer-events-none opacity-90 ${textColor}`}>
+                                            {shortLabel}
+                                        </div>
+
+                                        {/* End Handle */}
+                                        <div
+                                            className="absolute right-0 top-0 w-2 h-full cursor-ew-resize hover:bg-black/10 transition-colors"
+                                            onMouseDown={(e) => handleBarMouseDown(originalIndex, 'end', e)}
+                                        />
+                                    </div>
+                                </React.Fragment>
+                            );
+                        })}
 
                     {/* Play Head */}
                     {duration > 0 && (
                         <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-red-600 pointer-events-none z-10"
+                            className="absolute top-0 bottom-0 w-0.5 bg-red-600 pointer-events-none z-20"
                             style={{ left: `${(currentTime / duration) * 100}%` }}
                         >
-                            <div className="absolute -top-1 w-3 h-3 bg-yellow-400 rounded-full" style={{ left: '-5px' }} />
+                            <div className="absolute -top-1 w-3 h-3 bg-red-600 rounded-full shadow-sm" style={{ left: '-5px' }} />
                         </div>
                     )}
                 </div>
-
-
-            </div>
-
-            {/* Speech List */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
-                {localSpeeches.map((speech, idx) => (
-                    <div
-                        key={idx}
-                        className={`p-2 rounded border text-xs ${speech.position.includes('Proposition')
-                            ? 'border-red-300 bg-red-50 dark:bg-red-900/20'
-                            : 'border-blue-300 bg-blue-50 dark:bg-blue-900/20'
-                            }`}
-                    >
-                        <div className="font-bold truncate">{speech.position.replace(/_/g, ' ')}</div>
-                        <div className="text-slate-600 dark:text-slate-400">
-                            #{getSentenceLocalIndex(speech.first_sentence_id)} - #{getSentenceLocalIndex(speech.last_sentence_id)}
-                        </div>
-                    </div>
-                ))}
             </div>
 
             {/* Actions */}

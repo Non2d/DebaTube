@@ -38,6 +38,13 @@ const BP_POSITIONS = [
     "Proposition_4th", "Opposition_4th"
 ];
 
+const ASIAN_POSITIONS = [
+    "Proposition_1st", "Opposition_1st",
+    "Proposition_2nd", "Opposition_2nd",
+    "Proposition_3rd", "Opposition_3rd",
+    "Opposition_4th", "Proposition_4th"
+];
+
 const NA_POSITIONS = [
     "Proposition_1st", "Opposition_1st",
     "Proposition_2nd", "Opposition_2nd",
@@ -108,12 +115,20 @@ export function ManualDiarizationWorkflow({
                 if (loadedSpeeches.length > 0) {
                     setSpeeches(loadedSpeeches);
                 } else {
-                    const positions = debateFormat.includes("north") ? NA_POSITIONS : BP_POSITIONS;
+                    let positions = BP_POSITIONS;
+                    const fmt = (debateFormat || "").toLowerCase();
+                    if (fmt.includes("asian") || fmt.includes("wsdc")) positions = ASIAN_POSITIONS;
+                    else if (fmt.includes("north") || fmt.includes("na")) positions = NA_POSITIONS;
+
                     setSpeeches(positions.map(p => ({ position: p, first_sentence_id: null, last_sentence_id: null })));
                 }
             }
         } catch (e) {
-            const positions = debateFormat.includes("north") ? NA_POSITIONS : BP_POSITIONS;
+            let positions = BP_POSITIONS;
+            const fmt = (debateFormat || "").toLowerCase();
+            if (fmt.includes("asian") || fmt.includes("wsdc")) positions = ASIAN_POSITIONS;
+            else if (fmt.includes("north") || fmt.includes("na")) positions = NA_POSITIONS;
+
             setSpeeches(positions.map(p => ({ position: p, first_sentence_id: null, last_sentence_id: null })));
         }
     };
@@ -129,9 +144,17 @@ export function ManualDiarizationWorkflow({
         transcriptPreview += "}";
 
         // Determine expected positions based on debate format
-        const positions = debateFormat.includes("north") ? NA_POSITIONS : BP_POSITIONS;
+        let positions = BP_POSITIONS;
+        const fmt = (debateFormat || "").toLowerCase();
+        if (fmt.includes("asian") || fmt.includes("wsdc")) positions = ASIAN_POSITIONS;
+        else if (fmt.includes("north") || fmt.includes("na")) positions = NA_POSITIONS;
 
-        const prompt = `# Instruction
+        const systemPrompt = `You are a debate diarization expert.
+Format: ${debateFormat}
+Expected Speakers: ${positions.join(", ")}
+`;
+
+        const prompt = `${systemPrompt}# Instruction
 
 The following transcript is from parliamentary debate. Please detect debaters and return ids of first and last sentence from each speaker.
 
