@@ -4,7 +4,7 @@ import yt_dlp
 import os
 import shutil
 from config import AUDIO_DIR
-from .utils import get_audio_path
+from utils.audio import get_audio_path
 
 router = APIRouter()
 

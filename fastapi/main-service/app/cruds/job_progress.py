@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
-from routers.utils import get_audio_path
+from utils.audio import get_audio_path
 import httpx
 import os
 
@@ -14,8 +14,6 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     # Round情報を取得してvideo_idを確認
     round_result = await db.execute(select(Round).where(Round.id == round_id))
     round_obj = round_result.scalar_one_or_none()
-
-    has_round_transcription = round_obj and round_obj.raw_transcription is not None
     
     # Step 1-A: Audio Download Complete
     # Check if Round.video_id exists in the audio caches in external GPU server or local directory.
@@ -30,9 +28,8 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
                     cached_video_ids = cache_data.get("cached_video_ids", [])
                     external_has_audio = round_obj.video_id in cached_video_ids
         except Exception as e:
-            # If cache check fails, fall back to checking transcription existence
-            print(f"Failed to check cached video IDs: {str(e)}")
-            external_has_audio = has_round_transcription
+            # If cache check fails, assume audio is not cached
+            external_has_audio = False
     
     # Local directory
     local_has_audio = False
@@ -40,6 +37,23 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
         audio_path = get_audio_path(round_obj.video_id)
         local_has_audio = bool(audio_path)
 
+    # 1-B: Transcription (Round Raw Transcript exists)
+    has_raw_round_transcription = round_obj and round_obj.raw_transcription is not None
+    
+    # 1-C: Word Registration (Words exist in DB)
+    stmt_count = select(func.count(Word.id)).where(Word.round_id == round_id)
+    count_res = await db.execute(stmt_count)
+    word_count = count_res.scalar()
+    if word_count is None:
+        word_count = 0
+    words_registered = word_count >= 3
+
+    # 1-D: Sentence Grouping (Sentences exist in DB)
+    stmt = select(func.count(Sentence.id)).where(Sentence.round_id == round_id)
+    sentence_count = (await db.execute(stmt)).scalar() or 0
+    sentences_registered = sentence_count >= 3
+
+    # 2: Speech Diarization (Speeches exist in DB)
     speeches_result = await db.execute(
         select(Speech).where(Speech.round_id == round_id).order_by(Speech.id)
     )
@@ -49,13 +63,9 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     
     for speech in speeches:
         has_audio = None #TODO: [record]でのみ使用する．とりあえずNone
-        
         has_transcription = speech.raw_transcription is not None
-        
-        # 文の有無
         has_sentences = speech.first_sentence_id is not None
         
-        # ADUの有無
         adus_exist = await db.execute(
             select(exists().where(Adu.speech_id == speech.id))
         )
@@ -69,6 +79,13 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
             "has_adus": has_adus
         })
     
+    has_enough_speeches = len(speeches_progress) >= 4
+    has_all_raw_speech_transcription = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
+
+    # 3: ADU Segmentation
+    adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
+
+    # 4: Rebuttal Identification
     rebuttals_exist = await db.execute(
         select(exists().where(
             and_(
@@ -79,18 +96,6 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
         ))
     )
     has_rebuttals = rebuttals_exist.scalar()
-    
-    has_enough_speeches = len(speeches_progress) >= 4
-
-    stmt_count = select(func.count(Word.id)).where(Word.round_id == round_id)
-    count_res = await db.execute(stmt_count)
-    word_count = count_res.scalar()
-    if word_count is None:
-        word_count = 0
-
-    has_all_raw_speech_transcription = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
-    
-    adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals
     
     return {
@@ -98,7 +103,7 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
         "external_has_audio": external_has_audio,
         "local_has_audio": local_has_audio,
         "has_all_raw_speech_transcription": has_all_raw_speech_transcription,
-        "has_raw_round_transcription": has_round_transcription,
+        "has_raw_round_transcription": has_raw_round_transcription,
         "words_registered": words_registered,
         "sentences_registered": sentences_registered,
         "speeches_complete": has_enough_speeches,

@@ -79,7 +79,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 const newStatus: ProcessingStepStatus[] = [...stepsStatus];
 
                 // Step 1: Transcript Generation (Audio + Transcript + Sentences)
-                const isStep1Complete = progress.audio_complete && progress.transcription_complete && progress.words_registered && progress.sentences_registered;
+                const audioComplete = progress.external_has_audio || progress.local_has_audio;
+                const transcriptionComplete = progress.has_all_raw_speech_transcription || progress.has_raw_round_transcription;
+                const isStep1Complete = audioComplete && transcriptionComplete && progress.words_registered && progress.sentences_registered;
                 if (isStep1Complete) {
                     newStatus[0] = 'completed';
                 } else if (newStatus[0] !== 'processing' && newStatus[0] !== 'error') {

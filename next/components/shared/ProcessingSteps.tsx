@@ -156,16 +156,23 @@ export default function ProcessingSteps({
                                                         subStatus = 'completed';
                                                     } else if (jobProgress && step.id === 1) {
                                                         // Use jobProgress data for Step 1 sub-steps
-                                                        // 1A: audio_complete, 1B: transcription_complete, 1C: words_registered, 1D: sentences_registered
+                                                        // 1A: external_has_audio OR local_has_audio
+                                                        // 1B: has_all_raw_speech_transcription OR has_raw_round_transcription
+                                                        // 1C: words_registered
+                                                        // 1D: sentences_registered
                                                         if (subIndex === 0) {
-                                                            subStatus = jobProgress.audio_complete ? 'completed' :
+                                                            const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
+                                                            subStatus = audioComplete ? 'completed' :
                                                                 (status === 'processing' ? 'processing' : 'pending');
                                                         } else if (subIndex === 1) {
-                                                            subStatus = jobProgress.transcription_complete ? 'completed' :
-                                                                (status === 'processing' && jobProgress.audio_complete) ? 'processing' : 'pending';
+                                                            const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
+                                                            const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
+                                                            subStatus = transcriptionComplete ? 'completed' :
+                                                                (status === 'processing' && audioComplete) ? 'processing' : 'pending';
                                                         } else if (subIndex === 2) {
+                                                            const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
                                                             subStatus = jobProgress.words_registered ? 'completed' :
-                                                                (status === 'processing' && jobProgress.transcription_complete) ? 'processing' : 'pending';
+                                                                (status === 'processing' && transcriptionComplete) ? 'processing' : 'pending';
                                                         } else if (subIndex === 3) {
                                                             subStatus = jobProgress.sentences_registered ? 'completed' :
                                                                 (status === 'processing' && jobProgress.words_registered) ? 'processing' : 'pending';
@@ -187,10 +194,27 @@ export default function ProcessingSteps({
                                                                     subStatus === 'processing' ? <Loader2 size={12} className="animate-spin" /> :
                                                                         String.fromCharCode(65 + subIndex)}
                                                             </div>
-                                                            <div className="flex-1">
+                                                            <div className="flex-1 flex flex-wrap items-center gap-x-2">
                                                                 <p className={`text-sm font-medium ${subStatus === 'pending' ? 'text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
                                                                     {subStep.title}
                                                                 </p>
+                                                                {/* Warning for 1-A: Cache deleted */}
+                                                                {step.id === 1 && subIndex === 0 && jobProgress && (
+                                                                    (() => {
+                                                                        const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
+                                                                        const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
+                                                                        const cacheDeleted = !audioComplete && transcriptionComplete;
+
+                                                                        if (cacheDeleted) {
+                                                                            return (
+                                                                                <span className="text-xs text-amber-600 dark:text-amber-400">
+                                                                                    キャッシュが削除されています
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return null;
+                                                                    })()
+                                                                )}
                                                             </div>
                                                         </div>
                                                     );
