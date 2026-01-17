@@ -7,7 +7,7 @@ from sqlalchemy import select
 from db import get_db
 from cruds import round as round_crud
 from models.round import Round, Speech, Adu, Rebuttal, Sentence, Word
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, aliased
 
 router = APIRouter()
 
@@ -15,6 +15,10 @@ router = APIRouter()
 # ==================== Pydantic Models ====================
 
 from enum import Enum
+from typing import Literal
+
+# Import speech positions from utils
+from routers.utils import NA_ORDER, ASIAN_ORDER, BP_ORDER, OPENING_HALF_BP_ORDER
 
 class RoundType(str, Enum):
     RECORD = "record"
@@ -25,6 +29,17 @@ class RoundStyle(str, Enum):
     ASIAN = "asian"
     BRITISH_PARLIAMENTARY = "british_parliamentary"
     BP_OPENING_HALF = "bp_opening_half"
+
+# All possible speech positions across all formats
+ALL_SPEECH_POSITIONS = list(set(NA_ORDER + ASIAN_ORDER + BP_ORDER + OPENING_HALF_BP_ORDER))
+
+# Speech position type for validation
+SpeechPosition = Literal[
+    "Proposition_1st", "Opposition_1st",
+    "Proposition_2nd", "Opposition_2nd", 
+    "Proposition_3rd", "Opposition_3rd",
+    "Proposition_4th", "Opposition_4th"
+]
 
 class RoundCreate(BaseModel):
     """ラウンド作成リクエスト"""
@@ -78,8 +93,10 @@ class SpeechResponse(BaseModel):
     # But user asked to add fields to ROUNDs.
     # I will allow round_name to be mapped if available.
     position: str
-    audio_path: Optional[str]
-    duration: Optional[float]
+    audio_path: Optional[str] = None
+    duration: Optional[float] = None
+    first_sentence_id: Optional[int] = None
+    last_sentence_id: Optional[int] = None
     
     class Config:
         from_attributes = True
@@ -115,6 +132,24 @@ class RebuttalResponse(BaseModel):
     id: int
     src_adu_id: int
     tgt_adu_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class SpeechDiarizationEntry(BaseModel):
+    position: SpeechPosition  # e.g. "Proposition_1st"
+    first_sentence_id: int
+    last_sentence_id: int
+
+class DiarizationUpdateRequest(BaseModel):
+    entries: List[SpeechDiarizationEntry]
+
+class SentenceWithTime(BaseModel):
+    id: int
+    text: str
+    start_time: float
+    end_time: float
 
     class Config:
         from_attributes = True
@@ -428,6 +463,101 @@ async def get_rebuttals_by_round(round_name: str, db: AsyncSession = Depends(get
     """
     rebuttals = await round_crud.get_rebuttals_by_round(db, round_name)
     return rebuttals
+
+
+@router.get("/rounds/{round_id}/sentences_with_time", response_model=List[SentenceWithTime])
+async def get_sentences_with_time(round_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    指定されたラウンドのすべての文を、開始・終了時刻付きで取得。
+    Wordテーブルと結合して計算する。
+    """
+    WordStart = aliased(Word)
+    WordEnd = aliased(Word)
+
+    stmt = (
+        select(
+            Sentence.id,
+            Sentence.text,
+            WordStart.start_time,
+            WordEnd.end_time
+        )
+        .join(WordStart, Sentence.first_word_id == WordStart.id)
+        .join(WordEnd, Sentence.last_word_id == WordEnd.id)
+        .where(Sentence.round_id == round_id)
+        .order_by(Sentence.id)
+    )
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    return [
+        SentenceWithTime(
+            id=row[0],
+            text=row[1],
+            start_time=row[2],
+            end_time=row[3]
+        )
+        for row in rows
+    ]
+
+
+@router.post("/rounds/{round_id}/diarization", response_model=List[SpeechResponse])
+async def update_diarization(
+    round_id: int, 
+    request: DiarizationUpdateRequest, 
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    話者分離結果（各スピーチの開始・終了文ID）を一括更新する。
+    """
+    # 既存のスピーチを取得（なければ作成する必要があるが、通常Step 1か初期化で作られているはず）
+    # もし無ければ作成するロジックを入れるか？ 
+    # いったん既存のスピーチを探し、無ければ round_id と position で作成する。
+    
+    updated_speeches = []
+    
+    # トランザクション内で処理
+    for entry in request.entries:
+        # スピーチ検索
+        stmt = select(Speech).where(Speech.round_id == round_id, Speech.position == entry.position)
+        result = await db.execute(stmt)
+        speech = result.scalar_one_or_none()
+        
+        if not speech:
+            # Create new speech if not exists
+            speech = Speech(
+                round_id=round_id,
+                position=entry.position,
+                first_sentence_id=entry.first_sentence_id,
+                last_sentence_id=entry.last_sentence_id
+            )
+            db.add(speech)
+        else:
+            speech.first_sentence_id = entry.first_sentence_id
+            speech.last_sentence_id = entry.last_sentence_id
+            db.add(speech)
+            
+        updated_speeches.append(speech)
+    
+    await db.commit()
+    
+    # Refresh all speeches to get database-generated IDs
+    for speech in updated_speeches:
+        await db.refresh(speech)
+    
+    # Return updated speeches as SpeechResponse objects
+    return [
+        SpeechResponse(
+            id=speech.id,
+            round_id=speech.round_id,
+            position=speech.position,
+            audio_path=speech.audio_path,
+            duration=speech.duration,
+            first_sentence_id=speech.first_sentence_id,
+            last_sentence_id=speech.last_sentence_id
+        )
+        for speech in updated_speeches
+    ]
 
 
 @router.get("/rounds/{round_id}/graph", response_model=Dict[str, Any])

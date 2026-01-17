@@ -12,6 +12,7 @@ import { useTranslation } from '../../../../../context/LanguageContext';
 import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components/shared/ProcessingSteps';
 import { testColabConnection } from './actions';
 import { useStepActions } from '../../../../../hooks/useStepActions';
+import { ManualDiarizationWorkflow } from './components/ManualDiarizationWorkflow';
 
 
 
@@ -242,6 +243,21 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     };
 
     const renderStepExtras = (stepId: number) => {
+        // Step 2: Show ManualDiarizationWorkflow in manual mode
+        if (stepId === 2 && workflowMode === 'manual') {
+            return (
+                <ManualDiarizationWorkflow
+                    roundId={roundId}
+                    roundName={roundData?.name || ''}
+                    t={t}
+                    onComplete={() => {
+                        toast.success("Diarization completed!");
+                    }}
+                    debateFormat={roundData?.debate_format || 'british_parliamentary'}
+                />
+            );
+        }
+
         if (stepId !== 1) return null; // Model selection moved to Step 1
 
         return (
