@@ -93,6 +93,11 @@ export function TimelineEditor({
         return sentence ? sentence.start_time : 0;
     };
 
+    const getEndTimeFromSentenceId = (sentenceId: number): number => {
+        const sentence = sentences.find(s => s.id === sentenceId);
+        return sentence ? sentence.end_time : 0;
+    };
+
     const getSentenceIdFromTime = (time: number): number => {
         // Find closest sentence
         let closest = sentences[0];
@@ -234,7 +239,7 @@ export function TimelineEditor({
 
                 <div
                     ref={timelineRef}
-                    className="relative h-32 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer select-none border-2 border-slate-300 dark:border-slate-600"
+                    className="relative h-24 bg-slate-100 dark:bg-slate-800 rounded-lg cursor-pointer select-none border-2 border-slate-300 dark:border-slate-600"
                     onClick={handleTimelineClick}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
@@ -245,7 +250,7 @@ export function TimelineEditor({
                         if (!speech.first_sentence_id || !speech.last_sentence_id || duration === 0) return null;
 
                         const startTime = getTimeFromSentenceId(speech.first_sentence_id);
-                        const endTime = getTimeFromSentenceId(speech.last_sentence_id);
+                        const endTime = getEndTimeFromSentenceId(speech.last_sentence_id);
                         const left = (startTime / duration) * 100;
                         const width = ((endTime - startTime) / duration) * 100;
 
@@ -253,14 +258,17 @@ export function TimelineEditor({
                         const color = isProposition ? 'bg-red-500' : 'bg-blue-500';
                         const hoverColor = isProposition ? 'hover:bg-red-600' : 'hover:bg-blue-600';
 
+                        // Two rows: Proposition (Top), Opposition (Bottom)
+                        const topPosition = isProposition ? '10px' : '50px';
+
                         return (
                             <div
                                 key={idx}
-                                className={`absolute h-8 ${color} opacity-70 hover:opacity-90 transition-opacity`}
+                                className={`absolute h-8 ${color} opacity-70 hover:opacity-90 transition-opacity rounded`}
                                 style={{
                                     left: `${left}%`,
                                     width: `${width}%`,
-                                    top: `${(idx % 4) * 24 + 8}px`
+                                    top: topPosition
                                 }}
                             >
                                 {/* Start Handle */}
