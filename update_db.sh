@@ -44,11 +44,11 @@ docker compose exec fastapi python -m alembic revision --autogenerate -m "update
 GENERATED_FILE=$(find fastapi/main-service/app/alembic/versions -name "update_${TIMESTAMP}_*.py")
 
 if [ -z "$GENERATED_FILE" ]; then
-    echo "✅ No model changes detected. (No migration file created)"
+    echo "✅ No migration file newly created. Models are in sync with the latest head."
     # Exit without backup or upgrade as requested
     exit 0
 else
-    echo "⚠️ Changes detected. Migration file created: $GENERATED_FILE"
+    echo "⚠️ Changes detected. Migration file newly created: $GENERATED_FILE"
 fi
 
 # 3. If changes detected, run backup FIRST

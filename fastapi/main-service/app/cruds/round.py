@@ -327,7 +327,9 @@ async def create_adu(
     first_sentence_id: int,
     last_sentence_id: int,
     text: str,
-    role: str
+    role: str,
+    start_time: float = 0.0,
+    end_time: float = 0.0
 ) -> Adu:
     """
     新しいADUを作成
@@ -337,7 +339,9 @@ async def create_adu(
         first_sentence_id=first_sentence_id,
         last_sentence_id=last_sentence_id,
         text=text,
-        role=role
+        role=role,
+        start_time=start_time,
+        end_time=end_time
     )
     db.add(adu)
     await db.commit()
@@ -355,7 +359,9 @@ async def create_adus_batch(
             first_sentence_id=adu_data["first_sentence_id"],
             last_sentence_id=adu_data["last_sentence_id"],
             text=adu_data["text"],
-            role=adu_data["role"]
+            role=adu_data["role"],
+            start_time=adu_data.get("start_time", 0.0),
+            end_time=adu_data.get("end_time", 0.0)
         )
         for adu_data in adus_data
     ]

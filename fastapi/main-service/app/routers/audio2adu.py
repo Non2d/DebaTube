@@ -1449,19 +1449,10 @@ async def create_rebuttal_prompt_data(
     res_adus = await db.execute(select(Adu).where(Adu.speech_id.in_(speech_ids)).order_by(Adu.id))
     all_adus = res_adus.scalars().all()
     
-    res_sents = await db.execute(select(Sentence).where(Sentence.round_id == round_id).order_by(Sentence.id))
-    all_sents = res_sents.scalars().all()
-    
-    res_words = await db.execute(select(Word).where(Word.round_id == round_id).order_by(Word.id))
-    all_words = res_words.scalars().all()
-    
     speech_adus = {sid: [] for sid in speech_ids}
     for a in all_adus:
         if a.speech_id in speech_adus:
              speech_adus[a.speech_id].append(a)
-    
-    sentences_map = {s.id: s for s in all_sents}
-    words_map = {w.id: w for w in all_words}
 
     for speech in speeches:
         speech_key = speech.position
@@ -1477,11 +1468,8 @@ async def create_rebuttal_prompt_data(
             global_adu_index += 1
             local_id_to_db_id[global_adu_index] = adu.id
 
-            start_time = 0.0
-            if adu.first_sentence_id in sentences_map:
-                sent = sentences_map[adu.first_sentence_id]
-                if sent.first_word_id in words_map:
-                    start_time = words_map[sent.first_word_id].start_time
+            # Use denormalized start_time field (避けるため深いネスト: adu.sentences[0].words[0].start)
+            start_time = adu.start_time
 
             adu_data = {
                 "id": global_adu_index,
@@ -1770,7 +1758,9 @@ async def audio_to_debate_graph_batch(
                             "first_sentence_id": sentence_index_to_id[start_sent_idx],
                             "last_sentence_id": sentence_index_to_id[end_sent_idx],
                             "text": adu.get("text"),
-                            "role": adu.get("role")
+                            "role": adu.get("role"),
+                            "start_time": adu.get("start_time", 0.0),
+                            "end_time": adu.get("end_time", 0.0)
                         })
                 
                 if adus_data:
@@ -1851,15 +1841,6 @@ async def get_rebuttal_graph(round_name: str, try_count: Optional[int] = None, d
 
         speeches_data = {}
         
-        round_id = speeches[0].round_id if speeches else None
-        if not round_id:
-            raise HTTPException(status_code=404, detail="Round ID not found")
-        
-        sentences_all = await round_crud.get_sentences_by_round(db, round_name, try_count=try_count)
-        words_all = await round_crud.get_words_by_round(db, round_name, try_count=try_count)
-        
-        sentences_map = {s.id: s for s in sentences_all}
-        words_map = {w.id: w for w in words_all}
         
         db_id_to_local_id = {}
         global_adu_index = 0
@@ -1874,11 +1855,8 @@ async def get_rebuttal_graph(round_name: str, try_count: Optional[int] = None, d
                 global_adu_index += 1
                 db_id_to_local_id[adu.id] = global_adu_index
                 
-                start_time = 0.0
-                if adu.first_sentence_id in sentences_map:
-                    sent = sentences_map[adu.first_sentence_id]
-                    if sent.first_word_id in words_map:
-                        start_time = words_map[sent.first_word_id].start_time
+                # Use denormalized start_time field (避けるため深いネスト: adu.sentences[0].words[0].start)
+                start_time = adu.start_time
 
                 adu_data = {
                     "id": global_adu_index,
@@ -1970,6 +1948,10 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
         
         # Prepare ADUs for batch insertion
         adus_to_create = []
+        
+        # Fetch words once for all speeches (optimization)
+        words_all = await round_crud.get_words_by_round(db, request.round_name, try_count=request.try_count)
+        words_map = {w.id: w for w in words_all}
 
         for speech_item in items_to_process:
             position = speech_item.get("position")
@@ -1997,12 +1979,27 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
                 end_sent_idx = adu.get("end_sentence_index", 0)
                 
                 if start_sent_idx in sentence_index_to_id and end_sent_idx in sentence_index_to_id:
+                    # Get timestamps from sentences
+                    start_sent = sentences[start_sent_idx]
+                    end_sent = sentences[end_sent_idx]
+                    
+                    # Extract start_time from first word of first sentence
+                    start_time = 0.0
+                    end_time = 0.0
+                    
+                    if start_sent.first_word_id in words_map:
+                        start_time = words_map[start_sent.first_word_id].start_time
+                    if end_sent.last_word_id in words_map:
+                        end_time = words_map[end_sent.last_word_id].end_time
+                    
                     adus_to_create.append({
                         "speech_id": speech_id,
                         "first_sentence_id": sentence_index_to_id[start_sent_idx],
                         "last_sentence_id": sentence_index_to_id[end_sent_idx],
                         "text": adu.get("text", ""),
-                        "role": adu.get("role", "claim")
+                        "role": adu.get("role", "claim"),
+                        "start_time": start_time,
+                        "end_time": end_time
                     })
         
         if adus_to_create:

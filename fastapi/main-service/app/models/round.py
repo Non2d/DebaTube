@@ -121,6 +121,10 @@ class Adu(Base):
     
     text = Column(Text, nullable=False)
     role = Column(String(64), nullable=False)
+    
+    # Denormalized timestamp fields for performance (避けるため深いネスト: adu.sentences[0].words[0].start)
+    start_time = Column(Float, nullable=False)
+    end_time = Column(Float, nullable=False)
 
     speech = relationship("Speech", back_populates="adus")
     rebuttals_as_source = relationship(
