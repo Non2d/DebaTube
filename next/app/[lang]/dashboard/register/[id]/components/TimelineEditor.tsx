@@ -50,9 +50,32 @@ export function TimelineEditor({
     const [isPlaying, setIsPlaying] = useState(false);
     const [dragging, setDragging] = useState<{ speechIndex: number; edge: 'start' | 'end' } | null>(null);
 
+    // Lyrics View State & Refs
+    const lyricsContainerRef = useRef<HTMLDivElement>(null);
+    const activeSentenceRef = useRef<HTMLDivElement>(null);
+    const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
+
     useEffect(() => {
         setLocalSpeeches(speeches);
     }, [speeches]);
+
+    // Auto-scroll lyrics to center active sentence
+    useEffect(() => {
+        if (activeSentenceRef.current && lyricsContainerRef.current) {
+            const container = lyricsContainerRef.current;
+            const element = activeSentenceRef.current;
+
+            // Calculate center position
+            const containerHeight = container.clientHeight;
+            const elementHeight = element.clientHeight;
+            const scrollTarget = element.offsetTop - (containerHeight / 2) + (elementHeight / 2);
+
+            container.scrollTo({
+                top: scrollTarget,
+                behavior: 'smooth'
+            });
+        }
+    }, [currentSentenceIndex]);
 
     const handlePlayerReady = (event: any) => {
         playerRef.current = event.target;
@@ -249,6 +272,58 @@ export function TimelineEditor({
                 ) : (
                     <div className="flex items-center justify-center h-full text-white">{t('dashboard.steps.errors.videoNotFound') || "Video ID not found"}</div>
                 )}
+            </div>
+
+            {/* Lyrics / Transcript View */}
+            <div className="relative h-60 bg-slate-50 dark:bg-slate-900/50 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800">
+                {/* Fade gradients */}
+                <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-white dark:from-slate-900 to-transparent z-10 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white dark:from-slate-900 to-transparent z-10 pointer-events-none" />
+
+                {/* Scrollable Content */}
+                <div
+                    ref={lyricsContainerRef}
+                    className="h-full overflow-y-auto px-6 py-16 space-y-4 no-scrollbar scroll-smooth"
+                    style={{ scrollBehavior: 'smooth' }}
+                >
+                    {sentences && sentences.length > 0 ? sentences.map((s, idx) => {
+                        // Determine if this sentence is active based on current time
+                        // Using a slightly wider range for better UX? No, accurate is better.
+                        const isActive = currentTime >= s.start_time && currentTime < s.end_time;
+
+                        // Auto-scroll effect
+                        if (isActive && activeSentenceRef.current !== null && currentSentenceIndex !== idx) {
+                            setCurrentSentenceIndex(idx);
+                        }
+
+                        return (
+                            <div
+                                key={s.id}
+                                ref={isActive ? activeSentenceRef : null}
+                                className={`transition-all duration-500 ease-out cursor-pointer ${isActive
+                                    ? 'opacity-100 scale-100 blur-none'
+                                    : 'opacity-50 scale-95 blur-[0.5px]'
+                                    }`}
+                                onClick={() => {
+                                    if (playerRef.current) playerRef.current.seekTo(s.start_time, true);
+                                }}
+                            >
+                                <div className="flex gap-3 items-baseline">
+                                    <span className={`text-xs font-mono font-bold min-w-[2.5rem] text-right ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
+                                        }`}>
+                                        #{idx + 1}
+                                    </span>
+                                    <p className={`leading-snug ${isActive ? 'font-bold text-slate-900 dark:text-white text-xl' : 'font-medium text-slate-600 dark:text-slate-400 text-base'
+                                        }`}>
+                                        {s.text}
+                                    </p>
+                                </div>
+                            </div>
+                        )
+                    }) : (
+                        <div className="text-center text-slate-400 py-10">No transcript available</div>
+                    )}
+                </div>
             </div>
 
             {/* Timeline Editor */}
