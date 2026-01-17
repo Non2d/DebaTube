@@ -210,7 +210,7 @@ async def get_round(round_name: str, try_count: Optional[int] = None, db: AsyncS
     try_countを指定するとそのバージョンのラウンドを取得
     指定なしの場合は最新を取得
     """
-    round_obj = await round_crud.get_round(db, round_name, try_count=try_count)
+    round_obj = await round_crud.get_round_by_name(db, round_name, try_count=try_count)
     if not round_obj:
         raise HTTPException(status_code=404, detail="Round not found")
     return RoundResponse(
@@ -318,7 +318,7 @@ async def create_speech(
     新しいスピーチを作成
     """
     # Look up round_id from round_name
-    round_obj = await round_crud.get_round(db, speech.round_name)
+    round_obj = await round_crud.get_round_by_name(db, speech.round_name)
     if not round_obj:
         raise HTTPException(status_code=404, detail="Round not found")
 

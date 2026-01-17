@@ -67,7 +67,7 @@ async def create_round(
     return round_obj
 
 
-async def get_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> Optional[Round]:
+async def get_round_by_name(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> Optional[Round]:
     """
     ラウンドを名前で取得
     try_count指定なしの場合は、最新のものを返す
@@ -188,7 +188,7 @@ async def get_speeches_by_round(db: AsyncSession, round_name: str, try_count: Op
     try_count指定時はそのバージョンのスピーチを取得
     """
     # ラウンドIDを特定
-    round_obj = await get_round(db, round_name, try_count)
+    round_obj = await get_round_by_name(db, round_name, try_count)
     if not round_obj:
         return []
 
@@ -284,7 +284,7 @@ async def get_sentences_by_speech(db: AsyncSession, speech_id: int) -> List[Sent
 
 
 async def get_sentences_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Sentence]:
-    round_obj = await get_round(db, round_name, try_count)
+    round_obj = await get_round_by_name(db, round_name, try_count)
     if not round_obj:
         return []
     
@@ -307,7 +307,7 @@ async def get_words_by_speech(db: AsyncSession, speech_id: int) -> List[Word]:
 
 
 async def get_words_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Word]:
-    round_obj = await get_round(db, round_name, try_count)
+    round_obj = await get_round_by_name(db, round_name, try_count)
     if not round_obj:
         return []
     
@@ -399,7 +399,7 @@ async def get_adus_by_round(db: AsyncSession, round_name: str, try_count: Option
     ラウンド名でADU一覧を取得（全スピーチ）
     """
     # ラウンドIDを特定
-    round_obj = await get_round(db, round_name, try_count)
+    round_obj = await get_round_by_name(db, round_name, try_count)
     if not round_obj:
         return []
 
@@ -458,7 +458,7 @@ async def get_rebuttals_by_round(db: AsyncSession, round_name: str, try_count: O
     ラウンド名で反論関係一覧を取得
     """
     # ラウンドIDを特定
-    round_obj = await get_round(db, round_name, try_count)
+    round_obj = await get_round_by_name(db, round_name, try_count)
     if not round_obj:
         return []
 
@@ -476,7 +476,7 @@ async def delete_rebuttals_by_round(db: AsyncSession, round_name: str, try_count
     ラウンド名で反論関係を削除
     """
     # ラウンドIDを特定 (削除の場合は最新だけ消すか指定するか？通常指定しなければ最新)
-    round_obj = await get_round(db, round_name, try_count)
+    round_obj = await get_round_by_name(db, round_name, try_count)
     if not round_obj:
         return False
 

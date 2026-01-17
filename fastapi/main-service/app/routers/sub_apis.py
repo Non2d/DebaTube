@@ -17,6 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from cruds import round as round_crud
+from sqlalchemy import delete, select
+import shutil
+from config import AUDIO_DIR
 
 
 router = APIRouter()
@@ -798,6 +801,7 @@ async def create_round_from_jsons(
             # words_data format need to be dicts, which they are
             sentences_struct = group_words_into_sentences(full_text, words_list)
 
+
             db_sentences = []
             for s_data in sentences_struct:
                 # { "id": 0, "text": "...", "start_time": ..., "end_time": ..., "start_word_index": ..., "end_word_index": ... }
@@ -991,3 +995,115 @@ async def groq_transcribe(file: UploadFile = File(...)):
         print(f"[/groq-transcribe] エラーで終了 - 処理時間: {elapsed_time:.2f}秒")
         logger.error(f"Error during Groq transcription for {file.filename}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Groq transcription failed: {str(e)}")
+
+@router.post("/reset-progress/{round_id}")
+async def reset_progress(
+    round_id: int,
+    start_step: str = "1-a",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Reset processing progress for a given round starting from a specific step.
+    Deletes all data associated with the start_step and all subsequent steps.
+    
+    Steps:
+    - 1-a: Audio Download (Deletes local audio file + all below)
+    - 1-b: Transcription (Clears Round.raw_transcription + all below)
+    - 1-c: Word Extraction (Deletes Words + all below)
+    - 1-d: Sentence Grouping (Deletes Sentences + all below)
+    - 2: Speaker Diarization (Deletes Speeches + all below)
+    - 3: ADU Segmentation (Deletes ADUs + all below)
+    - 4: Rebuttal Detection (Deletes Rebuttals)
+    """
+    
+    # Normalize start_step
+    step_map = {
+        "1-a": 0,
+        "1-b": 1,
+        "1-c": 2,
+        "1-d": 3,
+        "2": 4,
+        "3": 5,
+        "4": 6
+    }
+    
+    target_level = step_map.get(start_step.lower())
+    if target_level is None:
+        raise HTTPException(status_code=400, detail=f"Invalid start_step. Must be one of: {list(step_map.keys())}")
+        
+    try:
+        # Get Round to find video_id for Step 1-a
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+        
+        # Determine cascading deletions
+        # Order is important: delete children first if not using CASCADE logic in Python, 
+        # but SQLAlchemy usually handles foreign keys if ON DELETE CASCADE is set in DB.
+        # However, to be thorough and explicit:
+        
+        # Step 4: Rebuttal Detection (Deletes Rebuttals)
+        if target_level <= 6:
+            stmt = delete(Rebuttal).where(
+                (Rebuttal.src_adu_id.in_(
+                    select(Adu.id).join(Speech).where(Speech.round_id == round_id)
+                )) | 
+                (Rebuttal.tgt_adu_id.in_(
+                    select(Adu.id).join(Speech).where(Speech.round_id == round_id)
+                ))
+            )
+            await db.execute(stmt)
+            logger.info(f"Reset Step 4: Deleted Rebuttals for Round {round_id}")
+
+        # Step 3: ADU Segmentation (Deletes ADUs)
+        if target_level <= 5:
+            stmt = delete(Adu).where(Adu.speech_id.in_(
+                select(Speech.id).where(Speech.round_id == round_id)
+            ))
+            await db.execute(stmt)
+            logger.info(f"Reset Step 3: Deleted ADUs for Round {round_id}")
+            
+        # Step 2: Speaker Diarization (Deletes Speeches)
+        if target_level <= 4:
+            stmt = delete(Speech).where(Speech.round_id == round_id)
+            await db.execute(stmt)
+            logger.info(f"Reset Step 2: Deleted Speeches for Round {round_id}")
+            
+        # Step 1-d: Sentence Grouping (Deletes Sentences)
+        if target_level <= 3:
+            stmt = delete(Sentence).where(Sentence.round_id == round_id)
+            await db.execute(stmt)
+            logger.info(f"Reset Step 1-d: Deleted Sentences for Round {round_id}")
+            
+        # Step 1-c: Word Extraction (Deletes Words)
+        if target_level <= 2:
+            stmt = delete(Word).where(Word.round_id == round_id)
+            await db.execute(stmt)
+            logger.info(f"Reset Step 1-c: Deleted Words for Round {round_id}")
+            
+        # Step 1-b: Transcription (Clears Round.raw_transcription)
+        if target_level <= 1:
+            round_obj.raw_transcription = None
+            db.add(round_obj) # Mark for update
+            logger.info(f"Reset Step 1-b: Cleared raw_transcription for Round {round_id}")
+            
+        # Step 1-a: Audio Download (Deletes local audio file)
+        if target_level <= 0:
+            if round_obj.video_id:
+                # Delete directory: AUDIO_DIR/video_id
+                target_dir = os.path.join(AUDIO_DIR, round_obj.video_id)
+                if os.path.exists(target_dir):
+                    shutil.rmtree(target_dir)
+                    logger.info(f"Reset Step 1-a: Deleted audio directory {target_dir}")
+                else:
+                    logger.info(f"Reset Step 1-a: Audio directory {target_dir} not found")
+            else:
+                logger.warning(f"Reset Step 1-a: Round {round_id} has no video_id")
+
+        await db.commit()
+        return {"status": "success", "message": f"Reset progress from step {start_step} for round {round_id}"}
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error resetting progress: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to reset progress: {str(e)}")
