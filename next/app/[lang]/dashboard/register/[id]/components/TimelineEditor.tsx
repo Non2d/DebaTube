@@ -300,20 +300,20 @@ export function TimelineEditor({
                             <div
                                 key={s.id}
                                 ref={isActive ? activeSentenceRef : null}
-                                className={`transition-all duration-500 ease-out cursor-pointer ${isActive
+                                className={`transition-all duration-1000 ease-out cursor-pointer ${isActive
                                     ? 'opacity-100 scale-100 blur-none'
-                                    : 'opacity-50 scale-95 blur-[0.5px]'
+                                    : 'opacity-40 scale-[0.98] blur-[1px]'
                                     }`}
                                 onClick={() => {
                                     if (playerRef.current) playerRef.current.seekTo(s.start_time, true);
                                 }}
                             >
                                 <div className="flex gap-3 items-baseline">
-                                    <span className={`text-xs font-mono font-bold min-w-[2.5rem] text-right ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
+                                    <span className={`text-xs font-mono font-bold min-w-[2.5rem] text-right transition-colors duration-1000 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'
                                         }`}>
                                         #{idx + 1}
                                     </span>
-                                    <p className={`leading-snug ${isActive ? 'font-bold text-slate-900 dark:text-white text-xl' : 'font-medium text-slate-600 dark:text-slate-400 text-base'
+                                    <p className={`text-lg leading-relaxed transition-colors duration-1000 ${isActive ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-500 dark:text-slate-500'
                                         }`}>
                                         {s.text}
                                     </p>
