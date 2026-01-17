@@ -20,7 +20,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const router = useRouter();
     const roundId = params.id;
 
-    const { resetProgress } = useStepActions({ roundId, t });
+    const { resetProgress, runStep1 } = useStepActions({ roundId, t });
     // ... existing states ...
 
     // (Initialize hook later in the component body)
@@ -154,107 +154,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
-    const runStep1 = async () => {
-        if (!roundData?.video_id) return;
 
-        const newStatus = [...stepsStatus];
-        newStatus[0] = 'processing';
-        setStepsStatus(newStatus);
-        setDownloadProgress(0);
-
-        try {
-            // Step 1-A: Download Audio
-            setDownloadProgress(10);
-            toast.loading('Step 1-A: Downloading audio...', { id: 'step1a' });
-
-            const downloadRes = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    url: `https://www.youtube.com/watch?v=${roundData.video_id}`
-                }),
-            });
-
-            if (!downloadRes.ok) {
-                const err = await downloadRes.json();
-                throw new Error(err.detail || 'Audio download failed');
-            }
-
-            const downloadData = await downloadRes.json();
-            setDownloadProgress(25);
-            toast.success(`Step 1-A: Audio downloaded (video_id: ${downloadData.video_id})`, { id: 'step1a' });
-            await fetchJobProgress();
-
-            // Step 1-B: Transcribe Audio
-            setDownloadProgress(30);
-            toast.loading('Step 1-B: Transcribing audio...', { id: 'step1b' });
-
-            const transcribeRes = await fetch(getAPIRoot() + `/transcribe-audio/${roundData.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (!transcribeRes.ok) {
-                const err = await transcribeRes.json();
-                throw new Error(err.detail || 'Transcription failed');
-            }
-
-            setDownloadProgress(60);
-            toast.success('Step 1-B: Transcription completed', { id: 'step1b' });
-            await fetchJobProgress();
-
-            // Step 1-C: Extract Words
-            setDownloadProgress(70);
-            toast.loading('Step 1-C: Extracting words...', { id: 'step1c' });
-
-            const extractRes = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (!extractRes.ok) {
-                const err = await extractRes.json();
-                throw new Error(err.detail || 'Word extraction failed');
-            }
-
-            setDownloadProgress(80);
-            toast.success('Step 1-C: Words registered', { id: 'step1c' });
-            await fetchJobProgress();
-
-            // Step 1-D: Group Sentences
-            setDownloadProgress(85);
-            toast.loading('Step 1-D: Grouping sentences...', { id: 'step1d' });
-
-            const sentenceRes = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (!sentenceRes.ok) {
-                const err = await sentenceRes.json();
-                throw new Error(err.detail || 'Sentence generation failed');
-            }
-
-            const sentenceData = await sentenceRes.json();
-            setDownloadProgress(100);
-            toast.success(`Step 1-D: ${sentenceData.total_sentences} sentences created`, { id: 'step1d' });
-            await fetchJobProgress();
-
-            toast.success('Step 1 Complete!');
-
-        } catch (error: any) {
-            console.error(error);
-            const errStatus = [...stepsStatus];
-            errStatus[0] = 'error';
-            setStepsStatus(errStatus);
-            toast.error(error.message);
-        }
-    };
-
-    // runTranscriptionInternal is no longer used but kept empty or removed to avoid errors if referenced elsewhere?
-    // It's only called by runStep1, so removing it is fine.
-    // However, I need to make sure I don't leave a dangling reference.
-    // The previous runStep1 called it. I am replacing runStep1 AND runTranscriptionInternal.
 
 
     const handleStepAction = async (stepIndex: number, action: string = 'run', data?: any) => {
@@ -264,7 +164,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             return;
         }
 
-        if (stepIndex === 1) runStep1();
+        if (stepIndex === 1) runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, fetchJobProgress);
         // Step 2, 3... can execute normally or via existing logic if implemented
         // Since original code only had Step 1 & 2 actions implemented here...
     };
