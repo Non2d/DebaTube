@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import FileResponse
 from log_config import logger
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import os, json, csv, time, re, tempfile
 from datetime import datetime, timezone, timedelta
 import asyncio
@@ -15,11 +15,10 @@ from openai import OpenAI, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
+from models.round import Speech, Word, Sentence, Adu, Rebuttal
 from cruds import round as round_crud
 from sqlalchemy import delete, select
 import shutil
-import httpx
 from config import AUDIO_DIR
 
 
@@ -997,7 +996,7 @@ async def groq_transcribe(file: UploadFile = File(...)):
         logger.error(f"Error during Groq transcription for {file.filename}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Groq transcription failed: {str(e)}")
 
-@router.post("/reset-progress/{round_id}")
+@router.delete("/reset-progress/{round_id}")
 async def reset_progress(
     round_id: int,
     start_step: str = "1-a",

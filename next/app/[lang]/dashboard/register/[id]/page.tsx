@@ -251,7 +251,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             try {
                 toast.loading(`Resetting progress from step ${startStep}...`, { id: 'reset-progress' });
                 const res = await fetch(getAPIRoot() + `/reset-progress/${roundId}?start_step=${startStep}`, {
-                    method: 'POST',
+                    method: 'DELETE',
                 });
 
                 if (!res.ok) {
