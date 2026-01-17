@@ -328,10 +328,26 @@ export const en = {
             },
             actions: {
                 runStep: "Run Step",
-                running: "Running..."
+                running: "Running...",
+                reset: "Reset",
+                confirmReset: "Are you sure you want to reset progress?",
+                confirmResetDesc: "This action cannot be undone. Data from the selected step onwards will be deleted.",
+                confirm: "Confirm",
+                cancel: "Cancel",
             },
             timer: {
                 processing: "Processing... ({minutes}m {seconds}s)"
+            },
+            messages: {
+                fileUploadSuccess: "File uploaded successfully",
+                fileUploadError: "File upload failed",
+                transcriptionStarted: "Transcription started - check detailed status below",
+                transcriptionError: "Failed to start transcription",
+                audioDeleted: "Audio file deleted",
+                audioDeleteError: "Failed to delete audio file",
+                resetProgress: "Resetting progress from step {startStep}...",
+                resetSuccess: "Progress reset successfully",
+                resetError: "Reset failed: {message}",
             }
         }
     }

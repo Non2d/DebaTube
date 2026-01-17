@@ -11,11 +11,23 @@ import { useTranslation } from '../../../../../context/LanguageContext';
 
 import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components/shared/ProcessingSteps';
 import { testColabConnection } from './actions';
+import { useStepActions } from '../../../../../hooks/useStepActions';
+
+
 
 export default function VideoDetailPage({ params }: { params: { lang: string, id: string } }) {
     const { t } = useTranslation();
     const router = useRouter();
     const roundId = params.id;
+
+    const { resetProgress } = useStepActions({ roundId, t });
+    // ... existing states ...
+
+    // (Initialize hook later in the component body)
+    // But replace_file_content cannot insert in two places easily if they are far apart.
+    // I will do it in two steps or use multi_replace.
+    // Let's use multi_replace.
+
 
     const [loading, setLoading] = useState(true);
     const [roundData, setRoundData] = useState<any>(null);
@@ -248,27 +260,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const handleStepAction = async (stepIndex: number, action: string = 'run', data?: any) => {
         if (action === 'reset') {
             const startStep = data?.startStep || "1-a";
-            try {
-                toast.loading(`Resetting progress from step ${startStep}...`, { id: 'reset-progress' });
-                const res = await fetch(getAPIRoot() + `/reset-progress/${roundId}?start_step=${startStep}`, {
-                    method: 'DELETE',
-                });
-
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Reset failed');
-                }
-
-                const result = await res.json();
-                toast.success('Progress reset successfully', { id: 'reset-progress' });
-
-                // Refresh status
-                await fetchJobProgress();
-
-            } catch (error: any) {
-                console.error("Reset error:", error);
-                toast.error(`Reset failed: ${error.message}`, { id: 'reset-progress' });
-            }
+            await resetProgress(startStep, fetchJobProgress);
             return;
         }
 

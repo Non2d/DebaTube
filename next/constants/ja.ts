@@ -330,10 +330,26 @@ export const ja = {
             },
             actions: {
                 runStep: "ステップを実行",
-                running: "実行中..."
+                running: "実行中...",
+                reset: "リセット",
+                confirmReset: "進捗をリセットしてもよろしいですか？",
+                confirmResetDesc: "この操作は取り消せません。選択したステップ以降のデータは削除されます。",
+                confirm: "確認",
+                cancel: "キャンセル",
             },
             timer: {
                 processing: "処理中... ({minutes}分 {seconds}秒)"
+            },
+            messages: {
+                fileUploadSuccess: "ファイルのアップロードに成功しました",
+                fileUploadError: "ファイルのアップロードに失敗しました",
+                transcriptionStarted: "文字起こしを開始しました - バックグラウンドで処理されます",
+                transcriptionError: "文字起こしの開始に失敗しました",
+                audioDeleted: "音声ファイルを削除しました",
+                audioDeleteError: "音声ファイルの削除に失敗しました",
+                resetProgress: "ステップ {startStep} からのリセット中...",
+                resetSuccess: "進捗のリセットに成功しました",
+                resetError: "リセットに失敗しました: {message}",
             }
         },
         // steps object removed temporarily as requested
