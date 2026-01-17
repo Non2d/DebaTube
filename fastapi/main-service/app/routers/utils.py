@@ -81,7 +81,7 @@ def clean_gemini_markdown_response(response_text: str) -> str:
 
 
 def group_words_into_sentences(
-    text: str, words_data: list, max_words: int = 70, min_words: int = 5
+    text: str, words_data: list, max_words: int = 70, min_words: int = 2
 ) -> list:
     """
     textをピリオドで分割して、words_dataのタイムスタンプを対応付ける。
@@ -94,7 +94,6 @@ def group_words_into_sentences(
         "consequently", "instead", "okay",
     }
     
-    # 区切り位置を決定
     split_positions = []  # (char_index, word_count_at_split)
     word_count = 0
     
@@ -118,11 +117,9 @@ def group_words_into_sentences(
             split_positions.append((i, word_count))
             word_count = 0
     
-    # 最後に残りがあれば追加
     if word_count > 0:
         split_positions.append((len(text) - 1, word_count))
-    
-    # 短いセグメントを前に統合
+
     merged_positions = []
     for pos, wc in split_positions:
         if wc <= min_words and merged_positions:
@@ -131,7 +128,6 @@ def group_words_into_sentences(
         else:
             merged_positions.append((pos, wc))
     
-    # 区切り位置が確定，セグメントを生成
     segments = []
     segment_start = 0
     word_idx = 0
@@ -141,8 +137,7 @@ def group_words_into_sentences(
             segments.append((sent, word_idx, wc))
             word_idx += wc
         segment_start = pos + 1
-    
-    # result生成
+
     result = []
     for idx, (sent, w_idx, w_count) in enumerate(segments):
         if w_idx >= len(words_data):
