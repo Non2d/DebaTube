@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
@@ -35,6 +35,12 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [currentStep, setCurrentStep] = useState(1);
     const [downloadProgress, setDownloadProgress] = useState(0);
     const [jobProgress, setJobProgress] = useState<any>(null);
+
+    // Ref to track stepsStatus to avoid stale closures in async callbacks
+    const stepsStatusRef = useRef(stepsStatus);
+    useEffect(() => {
+        stepsStatusRef.current = stepsStatus;
+    }, [stepsStatus]);
 
     // New State for Colab Integration - Initialize from localStorage
     const [transcriptionModel, setTranscriptionModel] = useState(() => {
@@ -88,7 +94,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 setJobProgress(progress); // Store progress data
 
                 // Map job-progress to stepsStatus (Merged Step 1 & 2)
-                const newStatus: ProcessingStepStatus[] = [...stepsStatus];
+                const newStatus: ProcessingStepStatus[] = [...stepsStatusRef.current];
 
                 // Step 1: Transcript Generation (Audio + Transcript + Sentences)
                 const audioComplete = progress.external_has_audio || progress.local_has_audio;

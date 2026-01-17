@@ -45,6 +45,33 @@ export default function ProcessingSteps({
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
     const [targetResetStep, setTargetResetStep] = useState<{ id: number, subId?: string, label: string } | null>(null);
 
+    // Timer states: { stepId: { startTime: number, duration?: number } }
+    const [stepTimers, setStepTimers] = useState<Record<number, { startTime?: number, duration?: number }>>({});
+
+    // Track status changes to manage timers
+    useEffect(() => {
+        stepsStatus.forEach((status, index) => {
+            const stepId = index + 1;
+            setStepTimers(prev => {
+                const currentTimer = prev[stepId];
+                // Start timer if processing and not started
+                if (status === 'processing' && !currentTimer?.startTime) {
+                    return { ...prev, [stepId]: { startTime: Date.now() } };
+                }
+                // Stop timer if completed/error and running
+                if ((status === 'completed' || status === 'error') && currentTimer?.startTime && !currentTimer.duration) {
+                    return { ...prev, [stepId]: { ...currentTimer, duration: Date.now() - currentTimer.startTime } };
+                }
+                // Reset timer if pending (cleanup)
+                if (status === 'pending' && currentTimer) {
+                    const { [stepId]: _, ...rest } = prev;
+                    return rest;
+                }
+                return prev;
+            });
+        });
+    }, [stepsStatus]);
+
     const handleResetClick = (stepId: number, subId: string | undefined, label: string) => {
         setTargetResetStep({ id: stepId, subId, label });
         setResetDialogOpen(true);
@@ -147,10 +174,15 @@ export default function ProcessingSteps({
                                     <p className="text-xs opacity-80 truncate">{step.description}</p>
                                 </div>
 
-                                {status === 'processing' && (
-                                    <span className="text-xs font-medium px-2 py-1 bg-white/50 dark:bg-black/20 rounded-md ml-2">
-                                        {t('dashboard.steps.status.processing')}
-                                    </span>
+                                {/* Timer in Header (Right aligned) */}
+                                {(status === 'processing' || (status === 'completed' && stepTimers[step.id]?.duration)) && (
+                                    <div className="ml-2" onClick={(e) => e.stopPropagation()}>
+                                        <StepTimer
+                                            startTime={stepTimers[step.id]?.startTime}
+                                            duration={stepTimers[step.id]?.duration}
+                                            status={status}
+                                        />
+                                    </div>
                                 )}
                             </div>
 
@@ -158,18 +190,6 @@ export default function ProcessingSteps({
                             {isActive && isClickable && (
                                 <div className="p-4 pt-0 border-t border-black/5 dark:border-white/5 bg-white/50 dark:bg-black/20">
                                     <div className="mt-4">
-                                        {/* Timer for processing status */}
-                                        {status === 'processing' && (
-                                            <div className="mb-4">
-                                                <StepTimer />
-                                            </div>
-                                        )}
-
-                                        {/* Placeholder for specific step controls */}
-                                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-                                            {step.description}
-                                        </p>
-
                                         {/* Sub-steps Visualization */}
                                         {step.subSteps && (
                                             <div className="mb-6 flex flex-col gap-2">
@@ -325,24 +345,45 @@ function ZapIcon({ size }: { size: number }) {
     )
 }
 
-function StepTimer() {
-    const [seconds, setSeconds] = useState(0);
+function StepTimer({ startTime, duration, status }: { startTime?: number, duration?: number, status: ProcessingStepStatus }) {
+    const { t } = useTranslation();
+    const [elapsed, setElapsed] = useState(0);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setSeconds(s => s + 1);
-        }, 1000);
-        return () => clearInterval(interval);
-    }, []);
+        if (status === 'completed' && duration) {
+            setElapsed(Math.round(duration / 1000));
+            return;
+        }
 
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+        if (startTime && status === 'processing') {
+            const update = () => {
+                setElapsed(Math.round((Date.now() - startTime) / 1000));
+            };
+            update(); // Initial update
+            const interval = setInterval(update, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [startTime, duration, status]);
+
+    const minutes = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    const fmt = (n: number) => n.toString().padStart(2, '0');
+
+    if (status === 'completed') {
+        return (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-white/50 dark:bg-black/20 px-2.5 py-1.5 rounded-full border border-green-200/50 dark:border-green-800/50">
+                <Check size={12} />
+                <span>
+                    {fmt(minutes)}:{fmt(secs)}
+                </span>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md border border-blue-100 dark:border-blue-800">
-            <Loader2 className="animate-spin" size={14} />
-            <span className="font-medium">
-                Processing... ({minutes}m {secs}s)
+        <div className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-white/50 dark:bg-black/20 px-2.5 py-1.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
+            <span>
+                {t('dashboard.steps.status.processing')} ({fmt(minutes)}:{fmt(secs)})
             </span>
         </div>
     );

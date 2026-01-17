@@ -158,6 +158,12 @@ export const useStepActions = ({ roundId, t }: UseStepActionsProps) => {
 
         } catch (error: any) {
             console.error(error);
+            // Dismiss all potential loading toasts
+            toast.dismiss('step1a');
+            toast.dismiss('step1b');
+            toast.dismiss('step1c');
+            toast.dismiss('step1d');
+
             const errStatus = [...stepsStatus];
             errStatus[0] = 'error';
             setStepsStatus(errStatus);
