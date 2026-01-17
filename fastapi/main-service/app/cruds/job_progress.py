@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
+from routers.utils import get_audio_path
 import httpx
 import os
 
@@ -17,37 +18,28 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     has_round_transcription = round_obj and round_obj.raw_transcription is not None
     
     # Step 1-A: Audio Download Complete
-    # Check if Round.video_id exists in the external GPU server's cache
-    audio_complete = False
+    # Check if Round.video_id exists in the audio caches in external GPU server or local directory.
+    # External GPU server
+    external_has_audio = False
     if round_obj and round_obj.video_id:
         try:
-            # Call the proxy endpoint to get cached video IDs
             async with httpx.AsyncClient() as client:
-                cache_resp = await client.get("http://localhost:8080/cached_video_ids", timeout=5.0)
+                cache_resp = await client.get("http://localhost:8080/cached_video_ids", timeout=5.0) # Expected format: { "total": 4, "cached_video_ids": ["video_id1", "video_id2", ...] } TODO: どうみてもただのリストだけ返したほうが良いな...
                 if cache_resp.status_code == 200:
                     cache_data = cache_resp.json()
-                    # Expected format: { "total": 4, "cached_video_ids": ["video_id1", "video_id2", ...] }
                     cached_video_ids = cache_data.get("cached_video_ids", [])
-                    audio_complete = round_obj.video_id in cached_video_ids
+                    external_has_audio = round_obj.video_id in cached_video_ids
         except Exception as e:
             # If cache check fails, fall back to checking transcription existence
             print(f"Failed to check cached video IDs: {str(e)}")
-            audio_complete = has_round_transcription
+            external_has_audio = has_round_transcription
     
-    # Audio file existence check (for external GPU server or Colab)
-    audio_file_exists = False
+    # Local directory
+    local_has_audio = False
     if round_obj and round_obj.video_id:
-        # Check standard path on external GPU server
-        audio_path = f"/app/tmp-audio-save/{round_obj.video_id}/full_audio.m4a"
-        if os.path.exists(audio_path):
-            audio_file_exists = True
-        else:
-            # Fallback check for old path
-            old_path = f"/app/tmp-audio-save/{round_obj.video_id}.m4a"
-            if os.path.exists(old_path):
-                audio_file_exists = True
+        audio_path = get_audio_path(round_obj.video_id)
+        local_has_audio = bool(audio_path)
 
-    # このラウンドの全スピーチを取得
     speeches_result = await db.execute(
         select(Speech).where(Speech.round_id == round_id).order_by(Speech.id)
     )
@@ -56,11 +48,8 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     speeches_progress = []
     
     for speech in speeches:
-        # 音声ファイルの有無: 個別スピーチではなく全体で管理するため、ここではaudio_completeを使うか、空にする
-        has_audio = audio_complete
+        has_audio = None #TODO: [record]でのみ使用する．とりあえずNone
         
-        # 文字起こしの有無 (Wordの存在確認)
-        # 文字起こしの有無
         has_transcription = speech.raw_transcription is not None
         
         # 文の有無
@@ -74,13 +63,12 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
         
         speeches_progress.append({
             "position": speech.position,
-            "has_audio": has_audio,
+            "has_audio": has_audio, 
             "has_transcription": has_transcription,
             "has_sentences": has_sentences,
             "has_adus": has_adus
         })
     
-    # 反論の有無（ADU経由でround_idを取得）
     rebuttals_exist = await db.execute(
         select(exists().where(
             and_(
@@ -92,43 +80,28 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     )
     has_rebuttals = rebuttals_exist.scalar()
     
-    # 全体の完了状況
-    has_enough_speeches = len(speeches_progress) >= 4 
+    has_enough_speeches = len(speeches_progress) >= 4
 
-    # Check if Round has at least 3 words
     stmt_count = select(func.count(Word.id)).where(Word.round_id == round_id)
     count_res = await db.execute(stmt_count)
     word_count = count_res.scalar()
     if word_count is None:
         word_count = 0
 
-    all_speeches_have_transcription = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
-    transcription_complete = all_speeches_have_transcription or has_round_transcription
-    
-    words_registered = word_count >= 3
-    
-    # 1-B: Transcription (Raw Transcript exists)
-    # transcription_complete is already calculated above
-    
-    # 1-C: Word Registration (Words exist in DB)
-    # words_registered is already calculated above
-
-    # 1-D: Sentence Grouping (Sentences exist in DB)
-    stmt = select(func.count(Sentence.id)).where(Sentence.round_id == round_id)
-    sentence_count = (await db.execute(stmt)).scalar() or 0
-    sentences_registered = sentence_count >= 3
+    has_all_raw_speech_transcription = has_enough_speeches and all(s["has_transcription"] for s in speeches_progress)
     
     adus_complete = has_enough_speeches and all(s["has_adus"] for s in speeches_progress)
     rebuttals_complete = has_rebuttals
     
     return {
         "round_id": round_id,
-        "audio_complete": audio_complete,           # 1-A
-        "audio_file_exists": audio_file_exists,
-        "transcription_complete": transcription_complete, # 1-B
-        "words_registered": words_registered,       # 1-C
-        "sentences_registered": sentences_registered, # 1-D
-        "speeches_complete": has_enough_speeches,   # 2 (Diarization)
+        "external_has_audio": external_has_audio,
+        "local_has_audio": local_has_audio,
+        "has_all_raw_speech_transcription": has_all_raw_speech_transcription,
+        "has_raw_round_transcription": has_round_transcription,
+        "words_registered": words_registered,
+        "sentences_registered": sentences_registered,
+        "speeches_complete": has_enough_speeches,
         "adus_complete": adus_complete,
         "rebuttals_complete": rebuttals_complete,
         "speeches": speeches_progress

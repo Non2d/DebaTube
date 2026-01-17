@@ -12,7 +12,7 @@ router = APIRouter()
 class SpeechProgress(BaseModel):
     """スピーチごとの進捗状況"""
     position: str  # "Proposition_1st", "Opposition_1st", etc.
-    has_audio: bool
+    has_audio: bool | None  # Deprecated, will be None
     has_transcription: bool
     has_sentences: bool
     has_adus: bool
@@ -21,9 +21,10 @@ class SpeechProgress(BaseModel):
 class JobProgressResponse(BaseModel):
     """ラウンド全体の処理進捗"""
     round_id: int
-    audio_complete: bool
-    audio_file_exists: bool  # 物理ファイルが存在するか（再実行用）
-    transcription_complete: bool
+    external_has_audio: bool  # 外部GPUサーバーに音声ファイルが存在するか
+    local_has_audio: bool  # ローカル（VPS）に音声ファイルが存在するか
+    has_all_raw_speech_transcription: bool  # 全スピーチの文字起こしが完了しているか
+    has_raw_round_transcription: bool  # ラウンド全体の文字起こしが存在するか
     words_registered: bool
     sentences_registered: bool
     speeches_complete: bool

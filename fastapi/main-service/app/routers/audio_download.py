@@ -3,12 +3,10 @@ from pydantic import BaseModel
 import yt_dlp
 import os
 import shutil
+from config import AUDIO_DIR
+from .utils import get_audio_path
 
 router = APIRouter()
-
-APP_DIR = os.path.dirname(__file__)
-AUDIO_DIR = "/app/tmp-audio-save"
-os.makedirs(AUDIO_DIR, exist_ok=True)
 
 class AudioDownloadRequest(BaseModel):
     video_id: str
@@ -19,27 +17,6 @@ class AudioDownloadResponse(BaseModel):
     title: str
     duration: int
     filename: str
-
-def get_audio_path(video_id: str) -> str:
-    # Check for existing specific file: AUDIO_DIR/{video_id}/full_audio.m4a
-    # We prioritize m4a as per new requirement, but could check others if needed.
-    # User specifically asked for: /tmp-audio-save/video_id/full_audio.m4a
-    
-    target_dir = os.path.join(AUDIO_DIR, video_id)
-    target_path = os.path.join(target_dir, "full_audio.m4a")
-    
-    if os.path.exists(target_path):
-        return target_path
-        
-    # Backward compatibility: check old path style if migration not done?
-    # Old: AUDIO_DIR/{video_id}.m4a
-    old_path = os.path.join(AUDIO_DIR, f"{video_id}.m4a")
-    if os.path.exists(old_path):
-        # We could migrate it here or just return it. 
-        # Let's return it for now to avoid breaking existing.
-        return old_path
-        
-    return ""
 
 
 @router.post("/download-audio", response_model=AudioDownloadResponse)
