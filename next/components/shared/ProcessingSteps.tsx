@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../context/LanguageContext';
-import { Check, Loader2, Download, FileText, Users, MessageSquare, AlertCircle } from 'lucide-react';
+import { Check, Loader2, Download, FileText, Users, MessageSquare, AlertCircle, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Button } from '../ui/button';
 
 export type ProcessingStepStatus = 'pending' | 'processing' | 'completed' | 'error' | 'disabled';
 
@@ -40,6 +42,30 @@ export default function ProcessingSteps({
 }: ProcessingStepsProps) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
+    const [resetDialogOpen, setResetDialogOpen] = useState(false);
+    const [targetResetStep, setTargetResetStep] = useState<{ id: number, subId?: string, label: string } | null>(null);
+
+    const handleResetClick = (stepId: number, subId: string | undefined, label: string) => {
+        setTargetResetStep({ id: stepId, subId, label });
+        setResetDialogOpen(true);
+    };
+
+    const confirmReset = () => {
+        if (!targetResetStep) return;
+
+        // Determine start_step string for API
+        let startStep = "";
+        if (targetResetStep.subId) {
+            // e.g. "1a" -> "1-a"
+            startStep = targetResetStep.subId.replace(/^(\d)([a-z])$/, "$1-$2");
+        } else {
+            startStep = targetResetStep.id.toString();
+        }
+
+        onStepAction(targetResetStep.id, 'reset', { startStep });
+        setResetDialogOpen(false);
+        setTargetResetStep(null);
+    };
 
     // Auto-expand current active step
     useEffect(() => {
@@ -205,17 +231,22 @@ export default function ProcessingSteps({
                                                                         const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
                                                                         const cacheDeleted = !audioComplete && transcriptionComplete;
 
-                                                                        if (cacheDeleted) {
-                                                                            return (
-                                                                                <span className="text-xs text-amber-600 dark:text-amber-400">
-                                                                                    キャッシュが削除されています
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        return null;
                                                                     })()
                                                                 )}
                                                             </div>
+                                                            {/* Reset Button for SubSteps */}
+                                                            {subStatus === 'completed' && jobProgress && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleResetClick(step.id, subStep.id, subStep.title);
+                                                                    }}
+                                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                                                    title="Reset from this step"
+                                                                >
+                                                                    <RotateCcw size={14} />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
@@ -226,6 +257,18 @@ export default function ProcessingSteps({
                                         {renderStepContent && renderStepContent(step.id)}
 
                                         <div className="flex justify-end gap-2">
+                                            {status === 'completed' && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleResetClick(step.id, undefined, step.title);
+                                                    }}
+                                                    className="px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                                >
+                                                    <RotateCcw size={14} />
+                                                    Reset
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -245,6 +288,32 @@ export default function ProcessingSteps({
                     );
                 })}
             </div>
+
+            <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <div className="mx-auto bg-red-100 dark:bg-red-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <DialogTitle className="text-center">Warning: Reset Progress?</DialogTitle>
+                        <DialogDescription className="text-center pt-2">
+                            You are about to reset progress from <strong>{targetResetStep?.label}</strong> onwards.
+                            <br />
+                            This will <strong>permanently delete</strong> all generated data for this step and subsequent steps.
+                            <br /><br />
+                            Are you sure you want to continue?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-3 mt-4">
+                        <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmReset} className="bg-red-600 hover:bg-red-700 text-white">
+                            Yes, Reset Progress
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -245,7 +245,33 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     // The previous runStep1 called it. I am replacing runStep1 AND runTranscriptionInternal.
 
 
-    const handleStepAction = (stepIndex: number) => {
+    const handleStepAction = async (stepIndex: number, action: string = 'run', data?: any) => {
+        if (action === 'reset') {
+            const startStep = data?.startStep || "1-a";
+            try {
+                toast.loading(`Resetting progress from step ${startStep}...`, { id: 'reset-progress' });
+                const res = await fetch(getAPIRoot() + `/reset-progress/${roundId}?start_step=${startStep}`, {
+                    method: 'POST',
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Reset failed');
+                }
+
+                const result = await res.json();
+                toast.success('Progress reset successfully', { id: 'reset-progress' });
+
+                // Refresh status
+                await fetchJobProgress();
+
+            } catch (error: any) {
+                console.error("Reset error:", error);
+                toast.error(`Reset failed: ${error.message}`, { id: 'reset-progress' });
+            }
+            return;
+        }
+
         if (stepIndex === 1) runStep1();
         // Step 2, 3... can execute normally or via existing logic if implemented
         // Since original code only had Step 1 & 2 actions implemented here...

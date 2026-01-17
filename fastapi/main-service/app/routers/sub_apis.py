@@ -1096,27 +1096,21 @@ async def reset_progress(
                 # 1. Delete local directory: AUDIO_DIR/video_id
                 target_dir = os.path.join(AUDIO_DIR, video_id)
                 if os.path.exists(target_dir):
-                    shutil.rmtree(target_dir)
-                    logger.info(f"Reset Step 1-a: Deleted local audio directory {target_dir}")
+                    try:
+                        shutil.rmtree(target_dir)
+                        logger.info(f"Reset Step 1-a: Deleted local audio directory {target_dir}")
+                    except Exception as rm_err:
+                        logger.error(f"Reset Step 1-a: Failed to delete directory {target_dir}: {rm_err}")
                 else:
                     logger.info(f"Reset Step 1-a: Local audio directory {target_dir} not found")
                 
                 # 2. Delete cache from external GPU server
                 try:
-                    async with httpx.AsyncClient() as client:
-                        # Assuming external GPU server is at localhost:8080 (as used in job_progress.py)
-                        # TODO: Move URL to config
-                        external_url = f"http://localhost:8080/audio/{video_id}"
-                        resp = await client.delete(external_url, timeout=5.0)
-                        
-                        if resp.status_code == 200:
-                            logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
-                        elif resp.status_code == 404:
-                            logger.info(f"Reset Step 1-a: External audio cache for {video_id} not found")
-                        else:
-                            logger.warning(f"Reset Step 1-a: Failed to delete external audio cache for {video_id}. Status: {resp.status_code}")
+                    from routers.proxy import delete_audio_cache_internal
+                    await delete_audio_cache_internal(video_id)
+                    logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
                 except Exception as ext_e:
-                    logger.warning(f"Reset Step 1-a: Error connecting to external GPU server: {str(ext_e)}")
+                    logger.warning(f"Reset Step 1-a: Error calling proxy to delete external cache: {str(ext_e)}")
                     
             else:
                 logger.warning(f"Reset Step 1-a: Round {round_id} has no video_id")

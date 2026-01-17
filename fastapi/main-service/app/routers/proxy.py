@@ -193,10 +193,47 @@ async def get_cached_video_ids():
                 media_type="application/json"
             )
             
-    except httpx.RequestError as e:
-        print(f"Cache Proxy Request Error: {str(e)}")
-        raise HTTPException(status_code=503, detail="GPU Server Cache Check Failed (Unreachable)")
     except Exception as e:
         print(f"Cache Proxy General Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Proxy Error During Cache Check")
+
+
+async def delete_audio_cache_internal(video_id: str):
+    """
+    Internal function to delete audio cache from external GPU server.
+    """
+    if not TRANSCRIPTION_API_URL:
+        # If env var is not set, we cannot delete external cache. 
+        # Log warning but don't crash if it's optional? Or raise error?
+        # Assuming it's required if we are here.
+        raise ValueError("TRANSCRIPTION_API_URL not configured")
+    
+    # User specified DELETE /audio/{video_id}
+    target_url = f"{TRANSCRIPTION_API_URL}/audio/{video_id}"
+    
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(target_url, timeout=5.0)
+        
+        # 200 OK or 404 Not Found are considered success (cache is gone)
+        if resp.status_code not in [200, 404]:
+             raise HTTPException(status_code=resp.status_code, detail=f"Failed to delete external cache: {resp.text}")
+
+@router.delete("/external-gpu-delete-cache/{video_id}")
+async def proxy_delete_audio_cache(video_id: str):
+    """
+    Proxy endpoint to delete audio cache from external GPU server.
+    """
+    try:
+        await delete_audio_cache_internal(video_id)
+        return {"status": "success", "message": f"Deleted cache for {video_id}"}
+    except ValueError as ve:
+        raise HTTPException(status_code=500, detail=str(ve))
+    except HTTPException as he:
+        raise he
+    except httpx.RequestError as e:
+        print(f"Delete Cache Proxy Request Error: {str(e)}")
+        raise HTTPException(status_code=503, detail="GPU Server Unreachable")
+    except Exception as e:
+        print(f"Delete Cache Proxy General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Proxy Error During Cache Deletion")
 
