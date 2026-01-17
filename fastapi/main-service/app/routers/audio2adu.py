@@ -20,6 +20,10 @@ from .utils import (
     DEBATE_FORMATS,
     group_words_into_sentences,
 )
+from services.external_gpu import (
+    download_audio_from_gpu,
+    transcribe_audio_on_gpu
+)
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
 
@@ -660,31 +664,11 @@ async def download_audio(
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-    # Call local proxy endpoint for audio download
-    download_proxy_url = "http://localhost:8080/external-gpu-download-audio"
-    
+    # Call external GPU service for audio download
     try:
-        print(f"Downloading audio via {download_proxy_url} with URL: {request.url}")
-        async with httpx.AsyncClient() as client:
-            download_resp = await client.post(
-                download_proxy_url,
-                json={
-                    "url": request.url,
-                    "num_chunks": 4
-                },
-                timeout=None  # Wait indefinitely for download
-            )
+        print(f"Downloading audio via service with URL: {request.url}")
+        download_result = await download_audio_from_gpu(request.url, num_chunks=4)
         
-        if download_resp.status_code != 200:
-            error_detail = download_resp.text
-            try:
-                error_json = download_resp.json()
-                error_detail = error_json.get("detail", download_resp.text)
-            except:
-                pass
-            raise HTTPException(status_code=download_resp.status_code, detail=f"Download Error: {error_detail}")
-        
-        download_result = download_resp.json()
         video_id = download_result.get("video_id")
         if not video_id:
             raise HTTPException(status_code=500, detail="No video_id returned from download")
@@ -711,11 +695,8 @@ async def download_audio(
             "processing_time_seconds": round(elapsed_time, 2)
         }
 
-    except httpx.RequestError as e:
-        elapsed_time = time.time() - start_time
-        print(f"[Step 1-A: /download-audio] Proxy Request Error: {str(e)}")
-        logger.error(f"Error calling download proxy: {str(e)}")
-        raise HTTPException(status_code=503, detail="Failed to reach download proxy server")
+    except HTTPException:
+        raise
     except Exception as e:
         elapsed_time = time.time() - start_time
         print(f"[Step 1-A: /download-audio] Error: {str(e)}")
@@ -751,31 +732,10 @@ async def transcribe_audio(
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-    # Call local proxy endpoint for transcription
-    transcribe_proxy_url = "http://localhost:8080/external-gpu-transcribe"
-    
+    # Call external GPU service for transcription
     try:
-        print(f"Transcribing via {transcribe_proxy_url} with video_id: {video_id}")
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                transcribe_proxy_url,
-                json={
-                    "video_id": video_id,
-                    "max_workers": 2
-                },
-                timeout=None  # Wait indefinitely for transcription
-            )
-        
-        if resp.status_code != 200:
-            error_detail = resp.text
-            try:
-                error_json = resp.json()
-                error_detail = error_json.get("detail", resp.text)
-            except:
-                pass
-            raise HTTPException(status_code=resp.status_code, detail=f"Transcription Error: {error_detail}")
-
-        transcription_result = resp.json()
+        print(f"Transcribing via service with video_id: {video_id}")
+        transcription_result = await transcribe_audio_on_gpu(video_id, max_workers=2)
         
         # Validate the response format
         try:

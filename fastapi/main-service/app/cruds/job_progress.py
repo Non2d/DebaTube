@@ -3,7 +3,7 @@ from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from utils.audio import get_audio_path
-import httpx
+from services.external_gpu import get_cached_video_ids_from_gpu
 import os
 
 async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
@@ -18,15 +18,13 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     # Step 1-A: Audio Download Complete
     # Check if Round.video_id exists in the audio caches in external GPU server or local directory.
     # External GPU server
+            # External GPU server
     external_has_audio = False
     if round_obj and round_obj.video_id:
         try:
-            async with httpx.AsyncClient() as client:
-                cache_resp = await client.get("http://localhost:8080/cached_video_ids", timeout=5.0) # Expected format: { "total": 4, "cached_video_ids": ["video_id1", "video_id2", ...] } TODO: どうみてもただのリストだけ返したほうが良いな...
-                if cache_resp.status_code == 200:
-                    cache_data = cache_resp.json()
-                    cached_video_ids = cache_data.get("cached_video_ids", [])
-                    external_has_audio = round_obj.video_id in cached_video_ids
+            cache_data = await get_cached_video_ids_from_gpu()
+            cached_video_ids = cache_data.get("cached_video_ids", [])
+            external_has_audio = round_obj.video_id in cached_video_ids
         except Exception as e:
             # If cache check fails, assume audio is not cached
             external_has_audio = False

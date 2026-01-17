@@ -1,46 +1,28 @@
 from fastapi import APIRouter, HTTPException, Response
-import httpx
-import os
 import json
-from dotenv import load_dotenv
 from pydantic import BaseModel
-
-load_dotenv()
+from services.external_gpu import (
+    check_gpu_health_service,
+    download_audio_from_gpu,
+    transcribe_audio_on_gpu,
+    get_cached_video_ids_from_gpu,
+    delete_audio_cache_on_gpu
+)
 
 router = APIRouter()
-
-TRANSCRIPTION_API_URL = os.getenv("TRANSCRIPTION_API_URL")
 
 @router.get("/external-gpu-health")
 async def check_gpu_health():
     """
     Proxy endpoint to check the health of the external GPU transcription server.
     """
-    if not TRANSCRIPTION_API_URL:
-        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
-    
-    target_url = f"{TRANSCRIPTION_API_URL}/health"
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            # Short timeout since it's just a health check
-            resp = await client.get(target_url, timeout=5.0)
-            
-            # Forward the content and status
-            return Response(
-                content=resp.content, 
-                status_code=resp.status_code, 
-                media_type=resp.headers.get("content-type")
-            )
-    except httpx.RequestError as e:
-        # Network error (timeout, connection failed)
-        # Log the error internally
-        print(f"Proxy Request Error: {str(e)}")
-        # Return generic error to client to hide URL
-        raise HTTPException(status_code=503, detail="GPU Server Unreachable")
-    except Exception as e:
-        print(f"Proxy General Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Proxy Error")
+    resp = await check_gpu_health_service()
+    # Forward the content and status
+    return Response(
+        content=resp.content, 
+        status_code=resp.status_code, 
+        media_type=resp.headers.get("content-type")
+    )
 
 class DownloadAudioRequest(BaseModel):
     url: str
@@ -58,32 +40,8 @@ async def proxy_download_audio(
     Proxy endpoint to download and split audio from YouTube URL via external GPU server.
     Returns video_id for subsequent transcription.
     """
-    if not TRANSCRIPTION_API_URL:
-        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
-    
-    target_url = f"{TRANSCRIPTION_API_URL}/download-and-split-audio"
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                target_url,
-                json=request.model_dump(),
-                timeout=None  # Download may take time
-            )
-            
-            # Forward the response
-            return Response(
-                content=resp.content,
-                status_code=resp.status_code,
-                media_type=resp.headers.get("content-type")
-            )
-            
-    except httpx.RequestError as e:
-        print(f"Download Proxy Request Error: {str(e)}")
-        raise HTTPException(status_code=503, detail="GPU Server Download Failed (Unreachable)")
-    except Exception as e:
-        print(f"Download Proxy General Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Proxy Error During Download")
+    result = await download_audio_from_gpu(request.url, request.num_chunks)
+    return result
 
 @router.post("/external-gpu-transcribe")
 async def proxy_transcribe(
@@ -93,130 +51,18 @@ async def proxy_transcribe(
     Proxy endpoint to transcribe audio via external GPU server using video_id.
     Converts the response from segments-based format to standard Whisper verbose format.
     """
-    if not TRANSCRIPTION_API_URL:
-        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+    result = await transcribe_audio_on_gpu(request.video_id, request.max_workers)
     
-    target_url = f"{TRANSCRIPTION_API_URL}/transcribe"
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            # Forward the JSON body directly
-            # No timeout as requested by user
-            resp = await client.post(
-                target_url, 
-                json=request.model_dump(), 
-                timeout=None
-            )
-            
-            if resp.status_code != 200:
-                # Forward error response
-                return Response(
-                    content=resp.content, 
-                    status_code=resp.status_code, 
-                    media_type=resp.headers.get("content-type")
-                )
-            
-            # Parse external GPU response
-            external_result = resp.json()
-            
-            # Convert from segments-based format to standard Whisper verbose format
-            # External format: { "video_id": str, "duration": float, "text": str, "segments": [...], "language": str, ... }
-            # Target format: { "task": str, "language": str, "duration": float, "text": str, "words": [...] }
-            # Note: Extra fields in external_result are ignored
-            
-            all_words = []
-            duration = external_result.get("duration", 0.0)
-            
-            # Extract words from all segments
-            if "segments" in external_result:
-                for segment in external_result["segments"]:
-                    if "words" in segment:
-                        for word_obj in segment["words"]:
-                            all_words.append({
-                                "word": word_obj.get("word", ""),
-                                "start": word_obj.get("start", 0.0),
-                                "end": word_obj.get("end", 0.0)
-                            })
-            
-            # Build standard Whisper verbose response
-            standard_response = {
-                "task": "transcribe",
-                "language": external_result.get("language", "en"),
-                "duration": duration,
-                "text": external_result.get("text", ""),
-                "words": all_words
-            }
-            
-            # Return as JSON
-            return Response(
-                content=json.dumps(standard_response),
-                status_code=200,
-                media_type="application/json"
-            )
-            
-    except httpx.RequestError as e:
-        # Log error locally
-        print(f"Transcription Proxy Request Error: {str(e)}")
-        raise HTTPException(status_code=503, detail="GPU Server Transcription Failed (Unreachable)")
-    except Exception as e:
-        print(f"Transcription Proxy General Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Proxy Error During Transcription")
+    # Return as JSON (FastAPI handles serialization)
+    return result
 
 @router.get("/cached_video_ids")
 async def get_cached_video_ids():
     """
     Proxy endpoint to get the list of currently cached (downloaded) video IDs from external GPU server.
-    Calls GET /cache on the external GPU API.
     """
-    if not TRANSCRIPTION_API_URL:
-        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
-    
-    target_url = f"{TRANSCRIPTION_API_URL}/cache"
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(target_url, timeout=5.0)
-            
-            if resp.status_code != 200:
-                # Forward error response
-                return Response(
-                    content=resp.content,
-                    status_code=resp.status_code,
-                    media_type=resp.headers.get("content-type")
-                )
-            
-            # Parse and return the list of video IDs
-            # Expected format: { "total": 4, "cached_video_ids": ["video_id1", "video_id2", ...] }
-            return Response(
-                content=resp.content,
-                status_code=200,
-                media_type="application/json"
-            )
-            
-    except Exception as e:
-        print(f"Cache Proxy General Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Proxy Error During Cache Check")
-
-
-async def delete_audio_cache_internal(video_id: str):
-    """
-    Internal function to delete audio cache from external GPU server.
-    """
-    if not TRANSCRIPTION_API_URL:
-        # If env var is not set, we cannot delete external cache. 
-        # Log warning but don't crash if it's optional? Or raise error?
-        # Assuming it's required if we are here.
-        raise ValueError("TRANSCRIPTION_API_URL not configured")
-    
-    # User specified DELETE /audio/{video_id}
-    target_url = f"{TRANSCRIPTION_API_URL}/audio/{video_id}"
-    
-    async with httpx.AsyncClient() as client:
-        resp = await client.delete(target_url, timeout=5.0)
-        
-        # 200 OK or 404 Not Found are considered success (cache is gone)
-        if resp.status_code not in [200, 404]:
-             raise HTTPException(status_code=resp.status_code, detail=f"Failed to delete external cache: {resp.text}")
+    result = await get_cached_video_ids_from_gpu()
+    return result
 
 @router.delete("/external-gpu-delete-cache/{video_id}")
 async def proxy_delete_audio_cache(video_id: str):
@@ -224,16 +70,17 @@ async def proxy_delete_audio_cache(video_id: str):
     Proxy endpoint to delete audio cache from external GPU server.
     """
     try:
-        await delete_audio_cache_internal(video_id)
+        await delete_audio_cache_on_gpu(video_id)
         return {"status": "success", "message": f"Deleted cache for {video_id}"}
     except ValueError as ve:
         raise HTTPException(status_code=500, detail=str(ve))
     except HTTPException as he:
         raise he
-    except httpx.RequestError as e:
-        print(f"Delete Cache Proxy Request Error: {str(e)}")
-        raise HTTPException(status_code=503, detail="GPU Server Unreachable")
     except Exception as e:
-        print(f"Delete Cache Proxy General Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Proxy Error During Cache Deletion")
+
+# Backward compatibility / Internal use function (deprecated, use service directly)
+async def delete_audio_cache_internal(video_id: str):
+    await delete_audio_cache_on_gpu(video_id)
+
 
