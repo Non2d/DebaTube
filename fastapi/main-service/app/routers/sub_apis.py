@@ -19,6 +19,7 @@ from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from cruds import round as round_crud
 from sqlalchemy import delete, select
 import shutil
+import httpx
 from config import AUDIO_DIR
 
 
@@ -1090,13 +1091,33 @@ async def reset_progress(
         # Step 1-a: Audio Download (Deletes local audio file)
         if target_level <= 0:
             if round_obj.video_id:
-                # Delete directory: AUDIO_DIR/video_id
-                target_dir = os.path.join(AUDIO_DIR, round_obj.video_id)
+                video_id = round_obj.video_id
+                
+                # 1. Delete local directory: AUDIO_DIR/video_id
+                target_dir = os.path.join(AUDIO_DIR, video_id)
                 if os.path.exists(target_dir):
                     shutil.rmtree(target_dir)
-                    logger.info(f"Reset Step 1-a: Deleted audio directory {target_dir}")
+                    logger.info(f"Reset Step 1-a: Deleted local audio directory {target_dir}")
                 else:
-                    logger.info(f"Reset Step 1-a: Audio directory {target_dir} not found")
+                    logger.info(f"Reset Step 1-a: Local audio directory {target_dir} not found")
+                
+                # 2. Delete cache from external GPU server
+                try:
+                    async with httpx.AsyncClient() as client:
+                        # Assuming external GPU server is at localhost:8080 (as used in job_progress.py)
+                        # TODO: Move URL to config
+                        external_url = f"http://localhost:8080/audio/{video_id}"
+                        resp = await client.delete(external_url, timeout=5.0)
+                        
+                        if resp.status_code == 200:
+                            logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
+                        elif resp.status_code == 404:
+                            logger.info(f"Reset Step 1-a: External audio cache for {video_id} not found")
+                        else:
+                            logger.warning(f"Reset Step 1-a: Failed to delete external audio cache for {video_id}. Status: {resp.status_code}")
+                except Exception as ext_e:
+                    logger.warning(f"Reset Step 1-a: Error connecting to external GPU server: {str(ext_e)}")
+                    
             else:
                 logger.warning(f"Reset Step 1-a: Round {round_id} has no video_id")
 
