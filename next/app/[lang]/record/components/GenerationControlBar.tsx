@@ -255,7 +255,7 @@ export default function GenerationControlBar({
                                             className="h-9 px-3 bg-white dark:bg-slate-800 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
                                         >
                                             <option value="custom-colab-whisper">faster-whisper-whisper-large-v2 (Colab)</option>
-                                            <option value="external-gpu-server">faster-whisper-whisper-large-v2 (External GPU Server)</option>
+                                            <option value="transcription-service">faster-whisper-whisper-large-v2 (Transcription Service)</option>
                                             <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
                                             <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
                                             <option value="openai-whisper">whisper-1 (OpenAI)</option>

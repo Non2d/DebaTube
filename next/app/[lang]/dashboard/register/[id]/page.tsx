@@ -191,11 +191,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 } else {
                     toast.error(`接続失敗: ${result.message}`);
                 }
-            } else if (transcriptionModel === 'external-gpu-server') {
+            } else if (transcriptionModel === 'transcription-service') {
                 // Use local proxy
-                const res = await fetch(getAPIRoot() + '/external-gpu-health');
+                const res = await fetch(getAPIRoot() + '/transcription-service/health');
                 if (res.ok) {
-                    toast.success("External GPU Server 接続成功！");
+                    toast.success("Transcription Service 接続成功！");
                 } else {
                     const err = await res.json().catch(() => ({ detail: res.statusText }));
                     toast.error(`接続失敗: ${err.detail || res.status}`);
@@ -225,7 +225,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             className="h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
                         >
                             <option value="custom-colab-whisper">faster-whisper-whisper-large-v2 (Colab)</option>
-                            <option value="external-gpu-server">faster-whisper-whisper-large-v2 (External GPU Server)</option>
+                            <option value="transcription-service">faster-whisper-whisper-large-v2 (Transcription Service)</option>
                             <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
                             <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
                             <option value="openai-whisper">whisper-1 (OpenAI)</option>
@@ -264,7 +264,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     )}
 
                     {/* External GPU Server Test Button (No URL Input) */}
-                    {transcriptionModel === 'external-gpu-server' && (
+                    {transcriptionModel === 'transcription-service' && (
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 Connection Check
@@ -281,7 +281,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                         : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-md hover:shadow-lg dark:bg-indigo-600 dark:hover:bg-indigo-700'
                                         }`}
                                 >
-                                    {isTestingConnection ? 'Testing External Server...' : 'Test Connection to External GPU'}
+                                    {isTestingConnection ? 'Testing Service...' : 'Test Connection to Service'}
                                 </button>
                             </div>
                         </div>

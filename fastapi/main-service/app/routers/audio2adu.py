@@ -20,9 +20,9 @@ from .utils import (
     DEBATE_FORMATS,
     group_words_into_sentences,
 )
-from services.external_gpu import (
-    download_audio_from_gpu,
-    transcribe_audio_on_gpu
+from services.transcription_service import (
+    download_audio_remote,
+    transcribe_audio_remote
 )
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
@@ -664,10 +664,10 @@ async def download_audio(
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-    # Call external GPU service for audio download
+    # Call external transcription service for audio download
     try:
         print(f"Downloading audio via service with URL: {request.url}")
-        download_result = await download_audio_from_gpu(request.url, num_chunks=4)
+        download_result = await download_audio_remote(request.url, num_chunks=4)
         
         video_id = download_result.get("video_id")
         if not video_id:
@@ -732,10 +732,10 @@ async def transcribe_audio(
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-    # Call external GPU service for transcription
+    # Call external transcription service for transcription
     try:
         print(f"Transcribing via service with video_id: {video_id}")
-        transcription_result = await transcribe_audio_on_gpu(video_id, max_workers=2)
+        transcription_result = await transcribe_audio_remote(video_id, max_workers=2)
         
         # Validate the response format
         try:

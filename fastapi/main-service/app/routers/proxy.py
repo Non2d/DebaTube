@@ -1,22 +1,22 @@
 from fastapi import APIRouter, HTTPException, Response
 import json
 from pydantic import BaseModel
-from services.external_gpu import (
-    check_gpu_health_service,
-    download_audio_from_gpu,
-    transcribe_audio_on_gpu,
-    get_cached_video_ids_from_gpu,
-    delete_audio_cache_on_gpu
+from services.transcription_service import (
+    check_service_health,
+    download_audio_remote,
+    transcribe_audio_remote,
+    get_cached_video_ids_remote,
+    delete_audio_cache_remote
 )
 
 router = APIRouter()
 
-@router.get("/external-gpu-health")
-async def check_gpu_health():
+@router.get("/transcription-service/health")
+async def check_service_health_proxy():
     """
-    Proxy endpoint to check the health of the external GPU transcription server.
+    Proxy endpoint to check the health of the external transcription service.
     """
-    resp = await check_gpu_health_service()
+    resp = await check_service_health()
     # Forward the content and status
     return Response(
         content=resp.content, 
@@ -32,45 +32,45 @@ class TranscribeRequest(BaseModel):
     video_id: str
     max_workers: int = 2
 
-@router.post("/external-gpu-download-audio")
+@router.post("/transcription-service/download-audio")
 async def proxy_download_audio(
     request: DownloadAudioRequest
 ):
     """
-    Proxy endpoint to download and split audio from YouTube URL via external GPU server.
+    Proxy endpoint to download and split audio from YouTube URL via external service.
     Returns video_id for subsequent transcription.
     """
-    result = await download_audio_from_gpu(request.url, request.num_chunks)
+    result = await download_audio_remote(request.url, request.num_chunks)
     return result
 
-@router.post("/external-gpu-transcribe")
+@router.post("/transcription-service/transcribe")
 async def proxy_transcribe(
     request: TranscribeRequest
 ):
     """
-    Proxy endpoint to transcribe audio via external GPU server using video_id.
+    Proxy endpoint to transcribe audio via external service using video_id.
     Converts the response from segments-based format to standard Whisper verbose format.
     """
-    result = await transcribe_audio_on_gpu(request.video_id, request.max_workers)
+    result = await transcribe_audio_remote(request.video_id, request.max_workers)
     
     # Return as JSON (FastAPI handles serialization)
     return result
 
-@router.get("/cached_video_ids")
+@router.get("/transcription-service/cached_video_ids")
 async def get_cached_video_ids():
     """
-    Proxy endpoint to get the list of currently cached (downloaded) video IDs from external GPU server.
+    Proxy endpoint to get the list of currently cached (downloaded) video IDs from external service.
     """
-    result = await get_cached_video_ids_from_gpu()
+    result = await get_cached_video_ids_remote()
     return result
 
-@router.delete("/external-gpu-delete-cache/{video_id}")
+@router.delete("/transcription-service/delete-cache/{video_id}")
 async def proxy_delete_audio_cache(video_id: str):
     """
-    Proxy endpoint to delete audio cache from external GPU server.
+    Proxy endpoint to delete audio cache from external service.
     """
     try:
-        await delete_audio_cache_on_gpu(video_id)
+        await delete_audio_cache_remote(video_id)
         return {"status": "success", "message": f"Deleted cache for {video_id}"}
     except ValueError as ve:
         raise HTTPException(status_code=500, detail=str(ve))
@@ -81,6 +81,6 @@ async def proxy_delete_audio_cache(video_id: str):
 
 # Backward compatibility / Internal use function (deprecated, use service directly)
 async def delete_audio_cache_internal(video_id: str):
-    await delete_audio_cache_on_gpu(video_id)
+    await delete_audio_cache_remote(video_id)
 
 

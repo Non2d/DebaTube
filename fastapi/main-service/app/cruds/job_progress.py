@@ -3,7 +3,7 @@ from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from utils.audio import get_audio_path
-from services.external_gpu import get_cached_video_ids_from_gpu
+from services.transcription_service import get_cached_video_ids_remote
 import os
 
 async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
@@ -18,11 +18,11 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     # Step 1-A: Audio Download Complete
     # Check if Round.video_id exists in the audio caches in external GPU server or local directory.
     # External GPU server
-            # External GPU server
+            # External Transcription Service
     external_has_audio = False
     if round_obj and round_obj.video_id:
         try:
-            cache_data = await get_cached_video_ids_from_gpu()
+            cache_data = await get_cached_video_ids_remote()
             cached_video_ids = cache_data.get("cached_video_ids", [])
             external_has_audio = round_obj.video_id in cached_video_ids
         except Exception as e:
