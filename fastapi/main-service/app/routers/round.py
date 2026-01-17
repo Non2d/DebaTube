@@ -388,6 +388,15 @@ async def get_speeches_by_round(round_name: str, db: AsyncSession = Depends(get_
     return speeches
 
 
+@router.get("/rounds/id/{round_id}/speeches", response_model=List[SpeechResponse])
+async def get_speeches_by_round_id(round_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    ラウンドIDでスピーチ一覧を取得
+    """
+    speeches = await round_crud.get_speeches_by_round_id(db, round_id)
+    return speeches
+
+
 # ==================== ADU Endpoints ====================
 
 @router.post("/adus", response_model=AduResponse)

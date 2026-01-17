@@ -182,6 +182,18 @@ async def get_speech(db: AsyncSession, speech_id: int) -> Optional[Speech]:
     return result.scalar_one_or_none()
 
 
+async def get_speeches_by_round_id(db: AsyncSession, round_id: int) -> List[Speech]:
+    """
+    ラウンドIDでスピーチ一覧を取得
+    """
+    result = await db.execute(
+        select(Speech)
+        .where(Speech.round_id == round_id)
+        .options(selectinload(Speech.adus))
+    )
+    return result.scalars().all()
+
+
 async def get_speeches_by_round(db: AsyncSession, round_name: str, try_count: Optional[int] = None) -> List[Speech]:
     """
     ラウンド名でスピーチ一覧を取得

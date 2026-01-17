@@ -339,6 +339,7 @@ export const en = {
                 copyPrompt: "Copy Prompt",
                 registerVerify: "Register & Verify",
                 updateContinue: "Update & Continue",
+                resetToLastSaved: "Reset to Last Saved",
             },
             subStep2A: {
                 title: "Step 2-A: Initial AI Diarization",

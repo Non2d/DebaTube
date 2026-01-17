@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Copy, Save, ArrowLeft, Play, Pause } from 'lucide-react';
+import { Loader2, Copy, Save, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
 import { getAPIRoot } from '@/components/lib/utils';
 import toast from 'react-hot-toast';
 import YouTube from 'react-youtube';
@@ -46,6 +46,7 @@ export function TimelineEditor({
     const [duration, setDuration] = useState(0);
     const [localSpeeches, setLocalSpeeches] = useState<Speech[]>(speeches);
     const [isSaving, setIsSaving] = useState(false);
+    const [isReloading, setIsReloading] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [dragging, setDragging] = useState<{ speechIndex: number; edge: 'start' | 'end' } | null>(null);
 
@@ -56,6 +57,28 @@ export function TimelineEditor({
     const handlePlayerReady = (event: any) => {
         playerRef.current = event.target;
         setDuration(event.target.getDuration());
+    };
+
+    const handleReload = async () => {
+        setIsReloading(true);
+        try {
+            const res = await fetch(getAPIRoot() + `/rounds/id/${roundId}/speeches`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.length > 0) {
+                    setSpeeches(data);
+                    // localSpeeches will be updated via useEffect
+                    toast.success("Timeline reset to database values");
+                }
+            } else {
+                toast.error("Failed to reload speeches");
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error("Error reloading speeches");
+        } finally {
+            setIsReloading(false);
+        }
     };
 
     const handlePlayerStateChange = (event: any) => {
@@ -232,9 +255,12 @@ export function TimelineEditor({
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
                     <Label className="font-semibold">{t('dashboard.steps.labels.speakerTimeline') || "Speaker Timeline"}</Label>
-                    <Button size="sm" variant="ghost" onClick={togglePlayPause}>
-                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </Button>
+                </div>
+
+                {/* Time Labels */}
+                <div className="flex justify-between text-xs text-slate-500 px-1">
+                    <span>0:00</span>
+                    <span>{new Date(duration * 1000).toISOString().substr(11, 8)}</span>
                 </div>
 
                 <div
@@ -302,11 +328,7 @@ export function TimelineEditor({
                     )}
                 </div>
 
-                {/* Time Labels */}
-                <div className="flex justify-between text-xs text-slate-500 px-1">
-                    <span>0:00</span>
-                    <span>{new Date(duration * 1000).toISOString().substr(11, 8)}</span>
-                </div>
+
             </div>
 
             {/* Speech List */}
@@ -328,7 +350,11 @@ export function TimelineEditor({
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end pt-4 border-t">
+            <div className="flex justify-between pt-4 border-t">
+                <Button variant="outline" onClick={handleReload} disabled={isReloading || isSaving} className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:text-red-400 dark:border-red-900/50 dark:hover:bg-red-900/20">
+                    <RotateCcw className={`w-4 h-4 mr-2 ${isReloading ? "animate-spin" : ""}`} />
+                    {t('dashboard.steps.actions.resetToLastSaved') || "Reset to Last Saved"}
+                </Button>
                 <Button onClick={handleSave} disabled={isSaving} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[200px]">
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     {t('dashboard.steps.actions.updateContinue') || "Update & Continue"}
