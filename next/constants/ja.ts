@@ -332,10 +332,11 @@ export const ja = {
                 runStep: "ステップを実行",
                 running: "実行中...",
                 reset: "リセット",
-                confirmReset: "進捗をリセットしてもよろしいですか？",
-                confirmResetDesc: "この操作は取り消せません。選択したステップ以降のデータは削除されます。",
-                confirm: "確認",
-                cancel: "キャンセル",
+                // Dialog messages
+                resetDialogTitle: "処理データのリセット",
+                resetDialogContent: "{step} 以降の処理データをリセットします。復元することはできません。本当に実行しますか？",
+                resetDialogConfirm: "はい、リセットします",
+                resetDialogCancel: "キャンセル",
             },
             timer: {
                 processing: "処理中... ({minutes}分 {seconds}秒)"
@@ -348,10 +349,9 @@ export const ja = {
                 audioDeleted: "音声ファイルを削除しました",
                 audioDeleteError: "音声ファイルの削除に失敗しました",
                 resetProgress: "ステップ {startStep} からのリセット中...",
-                resetSuccess: "進捗のリセットに成功しました",
+                resetSuccess: "処理データのリセットに成功しました",
                 resetError: "リセットに失敗しました: {message}",
             }
         },
-        // steps object removed temporarily as requested
     }
 };

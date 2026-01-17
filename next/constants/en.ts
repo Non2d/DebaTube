@@ -330,10 +330,11 @@ export const en = {
                 runStep: "Run Step",
                 running: "Running...",
                 reset: "Reset",
-                confirmReset: "Are you sure you want to reset progress?",
-                confirmResetDesc: "This action cannot be undone. Data from the selected step onwards will be deleted.",
-                confirm: "Confirm",
-                cancel: "Cancel",
+                // Dialog messages
+                resetDialogTitle: "Reset Progress?",
+                resetDialogContent: "You are about to reset progress from {step} onwards. All data for this step and subsequent steps will be permanently deleted. Are you sure you want to continue?",
+                resetDialogConfirm: "Yes, Reset Progress",
+                resetDialogCancel: "Cancel",
             },
             timer: {
                 processing: "Processing... ({minutes}m {seconds}s)"

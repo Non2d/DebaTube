@@ -105,7 +105,6 @@ export default function ProcessingSteps({
 
     const getStatusIcon = (status: ProcessingStepStatus) => {
         if (status === 'processing') return <Loader2 className="animate-spin" size={16} />;
-        if (status === 'completed') return <Check size={16} />;
         if (status === 'error') return <AlertCircle size={16} />;
         return null;
     };
@@ -140,7 +139,7 @@ export default function ProcessingSteps({
                                     w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0
                                     ${status === 'completed' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
                                 `}>
-                                    {getStatusIcon(status) || <span className="text-xs font-bold">{step.id}</span>}
+                                    {getStatusIcon(status) || <span className="text-base font-bold leading-none">{step.id}</span>}
                                 </div>
 
                                 <div className="flex-1 min-w-0">
@@ -211,14 +210,16 @@ export default function ProcessingSteps({
                                                     return (
                                                         <div key={subStep.id} className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
                                                             <div className={`
-                                                                w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                                                                w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold leading-none pl-[1px]
                                                                 ${subStatus === 'completed' ? 'bg-green-500 text-white' :
                                                                     subStatus === 'processing' ? 'bg-blue-500 text-white animate-pulse' :
                                                                         'bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400'}
                                                             `}>
-                                                                {subStatus === 'completed' ? <Check size={12} /> :
-                                                                    subStatus === 'processing' ? <Loader2 size={12} className="animate-spin" /> :
-                                                                        String.fromCharCode(65 + subIndex)}
+                                                                {subStatus === 'processing' ? (
+                                                                    <Loader2 size={12} className="animate-spin" />
+                                                                ) : (
+                                                                    <span>{String.fromCharCode(65 + subIndex)}</span>
+                                                                )}
                                                             </div>
                                                             <div className="flex-1 flex flex-wrap items-center gap-x-2">
                                                                 <p className={`text-sm font-medium ${subStatus === 'pending' ? 'text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
@@ -239,7 +240,9 @@ export default function ProcessingSteps({
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        handleResetClick(step.id, subStep.id, subStep.title);
+                                                                        // Format: "Step 1-A: Download Audio"
+                                                                        const stepLabel = `Step ${step.id}-${String.fromCharCode(65 + subIndex)}: ${subStep.title}`;
+                                                                        handleResetClick(step.id, subStep.id, stepLabel);
                                                                     }}
                                                                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                                                                     title="Reset from this step"
@@ -295,21 +298,17 @@ export default function ProcessingSteps({
                         <div className="mx-auto bg-red-100 dark:bg-red-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
                             <AlertTriangle size={24} />
                         </div>
-                        <DialogTitle className="text-center">Warning: Reset Progress?</DialogTitle>
+                        <DialogTitle className="text-center">{t('dashboard.steps.actions.resetDialogTitle')}</DialogTitle>
                         <DialogDescription className="text-center pt-2">
-                            You are about to reset progress from <strong>{targetResetStep?.label}</strong> onwards.
-                            <br />
-                            This will <strong>permanently delete</strong> all generated data for this step and subsequent steps.
-                            <br /><br />
-                            Are you sure you want to continue?
+                            {t('dashboard.steps.actions.resetDialogContent').replace('{step}', targetResetStep?.label || '')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex justify-end gap-3 mt-4">
                         <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
-                            Cancel
+                            {t('dashboard.steps.actions.resetDialogCancel')}
                         </Button>
                         <Button variant="destructive" onClick={confirmReset} className="bg-red-600 hover:bg-red-700 text-white">
-                            Yes, Reset Progress
+                            {t('dashboard.steps.actions.resetDialogConfirm')}
                         </Button>
                     </div>
                 </DialogContent>
