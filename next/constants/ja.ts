@@ -326,17 +326,37 @@ export const ja = {
                 processing: "処理中...",
                 completed: "完了",
                 pending: "待機中",
-                error: "エラー"
+                error: "エラー",
+                loadingSentences: "文データを読み込み中...",
             },
             actions: {
                 runStep: "ステップを実行",
                 running: "実行中...",
                 reset: "リセット",
                 // Dialog messages
-                resetDialogTitle: "処理データのリセット",
                 resetDialogContent: "{step} 以降の処理データをリセットします。復元することはできません。本当に実行しますか？",
                 resetDialogConfirm: "はい、リセットします",
                 resetDialogCancel: "キャンセル",
+                copyPrompt: "プロンプトをコピー",
+                registerVerify: "登録確認",
+                updateContinue: "更新",
+            },
+            subStep2A: {
+                title: "Step 2-A: LLMによる初期分離",
+                description: "LLMを使用して話者ごとのスピーチ区間を推定します。",
+            },
+            subStep2B: {
+                title: "Step 2-B: タイムライン編集",
+                description: "バーをドラッグして話者のスピーチ区間を微調整してください。",
+            },
+            labels: {
+                transcriptPrompt: "自動生成プロンプト (書き起こし)",
+                geminiResponse: "Gemini応答 (JSONを貼り付け)",
+                speakerTimeline: "スピーチタイムライン",
+            },
+
+            errors: {
+                videoNotFound: "動画IDが見つかりません",
             },
             timer: {
                 processing: "処理中... ({minutes}分 {seconds}秒)"

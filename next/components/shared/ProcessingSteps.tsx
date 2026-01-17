@@ -273,10 +273,11 @@ export default function ProcessingSteps({
                                                                             const stepLabel = `Step ${step.id}-${String.fromCharCode(65 + subIndex)}: ${subStep.title}`;
                                                                             handleResetClick(step.id, subStep.id, stepLabel);
                                                                         }}
-                                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                                                        className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-800"
                                                                         title="Reset from this step"
                                                                     >
-                                                                        <RotateCcw size={14} />
+                                                                        <RotateCcw size={12} />
+                                                                        <span>Reset</span>
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -288,32 +289,36 @@ export default function ProcessingSteps({
                                             {/* Custom Content for this step */}
                                             {renderStepContent && renderStepContent(step.id)}
 
-                                            <div className="flex justify-end gap-2">
-                                                {status === 'completed' && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleResetClick(step.id, undefined, step.title);
-                                                        }}
-                                                        className="px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                                    >
-                                                        <RotateCcw size={14} />
-                                                        Reset
-                                                    </button>
-                                                )}
-                                                {step.id !== 2 && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onStepAction(step.id, 'run');
-                                                        }}
-                                                        disabled={status === 'processing' || status === 'completed'}
-                                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                                    >
-                                                        {status === 'processing' ? <Loader2 className="animate-spin" size={14} /> : <ZapIcon size={14} />}
-                                                        {status === 'processing' ? t('dashboard.steps.actions.running') : t('dashboard.steps.actions.runStep')}
-                                                    </button>
-                                                )}
+                                            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-4">
+                                                <div>
+                                                    {status === 'completed' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleResetClick(step.id, undefined, step.title);
+                                                            }}
+                                                            className="px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-sm font-medium transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800"
+                                                        >
+                                                            <RotateCcw size={14} />
+                                                            Reset Step
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    {step.id !== 2 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onStepAction(step.id, 'run');
+                                                            }}
+                                                            disabled={status === 'processing' || status === 'completed'}
+                                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                        >
+                                                            {status === 'processing' ? <Loader2 className="animate-spin" size={14} /> : <ZapIcon size={14} />}
+                                                            {status === 'processing' ? t('dashboard.steps.actions.running') : t('dashboard.steps.actions.runStep')}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

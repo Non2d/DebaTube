@@ -324,7 +324,8 @@ export const en = {
                 processing: "Processing...",
                 completed: "Completed",
                 pending: "Pending",
-                error: "Error"
+                error: "Error",
+                loadingSentences: "Loading sentences...",
             },
             actions: {
                 runStep: "Run Step",
@@ -335,6 +336,25 @@ export const en = {
                 resetDialogContent: "You are about to reset progress from {step} onwards. All data for this step and subsequent steps will be permanently deleted. Are you sure you want to continue?",
                 resetDialogConfirm: "Yes, Reset Progress",
                 resetDialogCancel: "Cancel",
+                copyPrompt: "Copy Prompt",
+                registerVerify: "Register & Verify",
+                updateContinue: "Update & Continue",
+            },
+            subStep2A: {
+                title: "Step 2-A: Initial AI Diarization",
+                description: "Generate an initial proposal for speaker separation using LLM.",
+            },
+            subStep2B: {
+                title: "Step 2-B: Visual Diarization Editor",
+                description: "Drag the colored bars to adjust speaker ranges.",
+            },
+            labels: {
+                transcriptPrompt: "Transcript Prompt (Auto-generated)",
+                geminiResponse: "Gemini Response (Paste JSON here)",
+                speakerTimeline: "Speaker Timeline",
+            },
+            errors: {
+                videoNotFound: "Video ID not found",
             },
             timer: {
                 processing: "Processing... ({minutes}m {seconds}s)"

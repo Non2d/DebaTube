@@ -201,8 +201,8 @@ export function TimelineEditor({
         <div className="bg-white dark:bg-slate-900 border rounded-xl p-6 shadow-sm space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h3 className="font-bold text-lg">Step 2-B: Visual Diarization Editor</h3>
-                    <p className="text-sm text-slate-500">Drag the colored bars to adjust speaker ranges</p>
+                    <h3 className="font-bold text-lg">{t('dashboard.steps.subStep2B.title') || "Step 2-B: Visual Diarization Editor"}</h3>
+                    <p className="text-sm text-slate-500">{t('dashboard.steps.subStep2B.description') || "Drag the colored bars to adjust speaker ranges"}</p>
                 </div>
             </div>
 
@@ -224,14 +224,14 @@ export function TimelineEditor({
                         className="w-full h-full"
                     />
                 ) : (
-                    <div className="flex items-center justify-center h-full text-white">Video ID not found</div>
+                    <div className="flex items-center justify-center h-full text-white">{t('dashboard.steps.errors.videoNotFound') || "Video ID not found"}</div>
                 )}
             </div>
 
             {/* Timeline Editor */}
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                    <Label className="font-semibold">Speaker Timeline</Label>
+                    <Label className="font-semibold">{t('dashboard.steps.labels.speakerTimeline') || "Speaker Timeline"}</Label>
                     <Button size="sm" variant="ghost" onClick={togglePlayPause}>
                         {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     </Button>
@@ -291,10 +291,10 @@ export function TimelineEditor({
                         );
                     })}
 
-                    {/* Current Time Indicator */}
+                    {/* Play Head */}
                     {duration > 0 && (
                         <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-yellow-400 pointer-events-none z-10"
+                            className="absolute top-0 bottom-0 w-0.5 bg-red-600 pointer-events-none z-10"
                             style={{ left: `${(currentTime / duration) * 100}%` }}
                         >
                             <div className="absolute -top-1 w-3 h-3 bg-yellow-400 rounded-full" style={{ left: '-5px' }} />
@@ -331,7 +331,7 @@ export function TimelineEditor({
             <div className="flex justify-end pt-4 border-t">
                 <Button onClick={handleSave} disabled={isSaving} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[200px]">
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    Confirm & Continue
+                    {t('dashboard.steps.actions.updateContinue') || "Update & Continue"}
                 </Button>
             </div>
         </div>

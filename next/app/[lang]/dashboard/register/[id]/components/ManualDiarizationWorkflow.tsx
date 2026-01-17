@@ -231,25 +231,25 @@ ${transcriptPreview}`;
                 <div className="bg-white dark:bg-slate-900 border rounded-xl p-6 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                         <div>
-                            <h3 className="font-bold text-lg">Step 2-A: Initial AI Diarization</h3>
-                            <p className="text-sm text-slate-500">Generate an initial proposal for speaker separation using LLM.</p>
+                            <h3 className="font-bold text-lg">{t('dashboard.steps.subStep2A.title') || "Step 2-A: Initial AI Diarization"}</h3>
+                            <p className="text-sm text-slate-500">{t('dashboard.steps.subStep2A.description') || "Generate an initial proposal for speaker separation using LLM."}</p>
                         </div>
                         <Button size="sm" variant="outline" onClick={() => handleCopy(diarizationPrompt)} disabled={!isPromptReady}>
-                            <Copy className="w-4 h-4 mr-2" /> Copy Prompt
+                            <Copy className="w-4 h-4 mr-2" /> {t('dashboard.steps.actions.copyPrompt') || "Copy Prompt"}
                         </Button>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <Label>Transcript Prompt (Auto-generated)</Label>
+                            <Label>{t('dashboard.steps.labels.transcriptPrompt') || "Transcript Prompt (Auto-generated)"}</Label>
                             <Textarea
-                                value={isLoading ? "Loading sentences..." : diarizationPrompt}
+                                value={isLoading ? (t('dashboard.steps.status.loadingSentences') || "Loading sentences...") : diarizationPrompt}
                                 readOnly
                                 className="h-[400px] font-mono text-xs bg-slate-50 dark:bg-slate-800 leading-tight"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Gemini Response (Paste JSON here)</Label>
+                            <Label>{t('dashboard.steps.labels.geminiResponse') || "Gemini Response (Paste JSON here)"}</Label>
                             <Textarea
                                 value={diarizationJson}
                                 onChange={(e) => setDiarizationJson(e.target.value)}
@@ -267,7 +267,7 @@ ${transcriptPreview}`;
                     <div className="mt-6 flex justify-end gap-3">
                         <Button onClick={handleDiarizationSubmit} disabled={isLoading || !diarizationJson} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[200px]">
                             {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                            Register & Verify
+                            {t('dashboard.steps.actions.registerVerify') || "Register & Verify"}
                         </Button>
                     </div>
                 </div>
