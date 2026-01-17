@@ -210,7 +210,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
     return (
         <>
             <Header />
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 pt-24 pb-12 px-4">
+            <div className="min-h-screen bg-background pt-24 pb-12 px-4">
                 <div className="max-w-3xl mx-auto">
                     {/* Header */}
                     <div className="mb-8">
@@ -227,7 +227,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                     </div>
 
                     {/* Form Card */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 mb-8">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* YouTube URL */}
                             <div>
@@ -239,7 +239,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                     value={youtubeUrl}
                                     onChange={(e) => handleYoutubeUrlChange(e.target.value)}
                                     placeholder={t('dashboard.modal.placeholders.youtubeUrl')}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     disabled={isSubmitting}
                                 />
                             </div>
@@ -262,7 +262,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                         sizes="(max-width: 768px) 100vw, 640px"
                                     />
                                     {videoInfo.title && (
-                                        <div className="p-4 bg-gray-50 dark:bg-gray-750">
+                                        <div className="p-4 bg-gray-50 dark:bg-slate-800">
                                             <h3 className="font-semibold text-gray-900 dark:text-white">{videoInfo.title}</h3>
                                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{videoInfo.channelTitle}</p>
                                         </div>
@@ -278,7 +278,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                 <select
                                     value={style}
                                     onChange={(e) => setStyle(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     disabled={isSubmitting}
                                 >
                                     <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
@@ -298,7 +298,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                     value={motion}
                                     onChange={(e) => setMotion(e.target.value)}
                                     placeholder={t('dashboard.modal.placeholders.motion')}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     disabled={isSubmitting}
                                 />
                             </div>
@@ -307,7 +307,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                             <div className="flex gap-4 pt-4">
                                 <Link
                                     href={`/${params.lang}/dashboard`}
-                                    className="flex-1 px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-center"
+                                    className="flex-1 px-6 py-3 rounded-lg border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-center"
                                 >
                                     {t('dashboard.modal.labels.cancel') || 'Cancel'}
                                 </Link>

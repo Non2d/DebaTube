@@ -32,7 +32,7 @@ export default function VideoDashboard() {
             </div>
             <Link
               href={`/${language}/dashboard/new`}
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors shadow-md"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-md dark:shadow-indigo-500/20"
             >
               <Plus className="w-5 h-5" />
               {t('dashboard.registerNewRound')}

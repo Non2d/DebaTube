@@ -38,8 +38,10 @@ export default function ProcessingSteps({
     isRegistrationComplete,
     downloadProgress = 0,
     renderStepContent,
-    jobProgress
-}: ProcessingStepsProps) {
+    jobProgress,
+    headerContent,
+    children
+}: ProcessingStepsProps & { headerContent?: React.ReactNode, children?: React.ReactNode }) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -142,175 +144,184 @@ export default function ProcessingSteps({
                 {t('dashboard.steps.title')}
             </h3>
 
-            <div className="space-y-3">
-                {steps.map((step, index) => {
-                    const status = isRegistrationComplete ? stepsStatus[index] : 'disabled';
-                    const isActive = expandedStep === step.id;
-                    const isClickable = isRegistrationComplete && status !== 'disabled';
+            {headerContent && (
+                <div className="mb-4">
+                    {headerContent}
+                </div>
+            )}
 
-                    return (
-                        <div
-                            key={step.id}
-                            className={`
+            {children ? children : (
+                <div className="space-y-3">
+                    {steps.map((step, index) => {
+                        const status = isRegistrationComplete ? stepsStatus[index] : 'disabled';
+                        const isActive = expandedStep === step.id;
+                        const isClickable = isRegistrationComplete && status !== 'disabled';
+
+                        return (
+                            <div
+                                key={step.id}
+                                className={`
                                 relative rounded-xl border transition-all duration-300 overflow-hidden
                                 ${getStatusColor(status)}
                                 ${isActive ? 'ring-2 ring-indigo-500/50 dark:ring-indigo-400/50 shadow-md' : ''}
                             `}
-                        >
-                            {/* Header / Summary */}
-                            <div
-                                className={`flex items-center p-4 ${isClickable ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5' : ''}`}
-                                onClick={() => isClickable && setExpandedStep(isActive ? null : step.id)}
                             >
-                                <div className={`
+                                {/* Header / Summary */}
+                                <div
+                                    className={`flex items-center p-4 ${isClickable ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5' : ''}`}
+                                    onClick={() => isClickable && setExpandedStep(isActive ? null : step.id)}
+                                >
+                                    <div className={`
                                     w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0
                                     ${status === 'completed' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
                                 `}>
-                                    {getStatusIcon(status) || <span className="text-base font-bold leading-none">{step.id}</span>}
-                                </div>
-
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-sm truncate">{step.title}</h4>
-                                    <p className="text-xs opacity-80 truncate">{step.description}</p>
-                                </div>
-
-                                {/* Timer in Header (Right aligned) */}
-                                {(status === 'processing' || (status === 'completed' && stepTimers[step.id]?.duration)) && (
-                                    <div className="ml-2" onClick={(e) => e.stopPropagation()}>
-                                        <StepTimer
-                                            startTime={stepTimers[step.id]?.startTime}
-                                            duration={stepTimers[step.id]?.duration}
-                                            status={status}
-                                        />
+                                        {getStatusIcon(status) || <span className="text-base font-bold leading-none">{step.id}</span>}
                                     </div>
-                                )}
-                            </div>
 
-                            {/* Expanded Content (Action Area) */}
-                            {isActive && isClickable && (
-                                <div className="p-4 pt-0 border-t border-black/5 dark:border-white/5 bg-white/50 dark:bg-black/20">
-                                    <div className="mt-4">
-                                        {/* Sub-steps Visualization */}
-                                        {step.subSteps && (
-                                            <div className="mb-6 flex flex-col gap-2">
-                                                {step.subSteps.map((subStep, subIndex) => {
-                                                    // Determine status based on jobProgress data
-                                                    let subStatus: 'pending' | 'processing' | 'completed' = 'pending';
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-sm truncate">{step.title}</h4>
+                                        <p className="text-xs opacity-80 truncate">{step.description}</p>
+                                    </div>
 
-                                                    if (status === 'completed') {
-                                                        subStatus = 'completed';
-                                                    } else if (jobProgress && step.id === 1) {
-                                                        // Use jobProgress data for Step 1 sub-steps
-                                                        // 1A: external_has_audio OR local_has_audio
-                                                        // 1B: has_all_raw_speech_transcription OR has_raw_round_transcription
-                                                        // 1C: words_registered
-                                                        // 1D: sentences_registered
-                                                        if (subIndex === 0) {
-                                                            const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
-                                                            subStatus = audioComplete ? 'completed' :
-                                                                (status === 'processing' ? 'processing' : 'pending');
-                                                        } else if (subIndex === 1) {
-                                                            const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
-                                                            const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
-                                                            subStatus = transcriptionComplete ? 'completed' :
-                                                                (status === 'processing' && audioComplete) ? 'processing' : 'pending';
-                                                        } else if (subIndex === 2) {
-                                                            const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
-                                                            subStatus = jobProgress.words_registered ? 'completed' :
-                                                                (status === 'processing' && transcriptionComplete) ? 'processing' : 'pending';
-                                                        } else if (subIndex === 3) {
-                                                            subStatus = jobProgress.sentences_registered ? 'completed' :
-                                                                (status === 'processing' && jobProgress.words_registered) ? 'processing' : 'pending';
+                                    {/* Timer in Header (Right aligned) */}
+                                    {(status === 'processing' || (status === 'completed' && stepTimers[step.id]?.duration)) && (
+                                        <div className="ml-2" onClick={(e) => e.stopPropagation()}>
+                                            <StepTimer
+                                                startTime={stepTimers[step.id]?.startTime}
+                                                duration={stepTimers[step.id]?.duration}
+                                                status={status}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Expanded Content (Action Area) */}
+                                {isActive && isClickable && (
+                                    <div className="p-4 pt-0 border-t border-black/5 dark:border-white/5 bg-white/50 dark:bg-black/20">
+                                        <div className="mt-4">
+                                            {/* Sub-steps Visualization */}
+                                            {step.subSteps && (
+                                                <div className="mb-6 flex flex-col gap-2">
+                                                    {step.subSteps.map((subStep, subIndex) => {
+                                                        // Determine status based on jobProgress data
+                                                        let subStatus: 'pending' | 'processing' | 'completed' = 'pending';
+
+                                                        if (status === 'completed') {
+                                                            subStatus = 'completed';
+                                                        } else if (jobProgress && step.id === 1) {
+                                                            // Use jobProgress data for Step 1 sub-steps
+                                                            // 1A: external_has_audio OR local_has_audio
+                                                            // 1B: has_all_raw_speech_transcription OR has_raw_round_transcription
+                                                            // 1C: words_registered
+                                                            // 1D: sentences_registered
+                                                            if (subIndex === 0) {
+                                                                const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
+                                                                subStatus = audioComplete ? 'completed' :
+                                                                    (status === 'processing' ? 'processing' : 'pending');
+                                                            } else if (subIndex === 1) {
+                                                                const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
+                                                                const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
+                                                                subStatus = transcriptionComplete ? 'completed' :
+                                                                    (status === 'processing' && audioComplete) ? 'processing' : 'pending';
+                                                            } else if (subIndex === 2) {
+                                                                const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
+                                                                subStatus = jobProgress.words_registered ? 'completed' :
+                                                                    (status === 'processing' && transcriptionComplete) ? 'processing' : 'pending';
+                                                            } else if (subIndex === 3) {
+                                                                subStatus = jobProgress.sentences_registered ? 'completed' :
+                                                                    (status === 'processing' && jobProgress.words_registered) ? 'processing' : 'pending';
+                                                            }
+                                                        } else if (status === 'processing') {
+                                                            // Fallback: show all as processing if no jobProgress data
+                                                            subStatus = 'processing';
                                                         }
-                                                    } else if (status === 'processing') {
-                                                        // Fallback: show all as processing if no jobProgress data
-                                                        subStatus = 'processing';
-                                                    }
 
-                                                    return (
-                                                        <div key={subStep.id} className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
-                                                            <div className={`
+                                                        return (
+                                                            <div key={subStep.id} className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
+                                                                <div className={`
                                                                 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold leading-none pl-[1px]
                                                                 ${subStatus === 'completed' ? 'bg-green-500 text-white' :
-                                                                    subStatus === 'processing' ? 'bg-blue-500 text-white animate-pulse' :
-                                                                        'bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400'}
+                                                                        subStatus === 'processing' ? 'bg-blue-500 text-white animate-pulse' :
+                                                                            'bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400'}
                                                             `}>
-                                                                {subStatus === 'processing' ? (
-                                                                    <Loader2 size={12} className="animate-spin" />
-                                                                ) : (
-                                                                    <span>{String.fromCharCode(65 + subIndex)}</span>
+                                                                    {subStatus === 'processing' ? (
+                                                                        <Loader2 size={12} className="animate-spin" />
+                                                                    ) : (
+                                                                        <span>{String.fromCharCode(65 + subIndex)}</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 flex flex-wrap items-center gap-x-2">
+                                                                    <p className={`text-sm font-medium ${subStatus === 'pending' ? 'text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                                        {subStep.title}
+                                                                    </p>
+                                                                    {/* Warning for 1-A: Cache deleted */}
+                                                                    {step.id === 1 && subIndex === 0 && jobProgress && (
+                                                                        (() => {
+                                                                            const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
+                                                                            const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
+                                                                            const cacheDeleted = !audioComplete && transcriptionComplete;
+
+                                                                        })()
+                                                                    )}
+                                                                </div>
+                                                                {/* Reset Button for SubSteps */}
+                                                                {subStatus === 'completed' && jobProgress && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            // Format: "Step 1-A: Download Audio"
+                                                                            const stepLabel = `Step ${step.id}-${String.fromCharCode(65 + subIndex)}: ${subStep.title}`;
+                                                                            handleResetClick(step.id, subStep.id, stepLabel);
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                                                        title="Reset from this step"
+                                                                    >
+                                                                        <RotateCcw size={14} />
+                                                                    </button>
                                                                 )}
                                                             </div>
-                                                            <div className="flex-1 flex flex-wrap items-center gap-x-2">
-                                                                <p className={`text-sm font-medium ${subStatus === 'pending' ? 'text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
-                                                                    {subStep.title}
-                                                                </p>
-                                                                {/* Warning for 1-A: Cache deleted */}
-                                                                {step.id === 1 && subIndex === 0 && jobProgress && (
-                                                                    (() => {
-                                                                        const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
-                                                                        const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
-                                                                        const cacheDeleted = !audioComplete && transcriptionComplete;
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
 
-                                                                    })()
-                                                                )}
-                                                            </div>
-                                                            {/* Reset Button for SubSteps */}
-                                                            {subStatus === 'completed' && jobProgress && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        // Format: "Step 1-A: Download Audio"
-                                                                        const stepLabel = `Step ${step.id}-${String.fromCharCode(65 + subIndex)}: ${subStep.title}`;
-                                                                        handleResetClick(step.id, subStep.id, stepLabel);
-                                                                    }}
-                                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                                                                    title="Reset from this step"
-                                                                >
-                                                                    <RotateCcw size={14} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                            {/* Custom Content for this step */}
+                                            {renderStepContent && renderStepContent(step.id)}
 
-                                        {/* Custom Content for this step */}
-                                        {renderStepContent && renderStepContent(step.id)}
-
-                                        <div className="flex justify-end gap-2">
-                                            {status === 'completed' && (
+                                            <div className="flex justify-end gap-2">
+                                                {status === 'completed' && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleResetClick(step.id, undefined, step.title);
+                                                        }}
+                                                        className="px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                                    >
+                                                        <RotateCcw size={14} />
+                                                        Reset
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleResetClick(step.id, undefined, step.title);
+                                                        onStepAction(step.id, 'run');
                                                     }}
-                                                    className="px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                                    disabled={status === 'processing' || status === 'completed'}
+                                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                 >
-                                                    <RotateCcw size={14} />
-                                                    Reset
+                                                    {status === 'processing' ? <Loader2 className="animate-spin" size={14} /> : <ZapIcon size={14} />}
+                                                    {status === 'processing' ? t('dashboard.steps.actions.running') : t('dashboard.steps.actions.runStep')}
                                                 </button>
-                                            )}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onStepAction(step.id, 'run');
-                                                }}
-                                                disabled={status === 'processing' || status === 'completed'}
-                                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                            >
-                                                {status === 'processing' ? <Loader2 className="animate-spin" size={14} /> : <ZapIcon size={14} />}
-                                                {status === 'processing' ? t('dashboard.steps.actions.running') : t('dashboard.steps.actions.runStep')}
-                                            </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                </div>
+            )}
 
             <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                 <DialogContent>

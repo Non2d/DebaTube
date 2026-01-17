@@ -57,6 +57,20 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     });
     const [isTestingConnection, setIsTestingConnection] = useState(false);
 
+    // Workflow Mode State
+    const [workflowMode, setWorkflowMode] = useState<'end-to-end' | 'manual'>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem('workflowMode') as 'end-to-end' | 'manual') || 'manual';
+        }
+        return 'manual';
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('workflowMode', workflowMode);
+        }
+    }, [workflowMode]);
+
     // Save transcription model to localStorage when it changes
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -310,7 +324,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     return (
         <>
             <Header />
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 pt-24 pb-12 px-4">
+            <div className="min-h-screen bg-background pt-24 pb-12 px-4">
                 <div className="max-w-4xl mx-auto">
                     <div className="mb-8">
                         <Link
@@ -325,7 +339,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         </h1>
                     </div>
 
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 mb-8">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
                             {roundData.name}
                         </h2>
@@ -357,7 +371,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 mb-8 min-h-[400px]">
                         <ProcessingSteps
                             currentStep={currentStep}
                             stepsStatus={stepsStatus}
@@ -366,7 +380,38 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             isRegistrationComplete={true}
                             renderStepContent={renderStepExtras}
                             jobProgress={jobProgress}
-                        />
+                            headerContent={
+                                <div className="mb-6">
+                                    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-md mx-auto">
+                                        <button
+                                            onClick={() => setWorkflowMode('end-to-end')}
+                                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${workflowMode === 'end-to-end'
+                                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]'
+                                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                                }`}
+                                        >
+                                            LLM End-to-End
+                                        </button>
+                                        <button
+                                            onClick={() => setWorkflowMode('manual')}
+                                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${workflowMode === 'manual'
+                                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm dark:shadow-[0_2px_10px_rgba(0,0,0,0.5)]'
+                                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                                }`}
+                                        >
+                                            Manual Mode
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        >
+                            {workflowMode === 'end-to-end' && (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-20">
+                                    <div className="text-lg font-medium mb-2">Coming Soon</div>
+                                    <div className="text-sm">LLM End-to-End workflow is under development.</div>
+                                </div>
+                            )}
+                        </ProcessingSteps>
                     </div>
                 </div>
             </div>
