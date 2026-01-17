@@ -56,6 +56,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         return "";
     });
     const [isTestingConnection, setIsTestingConnection] = useState(false);
+    const [manualVideoUrl, setManualVideoUrl] = useState(""); // For recovery
 
     // Workflow Mode State
     const [workflowMode, setWorkflowMode] = useState<'end-to-end' | 'manual'>(() => {
@@ -222,6 +223,24 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
+    const handleRecoverVideoId = async () => {
+        if (!manualVideoUrl) {
+            toast.error(t('dashboard.modal.messages.urlRequired'));
+            return;
+        }
+        await runStep1(
+            roundData,
+            setDownloadProgress,
+            setStepsStatus,
+            stepsStatus,
+            async () => {
+                await fetchJobProgress();
+                await fetchRoundData();
+            },
+            manualVideoUrl
+        );
+    };
+
     const renderStepExtras = (stepId: number) => {
         if (stepId !== 1) return null; // Model selection moved to Step 1
 
@@ -366,6 +385,35 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                 <div className="w-full">
                                     <span className="block text-gray-500 dark:text-gray-400 mb-1">Motion</span>
                                     <span className="font-medium">{roundData.motion}</span>
+                                </div>
+                            )}
+
+                            {/* Recovery UI for missing video_id */}
+                            {!roundData.video_id && (
+                                <div className="w-full mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                                    <h4 className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200 font-bold mb-2">
+                                        <ExternalLink size={16} />
+                                        Warning: Video ID Missing
+                                    </h4>
+                                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+                                        This round is missing the YouTube Video ID. Please enter the URL to fix it.
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={manualVideoUrl}
+                                            onChange={(e) => setManualVideoUrl(e.target.value)}
+                                            placeholder="https://www.youtube.com/watch?v=..."
+                                            className="flex-1 px-3 py-2 rounded border border-yellow-300 dark:border-yellow-700 bg-white dark:bg-black/20 text-sm"
+                                        />
+                                        <button
+                                            onClick={handleRecoverVideoId}
+                                            disabled={!manualVideoUrl}
+                                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-bold transition-colors disabled:opacity-50"
+                                        >
+                                            Save & Run
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>

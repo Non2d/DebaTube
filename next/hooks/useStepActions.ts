@@ -50,9 +50,22 @@ export const useStepActions = ({ roundId, t }: UseStepActionsProps) => {
         setDownloadProgress: (p: number) => void,
         setStepsStatus: (s: ProcessingStepStatus[]) => void,
         stepsStatus: ProcessingStepStatus[],
-        onRefresh: () => Promise<void>
+        // Fix duplicate argument: stepsStatus was listed twice
+        // stepsStatus: ProcessingStepStatus[],
+        onRefresh: () => Promise<void>,
+        videoUrl?: string // Optional override for missing video_id recovery
     ) => {
-        if (!roundData?.video_id) return;
+        // Extract video ID from URL if provided
+        const extractedId = videoUrl ? (videoUrl.match(/(?:v=|youtu\.be\/)([^&]+)/)?.[1] || null) : null;
+
+        if (!roundData?.video_id && !extractedId) {
+            toast.error("Error: No video_id found in round data");
+            console.error("runStep1 aborted: missing video_id", roundData);
+            return;
+        }
+
+        const effectiveVideoId = roundData?.video_id || extractedId;
+        const targetUrl = videoUrl || `https://www.youtube.com/watch?v=${effectiveVideoId}`;
 
         const newStatus = [...stepsStatus];
         newStatus[0] = 'processing';
@@ -71,7 +84,7 @@ export const useStepActions = ({ roundId, t }: UseStepActionsProps) => {
                 const res = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${roundData.video_id}` }),
+                    body: JSON.stringify({ url: targetUrl }),
                 });
 
                 if (!res.ok) {
