@@ -91,7 +91,6 @@ export function TimelineEditor({
                 if (data.length > 0) {
                     setSpeeches(data);
                     // localSpeeches will be updated via useEffect
-                    toast.success("Timeline reset to database values");
                 }
             } else {
                 toast.error("Failed to reload speeches");

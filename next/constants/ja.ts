@@ -338,7 +338,7 @@ export const ja = {
                 resetDialogConfirm: "はい、リセットします",
                 resetDialogCancel: "キャンセル",
                 copyPrompt: "プロンプトをコピー",
-                registerVerify: "登録確認",
+                registerVerify: "送信",
                 updateContinue: "更新",
                 resetToLastSaved: "編集前に戻す",
             },
