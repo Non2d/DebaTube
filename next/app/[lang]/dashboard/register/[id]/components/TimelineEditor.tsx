@@ -49,6 +49,7 @@ export function TimelineEditor({
     const [isReloading, setIsReloading] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const [dragging, setDragging] = useState<{ speechIndex: number; edge: 'start' | 'end' } | null>(null);
+    const [hoveredHandle, setHoveredHandle] = useState<{ speechIndex: number; edge: 'start' | 'end'; sentenceId: number } | null>(null);
 
     // Lyrics View State & Refs
     const lyricsContainerRef = useRef<HTMLDivElement>(null);
@@ -167,6 +168,24 @@ export function TimelineEditor({
     const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!timelineRef.current || duration === 0) return;
 
+        // If hovering over a handle, seek to that sentence's time instead of mouse position
+        if (hoveredHandle) {
+            // Use speechIndex and edge to get the correct sentence ID
+            const speech = localSpeeches[hoveredHandle.speechIndex];
+            const sentenceId = hoveredHandle.edge === 'start' ? speech.first_sentence_id : speech.last_sentence_id;
+
+            if (sentenceId) {
+                const sentence = sentences.find(s => s.id === sentenceId);
+                if (sentence && playerRef.current) {
+                    const seekTime = sentence.start_time;
+                    playerRef.current.seekTo(seekTime, true);
+                    setCurrentTime(seekTime);
+                }
+            }
+            return;
+        }
+
+        // Normal timeline click behavior
         const rect = timelineRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const clickedTime = (x / rect.width) * duration;
@@ -381,7 +400,7 @@ export function TimelineEditor({
                                             backgroundSize: '2px 12px' // 6px dash, 6px gap
                                         }}
                                     >
-                                        <span className={`absolute -translate-x-1/2 text-[10px] font-mono font-bold ${textColor}`} style={labelStyle}>
+                                        <span className={`absolute -translate-x-1/2 text-xs font-mono font-bold ${textColor}`} style={labelStyle}>
                                             #{getSentenceLocalIndex(speech.first_sentence_id)}
                                         </span>
                                     </div>
@@ -393,7 +412,7 @@ export function TimelineEditor({
                                             backgroundSize: '2px 12px' // 6px dash, 6px gap
                                         }}
                                     >
-                                        <span className={`absolute -translate-x-1/2 text-[10px] font-mono font-bold ${textColor}`} style={labelStyle}>
+                                        <span className={`absolute -translate-x-1/2 text-xs font-mono font-bold ${textColor}`} style={labelStyle}>
                                             #{getSentenceLocalIndex(speech.last_sentence_id)}
                                         </span>
                                     </div>
@@ -411,17 +430,37 @@ export function TimelineEditor({
                                         <div
                                             className="absolute left-0 top-0 w-2 h-full cursor-ew-resize hover:bg-black/10 transition-colors"
                                             onMouseDown={(e) => handleBarMouseDown(originalIndex, 'start', e)}
+                                            onMouseEnter={() => {
+                                                if (speech.first_sentence_id) {
+                                                    setHoveredHandle({ speechIndex: originalIndex, edge: 'start', sentenceId: speech.first_sentence_id });
+                                                }
+                                            }}
+                                            onMouseLeave={() => setHoveredHandle(null)}
                                         />
 
                                         {/* Label in Bar (Shortened) */}
-                                        <div className={`absolute inset-0 flex items-center justify-center text-[11px] font-bold px-1 truncate pointer-events-none opacity-90 ${textColor}`}>
+                                        <div className={`absolute inset-0 flex items-center justify-center text-xs font-bold px-1 truncate pointer-events-none opacity-90 ${textColor}`}>
                                             {shortLabel}
+                                        </div>
+
+                                        {/* Duration Label (Above/Below Bar) */}
+                                        <div
+                                            className={`absolute -translate-x-1/2 left-1/2 text-xs font-mono font-semibold whitespace-nowrap ${textColor}`}
+                                            style={labelStyle}
+                                        >
+                                            {Math.floor((endTime - startTime) / 60)}:{String(Math.floor((endTime - startTime) % 60)).padStart(2, '0')}
                                         </div>
 
                                         {/* End Handle */}
                                         <div
                                             className="absolute right-0 top-0 w-2 h-full cursor-ew-resize hover:bg-black/10 transition-colors"
                                             onMouseDown={(e) => handleBarMouseDown(originalIndex, 'end', e)}
+                                            onMouseEnter={() => {
+                                                if (speech.last_sentence_id) {
+                                                    setHoveredHandle({ speechIndex: originalIndex, edge: 'end', sentenceId: speech.last_sentence_id });
+                                                }
+                                            }}
+                                            onMouseLeave={() => setHoveredHandle(null)}
                                         />
                                     </div>
                                 </React.Fragment>
