@@ -398,7 +398,7 @@ const DebateGraphs = () => {
                         onDoubleClick={onMovieItemClicked(item.id)}
                       >
                         <div className="mb-1 flex gap-4">
-                          <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
+                          <div className="aspect-square relative bg-muted" style={{ width: '8vh', height: '8vh' }}>
                             <Image
                               src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
                               alt={item.title}

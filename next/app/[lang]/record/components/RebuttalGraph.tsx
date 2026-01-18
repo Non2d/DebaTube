@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import ReactFlow, { useNodesState, useEdgesState } from 'reactflow';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import ReactFlow, { useNodesState, useEdgesState, ReactFlowInstance } from 'reactflow';
+import { Maximize } from 'lucide-react';
 import { govNode, oppNode, backgroundNode, GovEdge, OppEdge } from './CustomGraphComponents';
 import { isGovernmentFromSpeechId } from '../../../../components/lib/constants';
 
@@ -31,7 +32,14 @@ interface RebuttalGraphProps {
 const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debateFormat, showNodeIds = true, showPoiColors = true }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const nodeDataRef = useRef<{ [key: number]: { startTime: number } }>({});
+
+  const onFitView = useCallback(() => {
+    if (rfInstance) {
+      rfInstance.fitView({ padding: 0.2, duration: 0 });
+    }
+  }, [rfInstance]);
 
   useEffect(() => {
     try {
@@ -284,7 +292,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
   };
 
   return (
-    <div style={{ cursor: "default", width: "100%", height: "100%" }}>
+    <div style={{ cursor: "default", width: "100%", height: "100%" }} className="relative bg-gray-50 dark:bg-slate-800">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -301,8 +309,18 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
         zoomOnDoubleClick={true}
         fitView
         minZoom={0.1}
+        onInit={setRfInstance}
         proOptions={proOptions}
       />
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={onFitView}
+          className="p-2 bg-white dark:bg-slate-700 rounded-md shadow-md border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 transition-colors"
+          title="Fit View"
+        >
+          <Maximize size={20} />
+        </button>
+      </div>
     </div>
   );
 };
