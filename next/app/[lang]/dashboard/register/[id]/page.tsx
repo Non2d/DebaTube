@@ -277,12 +277,19 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
     const runEndToEndWorkflow = async () => {
         try {
+            // Check which steps are already completed and skip them
             if (stepsStatusRef.current[0] !== 'completed') {
                 await runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, async () => await fetchJobProgress());
             }
-            await runAutoDiarization();
-            await runAutoAdu();
-            await runAutoRebuttal();
+            if (stepsStatusRef.current[1] !== 'completed') {
+                await runAutoDiarization();
+            }
+            if (stepsStatusRef.current[2] !== 'completed') {
+                await runAutoAdu();
+            }
+            if (stepsStatusRef.current[3] !== 'completed') {
+                await runAutoRebuttal();
+            }
             toast.success("All Steps Completed Successfully!");
         } catch (e: any) {
             console.error("End-to-End Workflow Stopped:", e);
@@ -830,7 +837,23 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                 className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3"
                                             >
                                                 <span className="text-xl">✨</span>
-                                                <span className="text-lg">Run All Steps Automatically</span>
+                                                <span className="text-lg">
+                                                    {(() => {
+                                                        // Check if at least Step 1-A is completed (audio downloaded)
+                                                        const hasAnyProgress = jobProgress && (
+                                                            jobProgress.external_has_audio ||
+                                                            jobProgress.local_has_audio ||
+                                                            stepsStatus[0] === 'completed' ||
+                                                            stepsStatus[1] === 'completed' ||
+                                                            stepsStatus[2] === 'completed' ||
+                                                            stepsStatus[3] === 'completed'
+                                                        );
+
+                                                        return hasAnyProgress
+                                                            ? t('dashboard.steps.actions.runAllRemainingSteps')
+                                                            : t('dashboard.steps.actions.runAllSteps');
+                                                    })()}
+                                                </span>
                                             </button>
                                         </div>
                                     )}

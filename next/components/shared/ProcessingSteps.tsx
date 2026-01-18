@@ -277,7 +277,7 @@ export default function ProcessingSteps({
                                                                         title="Reset from this step"
                                                                     >
                                                                         <RotateCcw size={12} />
-                                                                        <span>Reset</span>
+                                                                        <span>{t('dashboard.steps.actions.reset')}</span>
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -300,7 +300,7 @@ export default function ProcessingSteps({
                                                             className="px-3 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md text-sm font-medium transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800"
                                                         >
                                                             <RotateCcw size={14} />
-                                                            Reset Step
+                                                            {t('dashboard.steps.actions.reset')}
                                                         </button>
                                                     )}
                                                 </div>

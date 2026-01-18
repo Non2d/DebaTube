@@ -318,14 +318,20 @@ export const ja: LocaleType = {
         },
         steps: {
             title: "ワークフロー",
-            transcriptGeneration: "文字起こし生成",
+            transcriptGeneration: "STEP 1: 文字起こし生成",
             transcriptGenerationDesc: "音声をダウンロードして文字起こしを生成",
-            speakerDiarization: "話者識別",
+            speakerDiarization: "STEP 2: 話者識別",
             speakerDiarizationDesc: "セグメントに話者を割り当て",
-            aduSegmentation: "ADUセグメンテーション",
+            aduSegmentation: "STEP 3: ADUセグメンテーション",
             aduSegmentationDesc: "議論とPOIを識別",
-            rebuttalDetection: "反論検出",
+            rebuttalDetection: "STEP 4: 反論検出",
             rebuttalDetectionDesc: "反論関係を識別",
+            autoMode: "LLM自動モード",
+            descriptions: {
+                autoDiarization: "Geminiを使用して自動的に話者を検出します。",
+                autoAdu: "スピーチを自動的に議論セグメントに分割します。",
+                autoRebuttal: "自動的に反論構造を識別します。"
+            },
             subSteps: {
                 downloadAudio: "音声ダウンロード",
                 transcribeWords: "文字起こし",
@@ -343,6 +349,10 @@ export const ja: LocaleType = {
                 runStep: "ステップを実行",
                 running: "実行中...",
                 reset: "リセット",
+                resumeStep: "ここから再開",
+                runAllSteps: "全ステップを自動実行",
+                runAllRemainingSteps: "残りのステップを自動実行",
+                resumeAllSteps: "全ステップを再開",
                 // Dialog messages
                 resetDialogTitle: "処理データをリセットしますか？",
                 resetDialogContent: "{step} 以降の処理データをリセットします。復元することはできません。本当に実行しますか？",

@@ -176,16 +176,11 @@ export default function VideoDashboard() {
                               onClick={() => router.push(`/${language}/dashboard/register/${round.id}`)}
                             >
                               <td className="py-2 px-4 max-w-xs">
-                                <div className="flex items-center gap-2">
-                                  {isGrouped && isSameTitleAsPrev ? (
-                                    <div className="font-medium truncate opacity-0 select-none" aria-hidden="true">{round.title}</div>
-                                  ) : (
-                                    <div className="font-medium truncate" title={round.title}>{round.title}</div>
-                                  )}
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 flex-shrink-0">
-                                    v{round.try_count || 1}
-                                  </span>
-                                </div>
+                                {isGrouped && isSameTitleAsPrev ? (
+                                  <div className="font-medium truncate opacity-0 select-none" aria-hidden="true">{round.title}</div>
+                                ) : (
+                                  <div className="font-medium truncate" title={round.title}>{round.title}</div>
+                                )}
                               </td>
                               <td className="py-2 px-4 whitespace-nowrap">
                                 {(() => {

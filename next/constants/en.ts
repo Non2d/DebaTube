@@ -316,14 +316,20 @@ export const en = {
         },
         steps: {
             title: "Processing Workflow",
-            transcriptGeneration: "Transcript Generation",
+            transcriptGeneration: "STEP 1: Transcript Generation",
             transcriptGenerationDesc: "Download audio and generate transcript",
-            speakerDiarization: "Speaker Diarization",
+            speakerDiarization: "STEP 2: Speaker Diarization",
             speakerDiarizationDesc: "Assign speakers to segments",
-            aduSegmentation: "ADU Segmentation",
+            aduSegmentation: "STEP 3: ADU Segmentation",
             aduSegmentationDesc: "Identify arguments and POIs",
-            rebuttalDetection: "Rebuttal Detection",
+            rebuttalDetection: "STEP 4: Rebuttal Detection",
             rebuttalDetectionDesc: "Identify rebuttal relationships",
+            autoMode: "LLM Auto Mode",
+            descriptions: {
+                autoDiarization: "Automatically detect speakers using Gemini.",
+                autoAdu: "Automatically segment speech into arguments.",
+                autoRebuttal: "Automatically identify rebuttal structure."
+            },
             subSteps: {
                 downloadAudio: "Download Audio",
                 transcribeWords: "Transcribe Audio",
@@ -341,6 +347,10 @@ export const en = {
                 runStep: "Run Step",
                 running: "Running...",
                 reset: "Reset",
+                resumeStep: "Resume from here",
+                runAllSteps: "Run All Steps Automatically",
+                runAllRemainingSteps: "Run All Remaining Steps",
+                resumeAllSteps: "Resume All Steps",
                 // Dialog messages
                 resetDialogTitle: "Reset Progress?",
                 resetDialogContent: "You are about to reset progress from {step} onwards. All data for this step and subsequent steps will be permanently deleted. Are you sure you want to continue?",
