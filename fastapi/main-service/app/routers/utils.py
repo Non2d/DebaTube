@@ -45,7 +45,6 @@ OPENING_HALF_BP_ORDER = [
     "Opposition_2nd",
 ]
 
-
 DEBATE_FORMATS = {
     "NA": NA_ORDER,
     "ASIAN": ASIAN_ORDER,
@@ -54,7 +53,6 @@ DEBATE_FORMATS = {
     "BP": BP_ORDER,
     "OPENING_HALF_BP_ORDER": OPENING_HALF_BP_ORDER,
 }
-
 
 def clean_gemini_markdown_response(response_text: str) -> str:
     """

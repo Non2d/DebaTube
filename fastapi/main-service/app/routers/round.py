@@ -18,7 +18,7 @@ from enum import Enum
 from typing import Literal
 
 # Import speech positions from utils
-from routers.utils import NA_ORDER, ASIAN_ORDER, WSDC_ORDER, HPDU_ORDER, BP_ORDER, OPENING_HALF_BP_ORDER
+from routers.utils import NA_ORDER, ASIAN_ORDER, WSDC_ORDER, HPDU_ORDER, BP_ORDER, OPENING_HALF_BP_ORDER, DEBATE_FORMATS
 
 class RoundType(str, Enum):
     RECORD = "record"
@@ -700,3 +700,143 @@ async def get_round_graph(round_id: int, db: AsyncSession = Depends(get_db)):
         "speeches": speeches_data,
         "rebuttals": rebuttals_data
     }
+
+
+from models.external_video import ExternalVideo # Ensure this import exists at top level if not already
+
+@router.get("/batch-rounds-with-features", response_model=List[Dict[str, Any]])
+async def batch_rounds_with_features(db: AsyncSession = Depends(get_db)):
+    """
+    Fetch all rounds with complete graph features (Speeches, ADUs, Rebuttals).
+    Used by Explore page (legacy component support).
+    Filters rounds that have at least one rebuttal (Step 4 Complete).
+    Include dummy 'features' object for sorting compatibility.
+    """
+    stmt = (
+        select(Round, ExternalVideo)
+        .outerjoin(ExternalVideo, Round.video_id == ExternalVideo.video_id)
+        .options(
+            selectinload(Round.speeches).selectinload(Speech.adus).selectinload(Adu.rebuttals_as_source),
+        )
+    )
+    
+    result = await db.execute(stmt)
+    rows = result.all() # Returns list of (Round, ExternalVideo) tuples
+    
+    response_list = []
+    
+    for r, ev in rows:
+        # Determine speech order based on round style
+        current_style = r.style if r.style else "british_parliamentary"
+        # Map style strings to utility constants keys if necessary, or just use DEBATE_FORMATS straightforwardly
+        # utils.DEBATE_FORMATS keys: "NA", "ASIAN", "BP", etc.
+        # round.style values (from enum): "north_american", "asian", "british_parliamentary", etc.
+        
+        # Simple mapping
+        format_key = "BP" # Default
+        if current_style == "north_american":
+            format_key = "NA"
+        elif current_style == "asian":
+            format_key = "ASIAN"
+        elif current_style == "british_parliamentary":
+            format_key = "BP"
+        elif current_style == "wsdc":
+            format_key = "WSDC"
+        elif current_style == "hpdu":
+            format_key = "HPDU"
+            
+        target_order = DEBATE_FORMATS.get(format_key, BP_ORDER)
+        
+        # Sort speeches by position in target_order
+        # Create a dict for easy lookup of order index
+        order_map = {pos: idx for idx, pos in enumerate(target_order)}
+        
+        # Sort speeches. If position not in map, put at end (999)
+        sorted_speeches = sorted(
+            r.speeches, 
+            key=lambda s: order_map.get(s.position, 999)
+        )
+        
+        has_speeches = len(sorted_speeches) > 0
+        
+        # 1. Collect Speeches and ADUs in the format expected by MacroStructure.tsx
+        # legacy format: speeches: [ { argument_units: [ { sequence_id: 1, start: 10.0, ... } ] }, ... ]
+        formatted_speeches = []
+        
+        db_id_to_local_id = {}
+        global_adu_index = 0
+        
+        for speech in sorted_speeches:
+            role_name = speech.position
+            adu_list = []
+            
+            # Sort ADUs by ID within speech
+            current_adus = sorted(speech.adus, key=lambda a: a.id if a.id else 0)
+            
+            for adu in current_adus:
+                global_adu_index += 1
+                local_id = global_adu_index
+                db_id_to_local_id[adu.id] = local_id
+
+                adu_list.append({
+                    "sequence_id": local_id, # Frontend expects "sequence_id"
+                    "type": adu.role,
+                    "text": adu.text,
+                    # Frontend expects "start"
+                    "start": adu.start_time if adu.start_time is not None else 0.0
+                })
+            
+            formatted_speeches.append({
+                "role": role_name,
+                "argument_units": adu_list
+            })
+
+        # 2. Collect Rebuttals
+        # Frontend expects: [ { src: 1, tgt: 2 }, ... ]
+        rebuttals_data = []
+        for speech in sorted_speeches:
+            for adu in speech.adus:
+                for reb in adu.rebuttals_as_source:
+                    tgt_id = reb.tgt_adu_id
+                    src_id = reb.src_adu_id
+                    
+                    if src_id in db_id_to_local_id and tgt_id in db_id_to_local_id:
+                        rebuttals_data.append({
+                            "src": db_id_to_local_id[src_id],
+                            "tgt": db_id_to_local_id[tgt_id]
+                        })
+        
+        has_rebuttals = len(rebuttals_data) > 0
+
+        # Filter: Only return rounds with Rebuttals and Speeches (Step 4 Complete) AND type is 'external_video'
+        if has_rebuttals and has_speeches and r.type == 'external_video':
+            # Use ExternalVideo.published_at if available, else Round.created_at
+            published_date = ""
+            if ev and ev.published_at:
+                published_date = ev.published_at.isoformat()
+            elif r.created_at:
+                published_date = r.created_at.isoformat()
+
+            response_list.append({
+                "id": r.id,
+                "video_id": r.video_id or "",
+                "title": r.name,
+                "description": r.note or "",
+                "motion": r.motion or "",
+                "date_uploaded": published_date,
+                "channel_id": "", 
+                "tag": r.type,
+                "try_count": r.try_count,
+                 # Dummy features for legacy compatibility
+                "features": {
+                    "distance": 0.0,
+                    "interval": 0.0,
+                    "order": 0.0,
+                    "rally": 0.0
+                },
+                "pois": [], # Expects empty list, not dict
+                "speeches": formatted_speeches, # Ordered list
+                "rebuttals": rebuttals_data # List of objects
+            })
+            
+    return response_list

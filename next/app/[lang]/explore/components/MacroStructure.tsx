@@ -42,7 +42,9 @@ const MacroStructure = forwardRef<HTMLDivElement, MacroStructureProps>(({ data, 
             const speechLength = data.speeches.length;
             const originX = 100;
             const xposOpp = 300;
-            const isGovernment = isGovernmentFromSpeechId(i, speechLength);
+            // Derive format from speech length for legacy compatibility
+            const debateFormat = speechLength === 6 ? "NA" : "BP";
+            const isGovernment = isGovernmentFromSpeechId(i, speechLength, debateFormat);
             const speechIdToPositionName = speechLength == 6 ? speechIdToPositionNameNA : speechIdToPositionNameAsian;
 
             let startNodeY = nodeY;

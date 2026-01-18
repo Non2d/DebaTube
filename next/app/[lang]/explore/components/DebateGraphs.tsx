@@ -112,23 +112,32 @@ const DebateGraphs = () => {
     })
       .then(response => response.json())
       .then((data: Round[]) => {
-        const debateItems = data.map(round => ({
-          id: round.id,
-          videoId: round.video_id,
-          title: round.title,
-          motion: round.motion,
-          description: round.description,
-          publishedAt: round.date_uploaded,
-          tag: round.tag,
-          features: round.features,
-          tryCount: round.try_count || 1,
-          graphItems: {
-            roundId: round.id,
-            pois: round.pois,
-            speeches: round.speeches,
-            rebuttals: round.rebuttals,
-          }
-        }));
+        const debateItems = data
+          .filter(round => {
+            // Only show rounds where STEP 4 (Rebuttal Identification) is completed.
+            // We assume completion if there is at least some rebuttal data and speech data.
+            // Using optional chaining and default empty arrays/objects to be safe.
+            const hasRebuttals = (round.rebuttals || []).length > 0;
+            const hasSpeeches = round.speeches && Object.keys(round.speeches).length > 0;
+            return hasRebuttals && hasSpeeches;
+          })
+          .map(round => ({
+            id: round.id,
+            videoId: round.video_id,
+            title: round.title,
+            motion: round.motion,
+            description: round.description,
+            publishedAt: round.date_uploaded,
+            tag: round.tag,
+            features: round.features,
+            tryCount: round.try_count || 1,
+            graphItems: {
+              roundId: round.id,
+              pois: round.pois,
+              speeches: round.speeches,
+              rebuttals: round.rebuttals,
+            }
+          }));
 
         setDebateItems(debateItems);
         setIsLoading(false);
@@ -139,38 +148,9 @@ const DebateGraphs = () => {
       });
   }, []);
 
-  const logOperation = async (operation: string, data: object) => {
-    const requestBody = {
-      operation,
-      data: {
-        ...data,
-        user_name: 'Anonymous',
-      },
-    };
 
-    try {
-      const response = await fetch(getAPIRoot() + '/log/operation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const result = await response.json();
-    } catch (error) {
-    }
-  };
 
   useEffect(() => {
-    logOperation('TagClicked', {
-      tag: selectedTab,
-    });
-
     setPinnedItems([]);
 
     const filteredItems = selectedTab === 'All'
@@ -219,11 +199,6 @@ const DebateGraphs = () => {
 
       return newPinnedItems;
     });
-
-    await logOperation('MovieItemClicked', {
-      clicked_round_id: id,
-      previous_pinned_items: pinnedItems,
-    });
   };
 
   const onGraphNodeRightClicked = async (roundId: number, start: number, nodeSequenceId: number) => {
@@ -244,11 +219,6 @@ const DebateGraphs = () => {
     setYtTitle(nodeOwnerRound.title);
     setIsVisible(true);
 
-    await logOperation('GraphNodeClicked', {
-      owner_round_id: roundId,
-      node_start: start,
-      node_sequence_id: nodeSequenceId,
-    });
 
   };
 
@@ -352,9 +322,6 @@ const DebateGraphs = () => {
                         onClick={() => {
                           setSortOption(option.value);
                           setIsDropdownOpen(false);
-                          logOperation('SortChanged', {
-                            sort_option: option.value,
-                          });
                         }}
                         className={`w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ${sortOption === option.value ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 dark:border-blue-400' : ''
                           }`}
@@ -422,16 +389,16 @@ const DebateGraphs = () => {
                           <h3 className="font-medium text-base mb-1 line-clamp-1 dark:text-gray-100"> {item.title}</h3>
                           <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
                           <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
-                          {/* Features表示 */}
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                              {t(sortOptions.find(opt => opt.value === sortOption)?.labelKey || '')}: {
-                                sortOption === 'Date'
-                                  ? new Date(item.publishedAt).toISOString().split('T')[0]
-                                  : item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
-                              }
-                            </span>
-                          </div>
+                          {/* Features表示 (日付順の時はすでに日付が表示されているので非表示) */}
+                          {sortOption !== 'Date' && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                {t(sortOptions.find(opt => opt.value === sortOption)?.labelKey || '')}: {
+                                  item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
+                                }
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div
