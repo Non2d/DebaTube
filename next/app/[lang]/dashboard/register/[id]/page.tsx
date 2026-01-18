@@ -13,6 +13,7 @@ import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components
 import { testColabConnection } from './actions';
 import { useStepActions } from '../../../../../hooks/useStepActions';
 import { ManualDiarizationWorkflow } from './components/ManualDiarizationWorkflow';
+import { StyleChangeDialog } from './components/StyleChangeDialog';
 
 
 
@@ -57,7 +58,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         return "";
     });
     const [isTestingConnection, setIsTestingConnection] = useState(false);
-    const [manualVideoUrl, setManualVideoUrl] = useState(""); // For recovery
+    const [manualVideoUrl, setManualVideoUrl] = useState("");
+    const [styleChangeDialog, setStyleChangeDialog] = useState<{ open: boolean, newStyle: string }>({ open: false, newStyle: '' }); // For recovery
 
     // Workflow Mode State
     const [workflowMode, setWorkflowMode] = useState<'end-to-end' | 'manual'>(() => {
@@ -224,6 +226,24 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
+    const handleStyleChange = async (newStyle: string) => {
+        try {
+            const res = await fetch(getAPIRoot() + `/rounds/${roundId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ style: newStyle })
+            });
+            if (res.ok) {
+                setRoundData({ ...roundData, style: newStyle });
+                toast.success('Style updated successfully');
+            } else {
+                toast.error('Failed to update style');
+            }
+        } catch (error) {
+            toast.error('Error updating style');
+        }
+    };
+
     const handleRecoverVideoId = async () => {
         if (!manualVideoUrl) {
             toast.error(t('dashboard.modal.messages.urlRequired'));
@@ -382,7 +402,31 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         <div className="flex flex-wrap gap-6 text-sm">
                             <div>
                                 <span className="block text-gray-500 dark:text-gray-400 mb-1">Style</span>
-                                <span className="font-medium">{roundData.style || '-'}</span>
+                                <div className="flex gap-2 items-center">
+                                    <select
+                                        value={roundData.style || 'british_parliamentary'}
+                                        onChange={(e) => {
+                                            const newStyle = e.target.value;
+                                            const isStep2OrLaterCompleted = stepsStatus[1] === 'completed' ||
+                                                stepsStatus[2] === 'completed' ||
+                                                stepsStatus[3] === 'completed';
+
+                                            if (isStep2OrLaterCompleted) {
+                                                setStyleChangeDialog({ open: true, newStyle });
+                                            } else {
+                                                handleStyleChange(newStyle);
+                                            }
+                                        }}
+                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    >
+                                        <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
+                                        <option value="north_american">{t('recordPage.formatOptions.na')}</option>
+                                        <option value="asian">{t('recordPage.formatOptions.asian')}</option>
+                                        <option value="wsdc">{t('recordPage.formatOptions.wsdc')}</option>
+                                        <option value="hpdu">{t('recordPage.formatOptions.hpdu')}</option>
+                                        <option value="bp_opening_half">{t('recordPage.formatOptions.openingHalfBp')}</option>
+                                    </select>
+                                </div>
                             </div>
                             {roundData.video_id && (
                                 <div>
@@ -479,6 +523,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     </div>
                 </div>
             </div>
+            <StyleChangeDialog
+                open={styleChangeDialog.open}
+                onOpenChange={(open) => setStyleChangeDialog({ ...styleChangeDialog, open })}
+                onConfirm={() => handleStyleChange(styleChangeDialog.newStyle)}
+            />
         </>
     );
 }

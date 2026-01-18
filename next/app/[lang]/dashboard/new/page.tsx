@@ -283,6 +283,8 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                 >
                                     <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
                                     <option value="asian_parliamentary">{t('recordPage.formatOptions.asian')}</option>
+                                    <option value="wsdc">{t('recordPage.formatOptions.wsdc')}</option>
+                                    <option value="hpdu">{t('recordPage.formatOptions.hpdu')}</option>
                                     <option value="north_american">{t('recordPage.formatOptions.na')}</option>
                                     <option value="bp_opening_half">{t('recordPage.formatOptions.openingHalfBp')}</option>
                                 </select>

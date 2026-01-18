@@ -25,6 +25,9 @@ ASIAN_ORDER = [
     "Opposition_4th",
     "Proposition_4th",
 ]
+# WSDC and HPDU use the same speech order as ASIAN (durations differ on frontend)
+WSDC_ORDER = ASIAN_ORDER
+HPDU_ORDER = ASIAN_ORDER
 BP_ORDER = [
     "Proposition_1st",
     "Opposition_1st",
@@ -46,6 +49,8 @@ OPENING_HALF_BP_ORDER = [
 DEBATE_FORMATS = {
     "NA": NA_ORDER,
     "ASIAN": ASIAN_ORDER,
+    "WSDC": WSDC_ORDER,
+    "HPDU": HPDU_ORDER,
     "BP": BP_ORDER,
     "OPENING_HALF_BP_ORDER": OPENING_HALF_BP_ORDER,
 }

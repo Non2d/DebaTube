@@ -140,6 +140,8 @@ export default function GenerationControlBar({
                         >
                             <option value="NA">{t('recordPage.formatOptions.na')}</option>
                             <option value="ASIAN">{t('recordPage.formatOptions.asian')}</option>
+                            <option value="WSDC">{t('recordPage.formatOptions.wsdc')}</option>
+                            <option value="HPDU">{t('recordPage.formatOptions.hpdu')}</option>
                             <option value="BP">{t('recordPage.formatOptions.bp')}</option>
                             <option value="OPENING_HALF_BP_ORDER">{t('recordPage.formatOptions.openingHalfBp')}</option>
                         </select>

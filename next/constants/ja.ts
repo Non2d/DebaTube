@@ -122,6 +122,8 @@ export const ja: LocaleType = {
         formatOptions: {
             na: "NA (6スピーチ)",
             asian: "ASIAN (8スピーチ)",
+            wsdc: "WSDC (8スピーチ)",
+            hpdu: "HPDU (8スピーチ)",
             bp: "BP (8スピーチ)",
             openingHalfBp: "Opening Half BP (4スピーチ)",
         },
@@ -304,6 +306,14 @@ export const ja: LocaleType = {
                 success: "登録が完了しました",
                 error: "エラーが発生しました",
                 selectUrlOrFile: "ファイルを選択するかURLを入力してください"
+            },
+            styleChange: {
+                title: "スタイルを変更しますか？",
+                warning: "スタイルを変更すると、STEP 2以降のデータとの整合性が失われます。",
+                recommendation: "STEP 2でリセットしてから変更することを推奨します。",
+                confirm: "本当に変更しますか？",
+                cancel: "キャンセル",
+                change: "変更する"
             }
         },
         steps: {

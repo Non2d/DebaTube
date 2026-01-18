@@ -18,7 +18,7 @@ from enum import Enum
 from typing import Literal
 
 # Import speech positions from utils
-from routers.utils import NA_ORDER, ASIAN_ORDER, BP_ORDER, OPENING_HALF_BP_ORDER
+from routers.utils import NA_ORDER, ASIAN_ORDER, WSDC_ORDER, HPDU_ORDER, BP_ORDER, OPENING_HALF_BP_ORDER
 
 class RoundType(str, Enum):
     RECORD = "record"
@@ -27,11 +27,13 @@ class RoundType(str, Enum):
 class RoundStyle(str, Enum):
     NORTH_AMERICAN = "north_american"
     ASIAN = "asian"
+    WSDC = "wsdc"
+    HPDU = "hpdu"
     BRITISH_PARLIAMENTARY = "british_parliamentary"
     BP_OPENING_HALF = "bp_opening_half"
 
 # All possible speech positions across all formats
-ALL_SPEECH_POSITIONS = list(set(NA_ORDER + ASIAN_ORDER + BP_ORDER + OPENING_HALF_BP_ORDER))
+ALL_SPEECH_POSITIONS = list(set(NA_ORDER + ASIAN_ORDER + WSDC_ORDER + HPDU_ORDER + BP_ORDER + OPENING_HALF_BP_ORDER))
 
 # Speech position type for validation
 SpeechPosition = Literal[
@@ -57,6 +59,12 @@ class RoundCreate(BaseModel):
     video_tags: Optional[list] = None
     video_category_id: Optional[str] = None
     owner_id: Optional[str] = None
+
+
+class RoundUpdate(BaseModel):
+    """ラウンド更新リクエスト（部分更新）- 全フィールドOptional"""
+    style: Optional[RoundStyle] = None
+    motion: Optional[str] = None
 
 
 class RoundResponse(BaseModel):
@@ -259,6 +267,31 @@ async def get_round(round_name: str, try_count: Optional[int] = None, db: AsyncS
         video_id=round_obj.video_id,
         created_at=round_obj.created_at.isoformat()
     )
+
+
+@router.patch("/rounds/{round_id:int}")
+async def update_round(round_id: int, update_data: RoundUpdate, db: AsyncSession = Depends(get_db)):
+    """
+    ラウンドの情報を部分更新
+    - style: ディベートスタイル
+    - motion: 論題
+    """
+    round_obj = await round_crud.get_round_by_id(db, round_id)
+    if not round_obj:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    # Update fields if provided (exclude_unset=True means only update fields that were explicitly set)
+    update_dict = update_data.model_dump(exclude_unset=True)
+    
+    for field, value in update_dict.items():
+        setattr(round_obj, field, value)
+    
+    if update_dict:  # Only commit if there were changes
+        db.add(round_obj)
+        await db.commit()
+        await db.refresh(round_obj)
+    
+    return {"status": "success", "message": "Round updated", "updated_fields": list(update_dict.keys())}
 
 
 @router.delete("/rounds/{round_name}")

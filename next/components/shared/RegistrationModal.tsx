@@ -285,6 +285,8 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
                 <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
                 <option value="north_american">{t('recordPage.formatOptions.na')}</option>
                 <option value="asian">{t('recordPage.formatOptions.asian')}</option>
+                <option value="wsdc">{t('recordPage.formatOptions.wsdc')}</option>
+                <option value="hpdu">{t('recordPage.formatOptions.hpdu')}</option>
                 <option value="bp_opening_half">{t('recordPage.formatOptions.openingHalfBp')}</option>
               </select>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">

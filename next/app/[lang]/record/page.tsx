@@ -151,7 +151,7 @@ export default function RecordPage() {
   // Load debate format from LocalStorage after mount to avoid hydration errors
   useEffect(() => {
     const savedFormat = localStorage.getItem('debate_format');
-    if (savedFormat && (savedFormat === 'NA' || savedFormat === 'ASIAN' || savedFormat === 'BP' || savedFormat === 'OPENING_HALF_BP_ORDER')) {
+    if (savedFormat && (savedFormat === 'NA' || savedFormat === 'ASIAN' || savedFormat === 'WSDC' || savedFormat === 'HPDU' || savedFormat === 'BP' || savedFormat === 'OPENING_HALF_BP_ORDER')) {
       setDebateFormat(savedFormat as DebateFormatType);
     }
 

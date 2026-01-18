@@ -56,24 +56,26 @@ export const isGovernment = (positionName: string): boolean => {
 }
 
 export const isGovernmentFromSpeechId = (speechId: number, speechLength: number, debateFormat?: string): boolean => {
-    if (speechLength === 4) {
-        // Opening Half BP: Prop 1st (0), Prop 2nd (2)
-        return speechId === 0 || speechId === 2;
-    } else if (speechLength === 6) {
-        // NA: Prop 1st (0), Prop 2nd (2), Prop 3rd (5)
-        return speechId === 0 || speechId === 2 || speechId === 5;
-    } else if (speechLength === 7) {
-        // BP without Opposition 4th: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (6)
-        return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 6;
-    } else if (speechLength === 8) {
-        if (debateFormat === "ASIAN") {
-            // ASIAN: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (7)
+    if (!debateFormat) {
+        throw new Error("debateFormat is required");
+    }
+
+    switch (debateFormat) {
+        case "NA":
+            // NA: Prop 1st (0), Prop 2nd (2), Prop 3rd (5)
+            return speechId === 0 || speechId === 2 || speechId === 5;
+        case "ASIAN":
+        case "WSDC":
+        case "HPDU":
+            // ASIAN/WSDC/HPDU: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (7)
             return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 7;
-        } else {
+        case "BP":
             // BP: Prop 1st (0), Prop 2nd (2), Prop 3rd (4), Prop 4th (6)
             return speechId === 0 || speechId === 2 || speechId === 4 || speechId === 6;
-        }
-    } else {
-        throw new Error("Invalid speech length");
+        case "OPENING_HALF_BP_ORDER":
+            // Opening Half BP: Prop 1st (0), Prop 2nd (2)
+            return speechId === 0 || speechId === 2;
+        default:
+            throw new Error(`Unknown debate format: ${debateFormat}`);
     }
 }

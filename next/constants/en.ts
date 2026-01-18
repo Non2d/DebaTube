@@ -120,6 +120,8 @@ export const en = {
         formatOptions: {
             na: "NA (6 speeches)",
             asian: "ASIAN (8 speeches)",
+            wsdc: "WSDC (8 speeches)",
+            hpdu: "HPDU (8 speeches)",
             bp: "BP (8 speeches)",
             openingHalfBp: "Opening Half BP (4 speeches)",
         },
@@ -302,6 +304,14 @@ export const en = {
                 success: "Video registered successfully",
                 error: "An error occurred",
                 selectUrlOrFile: "Please select a file or enter a YouTube URL"
+            },
+            styleChange: {
+                title: "Change Style?",
+                warning: "Changing the style will cause data inconsistency with STEP 2 and beyond.",
+                recommendation: "We recommend resetting from STEP 2 before making changes.",
+                confirm: "Do you really want to change it?",
+                cancel: "Cancel",
+                change: "Change"
             }
         },
         steps: {
