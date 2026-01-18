@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '../../../../components/ui/tabs';
 import { getAPIRoot } from '../../../../components/lib/utils';
 import MacroStructure from './MacroStructure';
+import RebuttalGraph from '../../record/components/RebuttalGraph';
 import Youtube from 'react-youtube';
 import Header from '../../../../components/shared/Header';
 import { useTranslation } from '../../../../context/LanguageContext';
@@ -364,61 +365,89 @@ const DebateGraphs = () => {
               {/* debateItems 表示部（省略せず） */}
               <div className="relative overflow-y-auto" style={{ paddingLeft: '5vw', paddingRight: '5vw' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1">
-                  {displayDebateItems.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex flex-col border-4 cursor-pointer ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-transparent'}`}
-                      onClick={() => {
-                        // Navigate to Record page visualization tab with round name and try count
-                        const roundName = item.title; // Assuming title is the round name
-                        router.push(`/record?tab=visualization&roundName=${encodeURIComponent(roundName)}&tryCount=${item.tryCount}`);
-                      }}
-                      onDoubleClick={onMovieItemClicked(item.id)}
-                    >
-                      <div className="mb-1 flex gap-4">
-                        <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
-                          <Image
-                            src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
-                            alt={item.title}
-                            layout="fill"
-                            className="object-cover"
-                            unoptimized
-                          />
-                        </div>
-                        <div className="flex flex-col flex-grow">
-                          <h3 className="font-medium text-base mb-1 line-clamp-1 dark:text-gray-100"> {item.title}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
-                          {/* Features表示 (日付順の時はすでに日付が表示されているので非表示) */}
-                          {sortOption !== 'Date' && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                {t(sortOptions.find(opt => opt.value === sortOption)?.labelKey || '')}: {
-                                  item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
-                                }
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  {displayDebateItems.map((item, index) => {
+                    // Transform data for RebuttalGraph
+                    const convertedSpeeches: { [key: string]: any[] } = {};
+                    if (Array.isArray(item.graphItems.speeches)) {
+                      item.graphItems.speeches.forEach((s: any) => {
+                        convertedSpeeches[s.role] = s.argument_units.map((u: any) => ({
+                          ...u,
+                          id: u.sequence_id // RebuttalGraph expects 'id'
+                        }));
+                      });
+                    }
+
+                    const convertedRebuttals: [number, number][] = Array.isArray(item.graphItems.rebuttals)
+                      ? item.graphItems.rebuttals.map((r: any) => [r.src, r.tgt])
+                      : [];
+
+                    const graphData = {
+                      speeches: convertedSpeeches,
+                      rebuttals: convertedRebuttals
+                    };
+
+                    // Guess format
+                    const speechCount = Object.keys(convertedSpeeches).length;
+                    // Or use item.graphItems.speeches.length if array
+                    const format = (Array.isArray(item.graphItems.speeches) && item.graphItems.speeches.length === 6) ? "NA" : "BP";
+
+                    return (
                       <div
-                        className="aspect-[16/9] relative"
-                        style={{ height: '35vh' }}
+                        key={item.id}
+                        className={`flex flex-col border-4 cursor-pointer ${pinnedItems.includes(item.id) ? 'border-yellow-500' : 'border-transparent'}`}
+                        onDoubleClick={onMovieItemClicked(item.id)}
                       >
+                        <div className="mb-1 flex gap-4">
+                          <div className="aspect-square relative bg-muted ml-1 mt-1" style={{ width: '8vh', height: '8vh' }}>
+                            <Image
+                              src={`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`}
+                              alt={item.title}
+                              layout="fill"
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="flex flex-col flex-grow">
+                            <h3 className="font-medium text-base mb-1 line-clamp-1 dark:text-gray-100"> {item.title}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-3">{item.motion}</p>
+                            <p className="text-sm text-muted-foreground">{new Date(item.publishedAt).toISOString().split('T')[0]}</p>
+                            {/* Features表示 (日付順の時はすでに日付が表示されているので非表示) */}
+                            {sortOption !== 'Date' && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                  {t(sortOptions.find(opt => opt.value === sortOption)?.labelKey || '')}: {
+                                    item.features[sortOption.toLowerCase() as keyof MacroStructuralFeatures]?.toFixed(3)
+                                  }
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         <div
-                          className="absolute inset-0"
-                          style={{ pointerEvents: 'none' }}
+                          className="aspect-[16/9] relative"
+                          style={{ height: '35vh' }}
                         >
-                          <MacroStructure
-                            ref={macroStructureRefs.current[index]}
-                            data={item.graphItems}
-                            onGraphNodeClicked={onGraphNodeRightClicked}
-                            isPinned={pinnedItems.includes(item.id)}
-                          />
+                          <div
+                            className="absolute inset-0"
+                          // Click event is handled by parent div, but we want interactive graph.
+                          // However, parent is standard Explore implementation.
+                          // RebuttalGraph handles clicks inside.
+                          // pointerEvents: 'none' on wrapper prevents interaction?
+                          // User requested interactive graph, so remove pointerEvents: 'none'
+                          // style={{ pointerEvents: 'none' }} 
+                          >
+                            <RebuttalGraph
+                              data={graphData}
+                              onNodeClick={(nodeId, startTime) => onGraphNodeRightClicked(item.id, startTime, nodeId)}
+                              debateFormat={format}
+                              showNodeIds={false}
+                              showPoiColors={true}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </>

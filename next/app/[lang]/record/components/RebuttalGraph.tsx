@@ -295,11 +295,12 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         panOnScroll={false}
-        zoomOnScroll={false}
-        zoomOnPinch={false}
-        panOnDrag={false}
-        zoomOnDoubleClick={false}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        panOnDrag={true}
+        zoomOnDoubleClick={true}
         fitView
+        minZoom={0.1}
         proOptions={proOptions}
       />
     </div>

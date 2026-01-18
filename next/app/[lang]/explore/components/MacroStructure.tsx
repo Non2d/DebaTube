@@ -154,12 +154,13 @@ const MacroStructure = forwardRef<HTMLDivElement, MacroStructureProps>(({ data, 
                 edgeTypes={edgeTypes}
                 // panOnScroll
                 // panOnDrag={[1, 2]}
-                panOnScroll={false} // スクロールによるパンを無効化
-                zoomOnScroll={false} // スクロールによるズームを無効化
-                zoomOnPinch={false} // ピンチによるズームを無効化
-                panOnDrag={false} // ドラッグによるパンを無効化
-                zoomOnDoubleClick={false} // ダブルクリックによるズームを無効化
+                panOnScroll={false} // スクロールによるパンはページスクロールと干渉するので無効のまま
+                zoomOnScroll={true} // スクロールによるズームを有効化
+                zoomOnPinch={true} // ピンチによるズームを有効化
+                panOnDrag={true} // ドラッグによるパンを有効化
+                zoomOnDoubleClick={true} // ダブルクリックによるズームを有効化
                 fitView
+                minZoom={0.1} // 巨大なグラフでも全体が収まるように最小ズームレベルを下げる
                 proOptions={proOptions}
 
                 // onNodeClick={(event, node) => handleNodeClick(node)}
