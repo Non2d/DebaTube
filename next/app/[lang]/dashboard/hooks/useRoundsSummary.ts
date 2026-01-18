@@ -17,6 +17,10 @@ export interface RoundSummary {
   type: string;
   try_count: number;
   style: string;
+  step1_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
+  step2_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
+  step3_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
+  step4_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
 }
 
 export interface PaginatedRoundSummaryResponse {

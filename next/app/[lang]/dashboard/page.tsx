@@ -104,9 +104,7 @@ export default function VideoDashboard() {
                       <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
                       <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
                       <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
-                      <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.pois')}</th>
-                      <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.rebuttals')}</th>
-                      <th className="text-left py-2 px-4 w-[100px]">{t('dashboard.table.headers.arguments')}</th>
+                      <th className="text-left py-2 px-4 w-[120px]">Progress</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -199,9 +197,48 @@ export default function VideoDashboard() {
                               <td className="py-2 px-4 max-w-xs truncate" title={round.motion}>
                                 {round.motion}
                               </td>
-                              <td className="py-2 px-4">{round.poi_count}</td>
-                              <td className="py-2 px-4">{round.rebuttal_count}</td>
-                              <td className="py-2 px-4">{round.total_argument_units}</td>
+                              <td className="py-2 px-4">
+                                <div className="flex items-center gap-0.5">
+                                  {(() => {
+                                    const steps = [
+                                      { num: 1, status: round.step1_status },
+                                      { num: 2, status: round.step2_status },
+                                      { num: 3, status: round.step3_status },
+                                      { num: 4, status: round.step4_status },
+                                    ];
+                                    return steps.map((step, idx) => (
+                                      <div key={idx} className="flex items-center">
+                                        <div
+                                          className={`w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold leading-none relative ${step.status === 'done'
+                                            ? 'bg-green-500 text-white'
+                                            : step.status === 'processing'
+                                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                              : step.status === 'in_queue'
+                                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                                                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                                            }`}
+                                          title={`Step ${step.num}: ${step.status}`}
+                                        >
+                                          {step.status === 'processing' && (
+                                            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
+                                          )}
+                                          <span className="-translate-y-px inline-block">
+                                            {step.status === 'done' ? '✓' : step.num}
+                                          </span>
+                                        </div>
+                                        {idx < steps.length - 1 && (
+                                          <div
+                                            className={`w-3 h-0.5 ${step.status === 'done'
+                                              ? 'bg-green-500'
+                                              : 'bg-gray-200 dark:bg-gray-700'
+                                              }`}
+                                          />
+                                        )}
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                              </td>
                             </tr>
                           );
                         });
