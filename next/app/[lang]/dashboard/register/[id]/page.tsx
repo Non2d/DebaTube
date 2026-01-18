@@ -59,7 +59,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     });
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [manualVideoUrl, setManualVideoUrl] = useState("");
-    const [styleChangeDialog, setStyleChangeDialog] = useState<{ open: boolean, newStyle: string }>({ open: false, newStyle: '' }); // For recovery
+    const [styleChangeDialog, setStyleChangeDialog] = useState<{ open: boolean, newStyle: string }>({ open: false, newStyle: '' });
+    const [editedMotion, setEditedMotion] = useState("");
+    const [isEditingMotion, setIsEditingMotion] = useState(false); // For recovery
 
     // Workflow Mode State
     const [workflowMode, setWorkflowMode] = useState<'end-to-end' | 'manual'>(() => {
@@ -241,6 +243,25 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             }
         } catch (error) {
             toast.error('Error updating style');
+        }
+    };
+
+    const handleMotionSave = async () => {
+        try {
+            const res = await fetch(getAPIRoot() + `/rounds/${roundId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ motion: editedMotion })
+            });
+            if (res.ok) {
+                setRoundData({ ...roundData, motion: editedMotion });
+                setIsEditingMotion(false);
+                toast.success('Motion updated successfully');
+            } else {
+                toast.error('Failed to update motion');
+            }
+        } catch (error) {
+            toast.error('Error updating motion');
         }
     };
 
@@ -441,12 +462,50 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                     </a>
                                 </div>
                             )}
-                            {roundData.motion && (
-                                <div className="w-full">
-                                    <span className="block text-gray-500 dark:text-gray-400 mb-1">Motion</span>
-                                    <span className="font-medium">{roundData.motion}</span>
-                                </div>
-                            )}
+                            <div className="w-full">
+                                <span className="block text-gray-500 dark:text-gray-400 mb-1">Motion</span>
+                                {isEditingMotion ? (
+                                    <div className="flex gap-2">
+                                        <textarea
+                                            value={editedMotion}
+                                            onChange={(e) => setEditedMotion(e.target.value)}
+                                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                                            rows={2}
+                                            placeholder="Enter motion..."
+                                        />
+                                        <div className="flex flex-col gap-2">
+                                            <button
+                                                onClick={handleMotionSave}
+                                                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
+                                            >
+                                                Save
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditingMotion(false);
+                                                    setEditedMotion(roundData.motion || '');
+                                                }}
+                                                className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-sm font-medium transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start gap-2">
+                                        <span className="flex-1 font-medium">{roundData.motion || '(No motion set)'}</span>
+                                        <button
+                                            onClick={() => {
+                                                setEditedMotion(roundData.motion || '');
+                                                setIsEditingMotion(true);
+                                            }}
+                                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded text-sm font-medium transition-colors"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Recovery UI for missing video_id */}
                             {!roundData.video_id && (
