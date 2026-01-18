@@ -102,7 +102,7 @@ export default function VideoDashboard() {
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
                       <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
-                      <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.style')}</th>
+                      <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
                       <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
                       <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.pois')}</th>
                       <th className="text-left py-2 px-4 w-[80px]">{t('dashboard.table.headers.rebuttals')}</th>
@@ -195,7 +195,9 @@ export default function VideoDashboard() {
                                   if (style === 'british_parliamentary' || style === 'BP') return 'BP';
                                   if (style === 'north_american' || style === 'NA') return 'NA';
                                   if (style === 'asian' || style === 'ASIAN') return 'Asian';
-                                  if (style === 'bp_opening_half' || style === 'OPENING_HALF_BP_ORDER') return 'BP Opening Half';
+                                  if (style === 'bp_opening_half' || style === 'OPENING_HALF_BP_ORDER') return 'BP Half';
+                                  if (style === 'wsdc' || style === 'WSDC') return 'WSDC';
+                                  if (style === 'hpdu' || style === 'HPDU') return 'HPDU';
                                   return style;
                                 })()}
                               </td>
