@@ -65,6 +65,30 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [editedMotion, setEditedMotion] = useState("");
     const [isEditingMotion, setIsEditingMotion] = useState(false); // For recovery
 
+    // LLM Model State
+    const [llmModel, setLlmModel] = useState("gemini-2.5-flash");
+    const [geminiModels, setGeminiModels] = useState<string[]>(["gemini-2.5-flash", "gemini-3-flash"]);
+
+    useEffect(() => {
+        const fetchModels = async () => {
+            try {
+                const res = await fetch(getAPIRoot() + '/audio2adu/gemini-models');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.models) {
+                        setGeminiModels(data.models);
+                        if (data.models.length > 0) {
+                            setLlmModel(data.models[0]);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to fetch Gemini models", e);
+            }
+        };
+        fetchModels();
+    }, []);
+
     // Workflow Mode State
     const [workflowMode, setWorkflowMode] = useState<'end-to-end' | 'manual'>(() => {
         if (typeof window !== 'undefined') {
@@ -182,6 +206,89 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
+    const runAutoDiarization = async () => {
+        try {
+            const toastId = toast.loading(t('dashboard.steps.status.processing') || "Processing Auto Diarization...");
+            const res = await fetch(getAPIRoot() + `/auto/diarization/${roundId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: llmModel })
+            });
+            toast.dismiss(toastId);
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Auto Diarization failed");
+            }
+
+            toast.success("Diarization Complete!");
+            await fetchJobProgress();
+        } catch (e: any) {
+            toast.error(e.message);
+            throw e;
+        }
+    };
+
+    const runAutoAdu = async () => {
+        try {
+            const toastId = toast.loading(t('dashboard.steps.status.processing') || "Processing Auto ADU...");
+            const res = await fetch(getAPIRoot() + `/auto/adus/${roundId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: llmModel })
+            });
+            toast.dismiss(toastId);
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Auto ADU Generation failed");
+            }
+
+            toast.success("ADU Generation Complete!");
+            await fetchJobProgress();
+        } catch (e: any) {
+            toast.error(e.message);
+            throw e;
+        }
+    };
+
+    const runAutoRebuttal = async () => {
+        try {
+            const toastId = toast.loading(t('dashboard.steps.status.processing') || "Processing Auto Rebuttal...");
+            const res = await fetch(getAPIRoot() + `/auto/rebuttals/${roundId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: llmModel })
+            });
+            toast.dismiss(toastId);
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "Auto Rebuttal Generation failed");
+            }
+
+            toast.success("Rebuttal Generation Complete!");
+            await fetchJobProgress();
+        } catch (e: any) {
+            toast.error(e.message);
+            throw e;
+        }
+    };
+
+    const runEndToEndWorkflow = async () => {
+        try {
+            if (stepsStatusRef.current[0] !== 'completed') {
+                await runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, async () => await fetchJobProgress());
+            }
+            await runAutoDiarization();
+            await runAutoAdu();
+            await runAutoRebuttal();
+            toast.success("All Steps Completed Successfully!");
+        } catch (e: any) {
+            console.error("End-to-End Workflow Stopped:", e);
+        }
+    };
+
     const handleStepAction = async (stepIndex: number, action: string = 'run', data?: any) => {
         if (action === 'reset') {
             const startStep = data?.startStep || "1-a";
@@ -189,9 +296,17 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             return;
         }
 
-        if (stepIndex === 1) runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, fetchJobProgress);
-        // Step 2, 3... can execute normally or via existing logic if implemented
-        // Since original code only had Step 1 & 2 actions implemented here...
+        if (stepIndex === 1) {
+            runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, fetchJobProgress);
+            return;
+        }
+
+        if (workflowMode === 'end-to-end') {
+            if (stepIndex === 2) await runAutoDiarization();
+            else if (stepIndex === 3) await runAutoAdu();
+            else if (stepIndex === 4) await runAutoRebuttal();
+            return;
+        }
     };
 
     const handleTestConnection = async () => {
@@ -299,6 +414,43 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             );
         }
 
+        // End-to-End Mode Action Buttons (Step 2, 3, 4)
+        if (workflowMode === 'end-to-end' && (stepId === 2 || stepId === 3 || stepId === 4)) {
+            const status = stepsStatus[stepId - 1]; // 0-based index maps to Step ID
+
+            // If already processing, the parent ProcessingSteps shows spinner in header usually,
+            // but we might want to show something here too? 
+            // ProcessingSteps renders children. Default UI handles status visualization on the card itself.
+            // Be check if we need to render anything if 'processing'. 
+            // If 'pending' or 'error', we need the button.
+
+            if (status === 'pending' || status === 'error') {
+                return (
+                    <div className="p-4">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-1">{t('dashboard.steps.autoMode') || "LLM Auto Mode"}</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {stepId === 2 && (t('dashboard.steps.descriptions.autoDiarization') || "Automatically detect speakers using Gemini.")}
+                                        {stepId === 3 && (t('dashboard.steps.descriptions.autoAdu') || "Automatically segment speech into arguments.")}
+                                        {stepId === 4 && (t('dashboard.steps.descriptions.autoRebuttal') || "Automatically identify rebuttal structure.")}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleStepAction(stepId, 'run')}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm"
+                                >
+                                    {t('dashboard.steps.actions.resumeStep') || "Resume from here"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
+        }
+
         // Step 3: Manual ADU Segmentation
         if (stepId === 3 && workflowMode === 'manual') {
             return (
@@ -327,7 +479,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             );
         }
 
-        if (stepId !== 1) return null; // Model selection moved to Step 1
+        if (stepId !== 1 || workflowMode === 'end-to-end') return null; // Model selection moved to Header for End-to-End
 
         return (
             <div className="mt-4 mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -349,6 +501,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             <option value="openai-whisper">whisper-1 (OpenAI)</option>
                         </select>
                     </div>
+
+
 
                     {/* Colab URL Input & Test Button (Custom Colab) */}
                     {transcriptionModel === 'custom-colab-whisper' && (
@@ -597,15 +751,93 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                             Manual Mode
                                         </button>
                                     </div>
+
+                                    {workflowMode === 'end-to-end' && (
+                                        <div className="mt-6 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-5">
+                                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                                <span>⚙️</span> Configuration
+                                            </h3>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                                {/* Transcription Model */}
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                        Transcription Model
+                                                    </label>
+                                                    <select
+                                                        value={transcriptionModel}
+                                                        onChange={(e) => setTranscriptionModel(e.target.value)}
+                                                        className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                                    >
+                                                        <option value="custom-colab-whisper">faster-whisper-large-v2 (Colab)</option>
+                                                        <option value="transcription-service">faster-whisper-large-v2 (Service)</option>
+                                                        <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
+                                                        <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
+                                                        <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                                                    </select>
+
+                                                    {/* Colab/Service Extras */}
+                                                    {transcriptionModel === 'custom-colab-whisper' && (
+                                                        <div className="mt-2">
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={colabUrl}
+                                                                    onChange={(e) => setColabUrl(e.target.value)}
+                                                                    placeholder="Colab URL..."
+                                                                    className="flex-1 h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                                                                />
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleTestConnection(); }}
+                                                                    disabled={isTestingConnection || !colabUrl}
+                                                                    className="h-9 px-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-xs font-bold transition-colors"
+                                                                >
+                                                                    Test
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {transcriptionModel === 'transcription-service' && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleTestConnection(); }}
+                                                            disabled={isTestingConnection}
+                                                            className="mt-2 h-9 w-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-xs font-bold transition-colors"
+                                                        >
+                                                            Check Service Status
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* LLM Model */}
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                        NLP Model (Gemini)
+                                                    </label>
+                                                    <select
+                                                        value={llmModel}
+                                                        onChange={(e) => setLlmModel(e.target.value)}
+                                                        className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                                    >
+                                                        {geminiModels.map((m) => (
+                                                            <option key={m} value={m}>{m}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={runEndToEndWorkflow}
+                                                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3"
+                                            >
+                                                <span className="text-xl">✨</span>
+                                                <span className="text-lg">Run All Steps Automatically</span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             }
                         >
-                            {workflowMode === 'end-to-end' && (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-20">
-                                    <div className="text-lg font-medium mb-2">Coming Soon</div>
-                                    <div className="text-sm">LLM End-to-End workflow is under development.</div>
-                                </div>
-                            )}
+                            {/* Content is now handled by renderStepExtras or default UI */}
                         </ProcessingSteps>
                     </div>
                 </div>

@@ -57,6 +57,16 @@ from sqlalchemy import select, delete
 
 router = APIRouter()
 
+@router.get("/audio2adu/gemini-models")
+async def get_gemini_models():
+    """Return available Gemini models for selection"""
+    return {
+        "models": [
+            "gemini-2.5-flash",
+            "gemini-3-flash"
+        ]
+    }
+
 # ===== Pydantic Models =====
 
 
@@ -1219,7 +1229,7 @@ async def identify_rebuttal_structure(
             "speeches": speeches_data,
             "rebuttals": local_rebuttal_pairs,
             "total_speeches": len(speeches_data),
-            "total_adus": total_adus,
+            "total_adus": global_adu_index,
             "total_rebuttal_pairs": len(rebuttal_pairs),
             "model": model_name,
             "processing_time_seconds": round(elapsed_time, 2),
@@ -1857,7 +1867,383 @@ async def get_rebuttal_graph(round_name: str, try_count: Optional[int] = None, d
             status_code=500, detail=f"Failed to get rebuttal graph: {str(e)}"
         )
 
+
+class AutoProcessRequest(BaseModel):
+    model: Optional[str] = "gemini-2.5-flash"
+
+# --- Auto (LLM End-to-End) Mode Endpoints ---
+
+@router.post("/auto/diarization/{round_id}")
+async def auto_diarize_round(round_id: int, req: AutoProcessRequest = Body(...), db: AsyncSession = Depends(get_db)):
+    """
+    Step 2-A (Auto): Generate diarization prompt, call Gemini, parse JSON, save to DB.
+    """
+    logger.info(f"Auto Diarization (LLM) for round_id: {round_id}, Model: {req.model}")
+    model_name = req.model or GEMINI_MODEL_NAME
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail="Round not found")
+
+        # 1. Fetch Sentences
+        sentences = await round_crud.get_sentences_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        if not sentences:
+            raise HTTPException(status_code=404, detail="No sentences found. Run transcription (Step 1) first.")
+        
+        # 2. Determine Positions
+        positions = DEBATE_FORMATS.get("NA", [])
+        
+        style_map = {
+             "british_parliamentary": "BP", 
+             "bp_opening_half": "BP", # Uses BP positions roughly? Or specific? Using BP for now.
+             "north_american": "NA", 
+             "asian": "ASIAN",
+             "world_schools": "WSDC",
+             "wsdc": "WSDC",
+             "hpdu": "HPDU"
+        }
+        fmt_key = style_map.get(round_obj.style, "NA")
+        if fmt_key in DEBATE_FORMATS:
+            positions = DEBATE_FORMATS[fmt_key]
+        elif round_obj.style == "bp_opening_half":
+             positions = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd"]
+
+        # 3. Construct Prompt (matching ManualDiarizationWorkflow.tsx)
+        transcript_preview = "{\n"
+        for idx, s in enumerate(sentences):
+            local_id = idx + 1
+            safe_text = s.text.replace('"', '\\"')
+            transcript_preview += f'{local_id}: "{safe_text}"\n'
+        transcript_preview += "}"
+
+        system_prompt = f"""You are a debate diarization expert.
+Format: {round_obj.style}
+Expected Speakers: {", ".join(positions)}
+"""
+        prompt = f"""{system_prompt}# Instruction
+
+The following transcript is from parliamentary debate. Please detect debaters and return ids of first and last sentence from each speaker.
+
+IMPORTANT RULES:
+1. Transcripts may include statements from judges or timekeepers - IGNORE these parts
+2. DO NOT consider Point of Information (questions during opponent speeches) as speaker changes
+3. You MUST use ONLY these exact position names (no other names allowed):
+   {chr(10).join([f'- {p}' for p in positions])}
+
+Return ONLY a JSON object with these exact keys. DO NOT add any other positions like "Reply" speeches.
+Use the format [start_id, end_id] for each position.
+
+Example response format:
+{{
+    "Proposition_1st": [10, 20],
+    "Opposition_1st": [21, 30],
+    ...
+}}
+
+# Transcription
+
+{transcript_preview}"""
+
+        # 4. Call Gemini
+        logger.info(f"Calling Gemini ({model_name}) for Diarization...")
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=model_name,
+            contents=prompt,
+        )
+        response_text = response.text if hasattr(response, "text") else str(response)
+        _save_gemini_log(response_text, "diarization", round_obj.name, prompt_text=prompt, model_name=model_name)
+
+        # 5. Parse JSON
+        try:
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            parsed = json.loads(cleaned_response)
+        except Exception as e:
+            logger.error(f"Failed to parse Diarization JSON: {e}")
+            raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON: {e}")
+
+        # 6. Save Speeches
+        # Capture round_id early to avoid MissingGreenlet errors after commits
+        round_id_value = round_obj.id
+        
+        # First ensure speeches exist. If not, create them.
+        existing_speeches = await round_crud.get_speeches_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        existing_map = {s.position: s for s in existing_speeches}
+        
+        # Prepare updates
+        entries = []
+        for pos, val in parsed.items():
+            if pos not in positions and pos not in existing_map:
+                 if pos not in positions: 
+                     logger.warning(f"Skipping unknown position: {pos}")
+                     continue
+
+            if not isinstance(val, list) or len(val) < 2:
+                continue
+
+            start_local_idx = int(val[0])
+            end_local_idx = int(val[1])
+
+            # Convert 1-based local index to DB ID (sentences list is 0-based)
+            if start_local_idx < 1 or end_local_idx > len(sentences):
+                 logger.warning(f"Indices out of bounds for {pos}: {start_local_idx}-{end_local_idx}")
+                 continue
+
+            start_sentence = sentences[start_local_idx - 1]
+            end_sentence = sentences[end_local_idx - 1]
+
+            entries.append({
+                "position": pos,
+                "first_sentence_id": start_sentence.id,
+                "last_sentence_id": end_sentence.id
+            })
+
+        if not entries:
+            raise HTTPException(status_code=500, detail="No valid speaker segments found in LLM response")
+
+        # Reuse update_speech_sentences logic (exposed via round_crud?)
+        # Or do it manually here.
+        
+        updated_speeches = []
+        for entry in entries:
+            pos = entry["position"]
+            start_id = entry["first_sentence_id"]
+            end_id = entry["last_sentence_id"]
+            
+            speech = existing_map.get(pos)
+            if not speech:
+                # Create speech using captured round_id
+                speech = Speech(
+                    round_id=round_id_value,
+                    position=pos
+                )
+                db.add(speech)
+                await db.commit()
+                await db.refresh(speech)
+                existing_map[pos] = speech
+            
+            speech.first_sentence_id = start_id
+            speech.last_sentence_id = end_id
+            updated_speeches.append(speech)
+        
+        await db.commit()
+        logger.info(f"Auto Diarization saved {len(updated_speeches)} speeches.")
+        
+        return {
+            "status": "success",
+            "message": "Auto Diarization Completed",
+            "speeches_updated": len(updated_speeches)
+        }
+
+    except Exception as e:
+        logger.error(f"Auto Diarization Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/auto/adus/{round_id}")
+async def auto_adu_generation_from_db(round_id: int, req: AutoProcessRequest = Body(...), db: AsyncSession = Depends(get_db)):
+    """
+    Step 3 (Auto): Generate ADU prompt from DB Speeches, call Gemini, save ADUs.
+    """
+    logger.info(f"Auto ADU Generation (LLM) for round_id: {round_id}, Model: {req.model}")
+    model_name = req.model or GEMINI_MODEL_NAME
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail="Round not found")
+
+        # 1. Fetch data for prompt (reusing logic from manual_resume essentially)
+        # We need all speeches and their sentences.
+        speeches = await round_crud.get_speeches_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        if not speeches: 
+            raise HTTPException(status_code=400, detail="No speeches found (Run Diarization first)")
+
+        # Collect sentences for each speech
+        transcripts_data = {}
+        all_sentences = await round_crud.get_sentences_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        id_to_global_idx = {s.id: i for i, s in enumerate(all_sentences)}
+
+        for speech in speeches:
+            if speech.first_sentence_id and speech.last_sentence_id and speech.position:
+                speech_sents = []
+                for sent in all_sentences:
+                    if speech.first_sentence_id <= sent.id <= speech.last_sentence_id:
+                        speech_sents.append(sent)
+                
+                transcripts_data[speech.position] = {
+                    "text": " ".join([s.text for s in speech_sents]), # Rough full text
+                    "words": [], # Not strictly needed for prompt if we construct it from sentences
+                    "sentences": speech_sents # Custom field passed to helper? 
+                }
+
+        # 2. Construct Prompt
+        prompt_content_parts = []
+        
+        # Sort speeches
+        sorted_keys = sorted(transcripts_data.keys()) # Generic sort
+        
+        for role in sorted_keys:
+             sents = transcripts_data[role]["sentences"]
+             prompt_sentences_data = [
+                 {"id": id_to_global_idx.get(s.id, -1), "text": s.text} for s in sents
+             ]
+             
+             prompt_content_parts.append(f"## {role}")
+             for s_data in prompt_sentences_data:
+                 prompt_content_parts.append(f"{s_data['id']}: {s_data['text']}")
+             prompt_content_parts.append("")
+             
+        full_transcript_text = "\n".join(prompt_content_parts)
+        
+        prompt = f"""
+# Introduction
+Please segment the following debate speeches into Argument Discourse Units (ADUs).
+Each ADU represents a single argument or discourse unit with a specific role below:
+
+# ADU Role Definitions
+- introduction: Opening statement that typically explains the team's stance and framework
+- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
+- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
+- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
+- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
+- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+
+# Segmentation Guidelines
+1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
+2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
+3. Rebuttals are always independent ADUs regardless of length
+4. Group sentences discussing the same specific argumentative point into one ADU
+5. Treat any POI as a single independent ADU.
+6. Treat a response to a POI as a single ADU.
+7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+
+# Output Format
+Return the result as a JSON object where keys are "Speech Name" (e.g. Proposition_1st) and values are lists of ADUs.
+Use GLOBAL sentence IDs as provided in transcript.
+
+Format:
+{{
+  "Proposition_1st": [
+    {{
+      "start_sentence_index": 0,
+      "end_sentence_index": 2,
+      "text": "The actual ADU text...",
+      "role": "point_of_main_argument"
+    }}
+  ]
+}}
+
+# Transcript Data
+{full_transcript_text}
+"""
+
+        # 3. Call Gemini
+        logger.info(f"Calling Gemini ({model_name}) for ADU Generation...")
+        response = await asyncio.to_thread(
+            client_gemini.models.generate_content,
+            model=model_name,
+            contents=prompt,
+        )
+        response_text = response.text if hasattr(response, "text") else str(response)
+        _save_gemini_log(response_text, "adu_auto", round_obj.name, prompt_text=prompt, model_name=model_name)
+
+        # 4. Parse JSON
+        try:
+            cleaned_response = clean_gemini_markdown_response(response_text)
+            adu_json = json.loads(cleaned_response)
+        except Exception as e:
+             raise HTTPException(status_code=500, detail=f"LLM returned invalid JSON: {e}")
+
+        # 5. Save ADUs (Reuse manual_submit_adu logic essentially)
+        await db.execute(delete(Adu).where(Adu.speech_id.in_([s.id for s in speeches])))
+        
+        items_to_process = []
+        if isinstance(adu_json, dict):
+             if "speeches" in adu_json:
+                 items_to_process = adu_json["speeches"]
+             else:
+                 for pos, adus in adu_json.items():
+                     if isinstance(adus, list):
+                         items_to_process.append({"position": pos, "adus": adus})
+                         
+        adus_to_create = []
+        words_all = await round_crud.get_words_by_round(db, round_obj.name, try_count=round_obj.try_count)
+        words_map = {w.id: w for w in words_all}
+        speech_map = {s.position: s for s in speeches}
+
+        for item in items_to_process:
+            pos = item.get("position")
+            if pos not in speech_map: continue
+            
+            speech = speech_map[pos]
+            for adu in item.get("adus", []):
+                start_global = adu.get("start_sentence_index")
+                end_global = adu.get("end_sentence_index")
+                
+                # Retrieve sentence objects by index
+                if start_global < 0 or start_global >= len(all_sentences): continue
+                if end_global < 0 or end_global >= len(all_sentences): continue
+                
+                start_sent = all_sentences[start_global]
+                end_sent = all_sentences[end_global]
+                
+                # Check timestamps
+                start_time = 0.0
+                end_time = 0.0
+                if start_sent.first_word_id in words_map: start_time = words_map[start_sent.first_word_id].start_time
+                if end_sent.last_word_id in words_map: end_time = words_map[end_sent.last_word_id].end_time
+                
+                adus_to_create.append({
+                    "speech_id": speech.id,
+                    "first_sentence_id": start_sent.id,
+                    "last_sentence_id": end_sent.id,
+                    "text": adu.get("text", ""),
+                    "role": adu.get("role", "claim"),
+                    "start_time": start_time,
+                    "end_time": end_time
+                })
+        
+        if adus_to_create:
+            await round_crud.create_adus_batch(db, adus_to_create)
+            await db.commit()
+            
+        return {
+            "status": "success", 
+            "message": "Auto ADU Generation Completed",
+            "adus_created": len(adus_to_create)
+        }
+            
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Auto ADU Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/auto/rebuttals/{round_id}")
+async def auto_rebuttal_generation_from_db(round_id: int, req: AutoProcessRequest = Body(...), db: AsyncSession = Depends(get_db)):
+    """
+    Step 4 (Auto): Generate Rebuttals from DB ADUs.
+    """
+    logger.info(f"Auto Rebuttal Generation (LLM) for round_id: {round_id}, Model: {req.model}")
+    model_name = req.model or GEMINI_MODEL_NAME
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail="Round not found")
+            
+        req_internal = RebuttalStructureRequest(
+            round_name=round_obj.name, 
+            try_count=round_obj.try_count,
+            model=model_name
+        )
+        return await identify_rebuttal_structure(req_internal, db)
+        
+    except Exception as e:
+        logger.error(f"Auto Rebuttal Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- Manual Mode Endpoints ---
+
 
 @router.post("/manual/submit-adu", response_model=Dict[str, Any])
 async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = Depends(get_db)):
