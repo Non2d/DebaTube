@@ -305,7 +305,7 @@ export default function ProcessingSteps({
                                                     )}
                                                 </div>
                                                 <div>
-                                                    {step.id !== 2 && (
+                                                    {step.id === 1 && (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();

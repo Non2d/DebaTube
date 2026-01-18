@@ -347,6 +347,7 @@ export const en = {
                 resetDialogConfirm: "Yes, Reset Progress",
                 resetDialogCancel: "Cancel",
                 copyPrompt: "Copy Prompt",
+                copied: "Copied",
                 registerVerify: "Register & Verify",
                 updateContinue: "Update & Continue",
                 resetToLastSaved: "Reset to Last Saved",

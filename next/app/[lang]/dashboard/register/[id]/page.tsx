@@ -13,6 +13,8 @@ import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components
 import { testColabConnection } from './actions';
 import { useStepActions } from '../../../../../hooks/useStepActions';
 import { ManualDiarizationWorkflow } from './components/ManualDiarizationWorkflow';
+import { ManualAduWorkflow } from './components/ManualAduWorkflow';
+import { ManualRebuttalWorkflow } from './components/ManualRebuttalWorkflow';
 import { StyleChangeDialog } from './components/StyleChangeDialog';
 
 
@@ -180,9 +182,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
-
-
-
     const handleStepAction = async (stepIndex: number, action: string = 'run', data?: any) => {
         if (action === 'reset') {
             const startStep = data?.startStep || "1-a";
@@ -293,8 +292,37 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     t={t}
                     onComplete={() => {
                         toast.success("Diarization completed!");
+                        fetchJobProgress();
                     }}
                     debateFormat={roundData?.debate_format || 'british_parliamentary'}
+                />
+            );
+        }
+
+        // Step 3: Manual ADU Segmentation
+        if (stepId === 3 && workflowMode === 'manual') {
+            return (
+                <ManualAduWorkflow
+                    roundName={roundData?.name || ''}
+                    tryCount={roundData?.try_count || 1}
+                    t={t}
+                    onComplete={() => {
+                        fetchJobProgress();
+                    }}
+                />
+            );
+        }
+
+        // Step 4: Manual Rebuttal Identification
+        if (stepId === 4 && workflowMode === 'manual') {
+            return (
+                <ManualRebuttalWorkflow
+                    roundName={roundData?.name || ''}
+                    tryCount={roundData?.try_count || 1}
+                    t={t}
+                    onComplete={() => {
+                        fetchJobProgress();
+                    }}
                 />
             );
         }

@@ -208,7 +208,7 @@ export function ManualWorkflowControls({
                             <Textarea
                                 value={jsonInput}
                                 onChange={(e) => setJsonInput(e.target.value)}
-                                placeholder='[{"rebuttal": "...", "target_adu_id": 1}]'
+                                placeholder='Example: [[5, 2], [7, 3], [12, 8]]'
                                 className="h-24 font-mono text-xs bg-white dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
                             />
                         </div>

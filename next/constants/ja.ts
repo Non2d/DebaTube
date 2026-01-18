@@ -349,6 +349,7 @@ export const ja: LocaleType = {
                 resetDialogConfirm: "はい、リセットします",
                 resetDialogCancel: "キャンセル",
                 copyPrompt: "プロンプトをコピー",
+                copied: "コピー完了",
                 registerVerify: "送信",
                 updateContinue: "更新",
                 resetToLastSaved: "編集前に戻す",
