@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '../../../components/shared/Header';
@@ -8,12 +8,13 @@ import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../../context/LanguageContext';
 
 export default function VideoDashboard() {
-  const { rounds, loading, error } = useRounds('external_video');
+  const { rounds, loading, error, pagination } = useRounds('external_video');
   const { t, language } = useTranslation();
   const router = useRouter();
 
-  // Count unique match titles (combining multiple attempts)
-  const totalRounds = new Set(rounds.map(r => r.title)).size;
+  // Use the total from pagination for the total count widget
+  // Note: counts for POIs/Rebuttals are now only for the current page
+  const totalRounds = pagination ? pagination.total : 0;
   const totalPois = rounds.reduce((sum, round) => sum + round.poi_count, 0);
   const totalRebuttals = rounds.reduce((sum, round) => sum + round.rebuttal_count, 0);
   const totalArgumentUnits = rounds.reduce((sum, round) => sum + round.total_argument_units, 0);
@@ -52,7 +53,7 @@ export default function VideoDashboard() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalPois')}</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalPois')} <span className="text-xs text-gray-500 font-normal">(Page)</span></h3>
               <div className="text-3xl font-bold text-green-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -63,7 +64,7 @@ export default function VideoDashboard() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRebuttals')}</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRebuttals')} <span className="text-xs text-gray-500 font-normal">(Page)</span></h3>
               <div className="text-3xl font-bold text-purple-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -74,7 +75,7 @@ export default function VideoDashboard() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.argumentUnits')}</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.argumentUnits')} <span className="text-xs text-gray-500 font-normal">(Page)</span></h3>
               <div className="text-3xl font-bold text-orange-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -213,6 +214,91 @@ export default function VideoDashboard() {
                 </table>
               </div>
             )}
+
+            {/* Pagination Controls */}
+            {pagination && pagination.total > 0 && (
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4 gap-4">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Showing <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> to <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="font-medium">{pagination.total}</span> results
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mr-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Go to page:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={pagination.totalPages}
+                      defaultValue={pagination.page}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = parseInt((e.target as HTMLInputElement).value);
+                          if (!isNaN(val)) {
+                            pagination.goToPage(val);
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) {
+                          pagination.goToPage(val);
+                        }
+                      }}
+                      className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => pagination.goToPage(pagination.page - 1)}
+                      disabled={pagination.page === 1 || loading}
+                      className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Prev
+                    </button>
+                    {[...Array(pagination.totalPages)].map((_, i) => {
+                      const p = i + 1;
+                      // Show strictly 1, last, and current +/- 1
+                      if (
+                        p === 1 ||
+                        p === pagination.totalPages ||
+                        (p >= pagination.page - 1 && p <= pagination.page + 1)
+                      ) {
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => pagination.goToPage(p)}
+                            disabled={loading}
+                            className={`px-3 py-1 text-sm font-medium rounded-md ${pagination.page === p
+                              ? 'bg-indigo-600 text-white border border-indigo-600'
+                              : 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                              }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      } else if (
+                        (p === pagination.page - 2 && p > 1) ||
+                        (p === pagination.page + 2 && p < pagination.totalPages)
+                      ) {
+                        return <span key={p} className="px-1 text-gray-400">...</span>
+                      }
+                      return null;
+                    })}
+                    <button
+                      onClick={() => pagination.goToPage(pagination.page + 1)}
+                      disabled={pagination.page === pagination.totalPages || loading}
+                      className="flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>

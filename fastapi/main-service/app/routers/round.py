@@ -324,15 +324,31 @@ class RoundSummaryResponse(BaseModel):
     type: RoundType
     try_count: int
 
-@router.get("/rounds-summary", response_model=List[RoundSummaryResponse])
+class PaginatedRoundSummaryResponse(BaseModel):
+    items: List[RoundSummaryResponse]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+
+
+@router.get("/rounds-summary", response_model=PaginatedRoundSummaryResponse)
 async def get_rounds_summary(
     type: Optional[str] = Query(None), 
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    ダッシュボード用のラウンドサマリーを取得
+    ダッシュボード用のラウンドサマリーを取得（ページング付き）
     """
-    rounds = await round_crud.get_all_rounds_with_details(db, type=type)
+    skip = (page - 1) * limit
+    
+    # Get total count
+    total = await round_crud.get_rounds_count(db, type=type)
+    
+    # Get paginated items
+    rounds = await round_crud.get_all_rounds_with_details(db, type=type, skip=skip, limit=limit)
     
     summary_list = []
     for r in rounds:
@@ -372,7 +388,16 @@ async def get_rounds_summary(
             try_count=r.try_count
         ))
     
-    return summary_list
+    import math
+    total_pages = math.ceil(total / limit) if limit > 0 else 0
+    
+    return PaginatedRoundSummaryResponse(
+        items=summary_list,
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages
+    )
 
 
 # ==================== Speech Endpoints ====================

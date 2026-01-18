@@ -19,13 +19,21 @@ export interface RoundSummary {
   style: string;
 }
 
-export async function getRoundsSummary(type?: string): Promise<RoundSummary[]> {
+export interface PaginatedRoundSummaryResponse {
+  items: RoundSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export async function getRoundsSummary(type?: string, page: number = 1, limit: number = 50): Promise<PaginatedRoundSummaryResponse> {
   const apiRoot = getAPIRoot();
 
   // Fix URL for development environment
-  let url = `${apiRoot}/rounds-summary`;
+  let url = `${apiRoot}/rounds-summary?page=${page}&limit=${limit}`;
   if (type) {
-    url += `?type=${type}`;
+    url += `&type=${type}`;
   }
 
   const response = await fetch(url);
@@ -39,6 +47,11 @@ export async function getRoundsSummary(type?: string): Promise<RoundSummary[]> {
 
 export function useRounds(type?: string) {
   const [rounds, setRounds] = useState<RoundSummary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [totalPages, setTotalPages] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,8 +60,10 @@ export function useRounds(type?: string) {
       try {
         setLoading(true);
         setError(null);
-        const data = await getRoundsSummary(type);
-        setRounds(data);
+        const data = await getRoundsSummary(type, page, limit);
+        setRounds(data.items);
+        setTotal(data.total);
+        setTotalPages(data.total_pages);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch rounds');
         console.error('Error fetching rounds:', err);
@@ -58,7 +73,25 @@ export function useRounds(type?: string) {
     };
 
     fetchRounds();
-  }, [type]);
+  }, [type, page, limit]);
 
-  return { rounds, loading, error };
+  const goToPage = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
+  return {
+    rounds,
+    loading,
+    error,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      goToPage,
+      setLimit
+    }
+  };
 }

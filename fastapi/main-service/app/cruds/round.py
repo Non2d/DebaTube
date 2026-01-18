@@ -112,13 +112,18 @@ async def get_all_rounds(db: AsyncSession) -> List[Round]:
     return result.scalars().all()
 
 
-async def get_all_rounds_with_details(db: AsyncSession, type: Optional[str] = None) -> List[Round]:
+async def get_all_rounds_with_details(
+    db: AsyncSession, 
+    type: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20
+) -> List[Round]:
     """
     すべてのラウンドを取得（統計用に詳細リレーションもロード）
     typeが指定された場合はそのタイプのみ取得
+    ページング対応
     """
     # Round -> Speeches -> Adus -> Rebuttals(src)
-    # これにより、len(r.speeches), len(s.adus), len(a.rebuttals_as_source) でカウント可能
     stmt = (
         select(Round)
         .options(
@@ -131,8 +136,26 @@ async def get_all_rounds_with_details(db: AsyncSession, type: Optional[str] = No
     if type:
         stmt = stmt.where(Round.type == type)
 
+    # Apply styling/ordering - usually want consistent order for pagination
+    # Ordering by ID descending (newest first) or created_at
+    stmt = stmt.order_by(Round.id.desc())
+    
+    stmt = stmt.offset(skip).limit(limit)
+
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def get_rounds_count(db: AsyncSession, type: Optional[str] = None) -> int:
+    """
+    ラウンドの総数を取得
+    """
+    stmt = select(func.count(Round.id))
+    if type:
+        stmt = stmt.where(Round.type == type)
+    
+    result = await db.execute(stmt)
+    return result.scalar()
 
 
 async def delete_round(db: AsyncSession, round_name: str) -> bool:
