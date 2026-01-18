@@ -1,7 +1,7 @@
 
 import { LocaleType } from './en';
 
-export const ja = {
+export const ja: LocaleType = {
     header: {
         title: "DebaTube Live",
         explore: "試合をさがす",
@@ -334,6 +334,7 @@ export const ja = {
                 running: "実行中...",
                 reset: "リセット",
                 // Dialog messages
+                resetDialogTitle: "処理データをリセットしますか？",
                 resetDialogContent: "{step} 以降の処理データをリセットします。復元することはできません。本当に実行しますか？",
                 resetDialogConfirm: "はい、リセットします",
                 resetDialogCancel: "キャンセル",
