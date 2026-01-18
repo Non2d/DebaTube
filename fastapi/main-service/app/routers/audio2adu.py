@@ -1447,22 +1447,22 @@ async def create_rebuttal_prompt_data(
     logger.info(f"Loaded {total_adus} ADUs from database. Max sequential ID: {global_adu_index}")
 
     # Prepare prompt for Gemini
-    prompt = f"""## Instruction
+    prompt = f"""# Instruction
 The following text is a transcript from a parliamentary competitive debate. From this transcript, extract all explicit rebuttal pairs.
 
-## Rebuttal Condition
+# Rebuttal Condition
 - A rebuttal must reference the content of an argument made by the opposing team. Expressions like "They said …" are commonly used but not strictly required. The link can also be clear from context or topic.
 - A rebuttal must negate, weaken, or challenge the opposing argument. Statements that are too vague or generic can neither serve as rebuttals nor be treated as valid rebuttal targets.
 - A rebuttal can only target a statement made previously by the opposing team, and thus Proposition 1st must not rebut at all.
 
-## Transcript
-{transcript}
-
-## Output Format
+# Output Format
 Return ONLY a JSON array of pairs in this exact format.
 Example: [[5, 2], [7, 3], [12, 8]]
+Do not include any other text, explanation, or formatting.
 
-Do not include any other text, explanation, or formatting."""
+# Transcript
+{transcript}
+"""
 
     return prompt, local_id_to_db_id, global_adu_index, speeches_data
 
@@ -1867,14 +1867,11 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
     logger.info(f"Manual ADU Submission for {request.round_name}, Try: {request.try_count}")
     
     try:
-        # Validate JSON
         try:
             adu_data = json.loads(request.adu_json)
         except json.JSONDecodeError as e:
             raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
 
-        # Fetch speeches for this round
-        # Using round_crud for consistency where possible, specifically to get speeches with IDs
         speeches = await round_crud.get_speeches_by_round(db, request.round_name, try_count=request.try_count)
         
         if not speeches:
@@ -1882,34 +1879,24 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
             
         speech_map = {s.position: s.id for s in speeches}
 
-        # Validate structure and normalize
         items_to_process = []
         if "speeches" in adu_data:
-             # Format: {"speeches": [{"position": "...", "adus": [...]}]}
              items_to_process = adu_data["speeches"]
         else:
-             # Assume Format: {"Proposition_1st": [...], ...} where keys are positions
-             # Check if it looks like a dict of speeches
              if isinstance(adu_data, dict):
                  for pos, adus in adu_data.items():
                      if isinstance(adus, list):
                          items_to_process.append({"position": pos, "adus": adus})
         
         if not items_to_process:
-             # Failed to identify structure or empty
-             # Fallback error if we really couldn't find anything
              if not isinstance(adu_data, dict):
                  raise HTTPException(status_code=400, detail="JSON must be an object (dictionary)")
-             # If it was a dict but empty, items_to_process is empty, causing no save. 
-             # We might want to warn but not fail?
              logger.warning("No ADU data found in JSON input")
 
         saved_count = 0
         
-        # Prepare ADUs for batch insertion
         adus_to_create = []
         
-        # Fetch words once for all speeches (optimization)
         words_all = await round_crud.get_words_by_round(db, request.round_name, try_count=request.try_count)
         words_map = {w.id: w for w in words_all}
 
@@ -1921,46 +1908,65 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
             
             speech_id = speech_map[position]
             
-            # To be safe, let's delete existing ADUs for this try_count if any (optional but cleaner)
-            await db.execute(delete(Adu).where(Adu.speech_id == speech_id)) # WARNING: This deletes ALL ADUs for speech, not just this try? 
-            # Adu model DOES NOT HAVE try_count column based on models.round.py! 
-            # Logic: ADUs belong to Speech. Speech belongs to Round. Round has try_count.
-            # So deleting ADUs for speech_id is correct because speech_id IS specific to this try_count (Speeches are recreated for new tries? No, Round has try_count... check round.py)
-            # Round: name, try_count. Unique(name, try_count). 
-            # Speech: round_id.
-            # So yes, speech_id is unique to (round_name, try_count).
-            # So deleting all ADUs for speech_id is correct for a re-submission.
+            await db.execute(delete(Adu).where(Adu.speech_id == speech_id))
             
-            sentences = await round_crud.get_sentences_by_speech(db, speech_id)
-            sentence_index_to_id = {i: sent.id for i, sent in enumerate(sentences)}
+        
+        # Global sentence resolution preparation
+        all_sentences = await round_crud.get_sentences_by_round(db, request.round_name, try_count=request.try_count)
+        speech_obj_map = {s.id: s for s in speeches}
+
+        for speech_item in items_to_process:
+            position = speech_item.get("position")
+            if position not in speech_map:
+                logger.warning(f"Unknown speech position in manual input: {position}")
+                continue
+            
+            speech_id = speech_map[position]
+            speech_obj = speech_obj_map[speech_id]
+            
+            await db.execute(delete(Adu).where(Adu.speech_id == speech_id))
             
             for adu in speech_item.get("adus", []):
-                start_sent_idx = adu.get("start_sentence_index", 0)
-                end_sent_idx = adu.get("end_sentence_index", 0)
+                start_global_idx = adu.get("start_sentence_index", 0)
+                end_global_idx = adu.get("end_sentence_index", 0)
                 
-                if start_sent_idx in sentence_index_to_id and end_sent_idx in sentence_index_to_id:
-                    # Get timestamps from sentences
-                    start_sent = sentences[start_sent_idx]
-                    end_sent = sentences[end_sent_idx]
+                # Check bounds
+                if start_global_idx < 0 or start_global_idx >= len(all_sentences) or \
+                   end_global_idx < 0 or end_global_idx >= len(all_sentences):
+                     logger.warning(f"Index out of bounds: {start_global_idx}-{end_global_idx}")
+                     continue
+
+                start_sent = all_sentences[start_global_idx]
+                end_sent = all_sentences[end_global_idx]
+                
+                # Verify speech ownership
+                if not speech_obj.first_sentence_id or not speech_obj.last_sentence_id:
+                    continue
                     
-                    # Extract start_time from first word of first sentence
-                    start_time = 0.0
-                    end_time = 0.0
-                    
-                    if start_sent.first_word_id in words_map:
-                        start_time = words_map[start_sent.first_word_id].start_time
-                    if end_sent.last_word_id in words_map:
-                        end_time = words_map[end_sent.last_word_id].end_time
-                    
-                    adus_to_create.append({
-                        "speech_id": speech_id,
-                        "first_sentence_id": sentence_index_to_id[start_sent_idx],
-                        "last_sentence_id": sentence_index_to_id[end_sent_idx],
-                        "text": adu.get("text", ""),
-                        "role": adu.get("role", "claim"),
-                        "start_time": start_time,
-                        "end_time": end_time
-                    })
+                if not (speech_obj.first_sentence_id <= start_sent.id <= speech_obj.last_sentence_id):
+                    logger.warning(f"Start sentence {start_sent.id} does not belong to speech {position}")
+                    continue
+                if not (speech_obj.first_sentence_id <= end_sent.id <= speech_obj.last_sentence_id):
+                    logger.warning(f"End sentence {end_sent.id} does not belong to speech {position}")
+                    continue
+
+                start_time = 0.0
+                end_time = 0.0
+                
+                if start_sent.first_word_id in words_map:
+                    start_time = words_map[start_sent.first_word_id].start_time
+                if end_sent.last_word_id in words_map:
+                    end_time = words_map[end_sent.last_word_id].end_time
+                
+                adus_to_create.append({
+                    "speech_id": speech_id,
+                    "first_sentence_id": start_sent.id,
+                    "last_sentence_id": end_sent.id,
+                    "text": adu.get("text", ""),
+                    "role": adu.get("role", "claim"),
+                    "start_time": start_time,
+                    "end_time": end_time
+                })
         
         if adus_to_create:
             await round_crud.create_adus_batch(db, adus_to_create)
@@ -2079,21 +2085,6 @@ async def manual_submit_rebuttal(request: ManualRebuttalSubmitRequest, db: Async
                 db.add(new_pair)
         
         await db.commit()
-
-        # Return final graph
-        # Reuse existing get_rebuttal_graph logic. 
-        # Need to import get_rebuttal_graph? It's in this file!
-        # But it's defined inside another endpoint? No, checking file...
-        # I need to find where get_rebuttal_graph is defined. 
-        # Step 327 showed "Failed to get rebuttal graph" in exception of SOME function manually implemented?
-        # Ah, Step 355 view of models/round.py doesn't show it.
-        # Step 367 shows audio_to_debate_graph_batch calling identify_rebuttal_structure.
-        
-        # Where is get_rebuttal_graph? It's likely an endpoint function `@router.get(...)`.
-        # Endpoints are not callable directly easily unless extracted.
-        # I'll just return success and let frontend call the graph API or I can implement graph fetch here if I have the function.
-        # The frontend calls autoLoadGraphData -> fetch /api/rebuttal-graph.
-        # So I just need to return success.
         
         return {
             "status": "success",
@@ -2167,14 +2158,14 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
     result_reb = await db.execute(stmt_reb)
     first_reb = result_reb.scalars().first()
     
-    if first_reb:
-        # Rebuttals exist. Assume completed.
-        return {
-            "status": "completed",
-            "message": "Rebuttals found. Workflow completed.",
-            "round_name": round_name,
-            "try_count": try_count
-        }
+    # if first_reb:
+    #     # Rebuttals exist. Assume completed.
+    #     return {
+    #         "status": "completed",
+    #         "message": "Rebuttals found. Workflow completed.",
+    #         "round_name": round_name,
+    #         "try_count": try_count
+    #     }
 
     # 2. Check ADUs
     stmt_adu = select(Adu).join(Speech, Adu.speech_id == Speech.id)\
@@ -2182,20 +2173,22 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
     result_adu = await db.execute(stmt_adu)
     first_adu = result_adu.scalars().first()
 
-    if first_adu:
-        # ADUs exist, but Rebuttals don't. Need Rebuttal Prompt (Step 3).
-        # Reuse helper: create_rebuttal_prompt_data
-        try:
-             prompt_content, _, _, _ = await create_rebuttal_prompt_data(db, round_name, try_count)
-             return {
-                "status": "step2_done", # Renamed from manual_rebuttal_prompt
-                "round_name": round_name,
-                "try_count": try_count,
-                "prompt": prompt_content
-            }
-        except Exception as e:
-            logger.error(f"Failed to create rebuttal prompt during resume: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to generate rebuttal prompt: {e}")
+    # FORCE STEP 2 PROMPT (Debug/Fix Mode): Even if ADUs exist, we generate ADU prompt.
+    # Because user wants to retry ADU generation due to previous bugs.
+    # if first_adu:
+    #     # ADUs exist, but Rebuttals don't. Need Rebuttal Prompt (Step 3).
+    #     # Reuse helper: create_rebuttal_prompt_data
+    #     try:
+    #          prompt_content, _, _, _ = await create_rebuttal_prompt_data(db, round_name, try_count)
+    #          return {
+    #             "status": "step2_done", # Renamed from manual_rebuttal_prompt
+    #             "round_name": round_name,
+    #             "try_count": try_count,
+    #             "prompt": prompt_content
+    #         }
+    #     except Exception as e:
+    #         logger.error(f"Failed to create rebuttal prompt during resume: {e}")
+    #         raise HTTPException(status_code=500, detail=f"Failed to generate rebuttal prompt: {e}")
 
     # 3. Check Sentences
     stmt_sen = select(Sentence).where(Sentence.round_id == round_obj.id)
@@ -2225,6 +2218,7 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
             all_sentences = res_all_s.scalars().all()
             
             sentences_by_id = {s.id: s for s in all_sentences}
+            id_to_global_idx = {s.id: i for i, s in enumerate(all_sentences)}
         
         for speech in speeches:
             if speech.first_sentence_id and speech.last_sentence_id:
@@ -2248,7 +2242,13 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
         # get debate_format from Round? Round model has `style` (british_parliamentary etc).
         # Need to map style "british_parliamentary" to "BP".
         # Or just use "NA" default sort if unknown.
-        style_map = {"british_parliamentary": "BP", "north_american": "NA", "asian": "ASIAN"}
+        style_map = {
+            "british_parliamentary": "BP", 
+            "north_american": "NA", 
+            "asian": "ASIAN",
+            "world_schools": "WSDC",
+            "wsdc": "WSDC"
+        }
         debate_fmt_key = style_map.get(round_obj.style, "NA") # Round model has `style`, default 'british_parliamentary'.
         
         speech_order = DEBATE_FORMATS.get(debate_fmt_key, [])
@@ -2265,28 +2265,22 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
         for role in sorted_speech_keys:
              sents = transcripts_data[role] # list of Sentence objects
              prompt_sentences_data = [
-                 {"id": i, "text": s.text} for i, s in enumerate(sents)
+                 {"id": id_to_global_idx.get(s.id, -1), "text": s.text} for s in sents
              ]
              
-             prompt_content_parts.append(f"## Speech: {role}")
-             prompt_content_parts.append("Sentence-level transcript data:")
-             prompt_content_parts.append(json.dumps(prompt_sentences_data, indent=None, ensure_ascii=False))
-             prompt_content_parts.append(f"Total Sentences: {len(sents)}")
+             prompt_content_parts.append(f"## {role}")
+             for s_data in prompt_sentences_data:
+                 prompt_content_parts.append(f"{s_data['id']}: {s_data['text']}")
              prompt_content_parts.append("")
              
         full_transcript_text = "\n".join(prompt_content_parts)
-
-        # Reuse static prompt template parts?
-        # I'll just hardcode the prompt template here to be safe and consistent with `create_adu_prompt_all_at_once`
-        # Or import the function and refactor it? Refactoring is risky in EXECUTION.
-        # Usage of `create_adu_prompt_all_at_once` with dummy data is tricky because it calls `group_words_into_sentences`.
-        # So manual reconstruction is safer.
         
         prompt_content = f"""
+# Introduction
 Please segment the following debate speeches into Argument Discourse Units (ADUs).
 Each ADU represents a single argument or discourse unit with a specific role below:
 
-ADU Role Definitions:
+# ADU Role Definitions
 - introduction: Opening statement that typically explains the team's stance and framework
 - definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
 - independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
@@ -2294,7 +2288,7 @@ ADU Role Definitions:
 - point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
 - poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
 
-Segmentation Guidelines:
+# Segmentation Guidelines
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
 2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
 3. Rebuttals are always independent ADUs regardless of length
@@ -2303,11 +2297,8 @@ Segmentation Guidelines:
 6. Treat a response to a POI as a single ADU.
 7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
 
-Transcript Data:
-{full_transcript_text}
-
+# Output Format
 Return the result as a JSON object where keys are "Speech Name" (e.g. Proposition_1st) and values are lists of ADUs.
-IDs are local to each speech (0, 1, 2...).
 
 Format:
 {{
@@ -2319,8 +2310,18 @@ Format:
       "role": "point_of_main_argument"
     }}
   ],
-  "Opposition_1st": [...]
+  "Opposition_1st": [
+     {{
+       "start_sentence_index": 50,
+       "end_sentence_index": 52,
+       "text": "...",
+       "role": "introduction"
+     }}
+  ]
 }}
+
+# Transcript Data
+{full_transcript_text}
 """
         return {
             "status": "step1_done", # Renamed from manual_adu_prompt

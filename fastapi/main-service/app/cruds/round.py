@@ -286,10 +286,22 @@ async def create_sentences_batch(
 
 
 async def get_sentences_by_speech(db: AsyncSession, speech_id: int) -> List[Sentence]:
+    # Retrieve speech to get sentence range
+    speech_result = await db.execute(
+        select(Speech.first_sentence_id, Speech.last_sentence_id)
+        .where(Speech.id == speech_id)
+    )
+    res = speech_result.first()
+    
+    if not res or res[0] is None or res[1] is None:
+         return []
+         
+    first_id, last_id = res
+    
     result = await db.execute(
         select(Sentence)
-        .join(Speech, Sentence.round_id == Speech.round_id)
-        .where(Speech.id == speech_id)
+        .where(Sentence.id >= first_id)
+        .where(Sentence.id <= last_id)
         .order_by(Sentence.id)
     )
     return result.scalars().all()
