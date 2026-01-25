@@ -402,13 +402,13 @@ async def get_rounds_summary(
         
         summary_list.append(RoundSummaryResponse(
             id=r.id,
-            video_id="", # 未実装
+            video_id=r.video_id
             title=r.name,
             description=r.note or "",
             motion=r.motion,
             style=r.style,
             date_uploaded=r.created_at.isoformat(),
-            channel_id="", # 未実装
+            channel_id=r.channel_id,
             tag=r.type, # タグとしてタイプを表示
             poi_count=poi_cnt,
             rebuttal_count=rebuttal_cnt,
