@@ -182,3 +182,77 @@ batch_transcription_{timestamp}.json
 
 ### 注意事項
 - **Docker ビルドのエラー：** `npm run build` を実行するとDocker側でCSS が消えて生HTML になる問題が報告されている。TypeScript のチェックは行わず，直接動作確認すること
+
+## バックグラウンド文字起こし API
+
+### エンドポイント
+
+#### 文字起こし処理
+- `POST /start-background-transcription` - バックグラウンド文字起こしを開始（Step 1-B）
+  - 前提条件: Step 1-A (`POST /download-audio/{round_id}`) が完了していること
+  - リクエストボディ: `{ round_id, url, num_chunks, max_workers, is_forced }`
+- `GET /transcription-status?round_id=N` - 文字起こしステータス確認
+- `GET /transcription-result?round_id=N` - 完了した文字起こし結果を取得・DB保存
+
+#### 削除
+- `DELETE /delete-background-transcription` - バックグラウンド文字起こしデータを削除
+  - リクエストボディ: `{ video_ids: ["id1", "id2"] }`
+
+#### 進捗確認
+- `GET /job-progress-background/{round_id}` - バックグラウンド処理の進捗を取得
+
+### ステータスマッピング
+
+#### Step 1-B（バックグラウンド文字起こし）のステータス対応
+
+| 外部 API ステータス | DebaTube API ステータス | 説明 |
+|-------------------|---------------------|------|
+| 404 (Not Found) | `NOT_IN_QUEUE` | キューに登録されていない |
+| `PENDING` | `IN_QUEUE` | キューに登録済み、処理待ち |
+| `PROCESSING` | `PROCESSING` | 処理中 |
+| `COMPLETED` | `DONE` | 完了 |
+| `ERROR` | `ERROR` | エラー発生 |
+
+#### その他のステップ（1-A, 1-C, 1-D, 2, 3, 4）
+
+| ステータス | 説明 |
+|-----------|------|
+| `NOT_IN_QUEUE` | 未実行 |
+| `DONE` | 完了 |
+
+#### Step 1（統合）のステータス
+
+Step 1 は Step 1-B, 1-C, 1-D のステータスから自動計算される：
+
+- `DONE`: 1b, 1c, 1d が全て `DONE` のとき
+- `PROCESSING`: 1b が `PROCESSING` のとき
+- `IN_QUEUE`: 1b が `IN_QUEUE` のとき
+- `ERROR`: 1b が `ERROR` のとき
+- `NOT_IN_QUEUE`: 上記以外
+
+### BackgroundJobStatus Enum
+
+```python
+class BackgroundJobStatus(str, Enum):
+    NOT_IN_QUEUE = "NOT_IN_QUEUE"  # 未実行・キューに未登録
+    IN_QUEUE = "IN_QUEUE"          # キューに登録済み（処理待ち）
+    PROCESSING = "PROCESSING"       # 処理中
+    DONE = "DONE"                   # 完了
+    ERROR = "ERROR"                 # エラー
+```
+
+### レスポンス例
+
+```json
+{
+  "round_id": 4,
+  "step_1": "PROCESSING",
+  "step_1a": "DONE",
+  "step_1b": "PROCESSING",
+  "step_1c": "NOT_IN_QUEUE",
+  "step_1d": "NOT_IN_QUEUE",
+  "step_2": "NOT_IN_QUEUE",
+  "step_3": "NOT_IN_QUEUE",
+  "step_4": "NOT_IN_QUEUE"
+}
+```

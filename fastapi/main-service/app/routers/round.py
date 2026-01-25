@@ -402,7 +402,7 @@ async def get_rounds_summary(
         
         summary_list.append(RoundSummaryResponse(
             id=r.id,
-            video_id=r.video_id
+            video_id=r.video_id,
             title=r.name,
             description=r.note or "",
             motion=r.motion,
