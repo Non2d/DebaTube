@@ -656,6 +656,7 @@ class DownloadAudioRequestBody(BaseModel):
 
 class BackgroundTranscriptionRequest(BaseModel):
     """Request body for background transcription with all parameters"""
+    round_id: int
     url: str
     num_chunks: int = 4
     max_workers: int = 2
@@ -791,9 +792,8 @@ async def transcribe_audio(
         logger.error(f"Error in transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/start-background-transcription/{round_id}")
+@router.post("/start-background-transcription")
 async def start_background_transcription(
-    round_id: int,
     request: BackgroundTranscriptionRequest,
     db: AsyncSession = Depends(get_db)
 ):
@@ -805,16 +805,16 @@ async def start_background_transcription(
     2. Immediately starts background transcription (STEP1-B)
 
     Args:
-        round_id: Round ID
-        request: Contains url, num_chunks, max_workers, is_forced
+        request: Contains round_id, url, num_chunks, max_workers, is_forced
 
     Returns:
         Status information including video_id and transcription status
 
-    Use GET /transcription-status/{round_id} to check progress
-    Use GET /transcription-result/{round_id} to get results when completed
+    Use GET /transcription-status?round_id=N to check progress
+    Use GET /transcription-result?round_id=N to get results when completed
     """
     start_time = time.time()
+    round_id = request.round_id
     print(f"[/start-background-transcription] 処理開始 - round_id: {round_id}, url: {request.url}")
 
     # Fetch Round from DB
@@ -885,10 +885,13 @@ async def start_background_transcription(
         logger.error(f"Error starting background transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"STEP1-B failed: {str(e)}")
 
-@router.get("/transcription-status/{round_id}")
+@router.get("/transcription-status")
 async def get_transcription_status(round_id: int):
     """
     Check the status of a background transcription job.
+
+    Args:
+        round_id: Round ID (query parameter)
 
     Returns:
         Status information (PENDING/PROCESSING/COMPLETED/ERROR)
@@ -902,7 +905,7 @@ async def get_transcription_status(round_id: int):
         logger.error(f"Error checking transcription status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/transcription-result/{round_id}")
+@router.get("/transcription-result")
 async def get_transcription_result(
     round_id: int,
     db: AsyncSession = Depends(get_db)
@@ -910,6 +913,9 @@ async def get_transcription_result(
     """
     Get the result of a completed background transcription job.
     Also saves the result to Round.raw_transcription.
+
+    Args:
+        round_id: Round ID (query parameter)
 
     Returns:
         Transcription result in standard Whisper verbose format
