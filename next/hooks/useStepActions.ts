@@ -124,7 +124,12 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                     if (!startRes.ok) {
                         const err = await startRes.json();
-                        throw new Error(err.detail || 'Background transcription start failed');
+                        if (startRes.status === 409) { // 409 Conflict (Already Exists) はスルーする
+                            console.warn("Existing transcription job found. Resuming...");
+                            toast('Existing transcription job found. Resuming...', { icon: 'ℹ️', id: 'step1b' });
+                        } else {
+                            throw new Error(err.detail || 'Background transcription start failed');
+                        }
                     }
 
                     toast.loading('Step 1-B: Transcribing in background...', { id: 'step1b' });
@@ -132,7 +137,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                     // Poll for status
                     let status = 'IN_QUEUE';
-                    while (status !== 'DONE' && status !== 'ERROR') {
+                    while (status !== 'DONE' && status !== 'COMPLETED' && status !== 'ERROR') {
                         await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
 
                         const statusRes = await fetch(getAPIRoot() + `/transcription-status?round_id=${roundData.id}`);
