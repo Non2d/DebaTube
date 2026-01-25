@@ -16,7 +16,6 @@ class BackgroundJobStatus(str, Enum):
     IN_QUEUE = "IN_QUEUE"
     PROCESSING = "PROCESSING"
     DONE = "DONE"
-    ERROR = "ERROR"
 
 
 class SpeechProgress(BaseModel):

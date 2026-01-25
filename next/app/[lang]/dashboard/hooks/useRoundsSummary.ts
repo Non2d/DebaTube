@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getAPIRoot } from '../../../../components/lib/utils';
+import { getAPIRoot, type BackgroundStepStatus } from '../../../../components/lib/utils';
 
 export interface RoundSummary {
   id: number;
@@ -17,10 +17,10 @@ export interface RoundSummary {
   type: string;
   try_count: number;
   style: string;
-  step1_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
-  step2_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
-  step3_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
-  step4_status: 'not_in_queue' | 'in_queue' | 'processing' | 'done';
+  step1_status: BackgroundStepStatus;
+  step2_status: BackgroundStepStatus;
+  step3_status: BackgroundStepStatus;
+  step4_status: BackgroundStepStatus;
 }
 
 export interface PaginatedRoundSummaryResponse {

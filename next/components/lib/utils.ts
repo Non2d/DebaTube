@@ -1,6 +1,35 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+/**
+ * バックグラウンド・バッチ処理のステップステータス
+ * - not_in_queue: 処理がキューに登録されていない
+ * - in_queue: キューに登録済み（処理待ち）
+ * - processing: 処理中
+ * - done: 完了
+ */
+export type BackgroundStepStatus = 'not_in_queue' | 'in_queue' | 'processing' | 'done';
+
+/**
+ * バックエンド側のステータス文字列をフロント側の型に変換
+ * バックエンド: "NOT_IN_QUEUE", "IN_QUEUE", "PROCESSING", "DONE"
+ * フロント: 'not_in_queue', 'in_queue', 'processing', 'done'
+ */
+export function mapBackgroundStatus(backendStatus: string): BackgroundStepStatus {
+  switch (backendStatus) {
+    case 'NOT_IN_QUEUE':
+      return 'not_in_queue';
+    case 'IN_QUEUE':
+      return 'in_queue';
+    case 'PROCESSING':
+      return 'processing';
+    case 'DONE':
+      return 'done';
+    default:
+      return 'not_in_queue';
+  }
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

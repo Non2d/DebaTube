@@ -206,30 +206,28 @@ export default function ProcessingSteps({
                                                         // Determine status based on jobProgress data
                                                         let subStatus: 'pending' | 'processing' | 'completed' = 'pending';
 
+                                                        // Helper to check progress regardless of format (background vs legacy)
+                                                        const isStep1aDone = jobProgress?.step_1a === 'DONE' || jobProgress?.external_has_audio || jobProgress?.local_has_audio;
+                                                        const isStep1bDone = jobProgress?.step_1b === 'DONE' || jobProgress?.has_all_raw_speech_transcription || jobProgress?.has_raw_round_transcription;
+                                                        const isStep1cDone = jobProgress?.step_1c === 'DONE' || jobProgress?.words_registered;
+                                                        const isStep1dDone = jobProgress?.step_1d === 'DONE' || jobProgress?.sentences_registered;
+
                                                         if (status === 'completed') {
                                                             subStatus = 'completed';
                                                         } else if (jobProgress && step.id === 1) {
                                                             // Use jobProgress data for Step 1 sub-steps
-                                                            // 1A: external_has_audio OR local_has_audio
-                                                            // 1B: has_all_raw_speech_transcription OR has_raw_round_transcription
-                                                            // 1C: words_registered
-                                                            // 1D: sentences_registered
                                                             if (subIndex === 0) {
-                                                                const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
-                                                                subStatus = audioComplete ? 'completed' :
+                                                                subStatus = isStep1aDone ? 'completed' :
                                                                     (status === 'processing' ? 'processing' : 'pending');
                                                             } else if (subIndex === 1) {
-                                                                const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
-                                                                const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
-                                                                subStatus = transcriptionComplete ? 'completed' :
-                                                                    (status === 'processing' && audioComplete) ? 'processing' : 'pending';
+                                                                subStatus = isStep1bDone ? 'completed' :
+                                                                    (status === 'processing' && isStep1aDone) ? 'processing' : 'pending';
                                                             } else if (subIndex === 2) {
-                                                                const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
-                                                                subStatus = jobProgress.words_registered ? 'completed' :
-                                                                    (status === 'processing' && transcriptionComplete) ? 'processing' : 'pending';
+                                                                subStatus = isStep1cDone ? 'completed' :
+                                                                    (status === 'processing' && isStep1bDone) ? 'processing' : 'pending';
                                                             } else if (subIndex === 3) {
-                                                                subStatus = jobProgress.sentences_registered ? 'completed' :
-                                                                    (status === 'processing' && jobProgress.words_registered) ? 'processing' : 'pending';
+                                                                subStatus = isStep1dDone ? 'completed' :
+                                                                    (status === 'processing' && isStep1cDone) ? 'processing' : 'pending';
                                                             }
                                                         } else if (status === 'processing') {
                                                             // Fallback: show all as processing if no jobProgress data
@@ -257,9 +255,7 @@ export default function ProcessingSteps({
                                                                     {/* Warning for 1-A: Cache deleted */}
                                                                     {step.id === 1 && subIndex === 0 && jobProgress && (
                                                                         (() => {
-                                                                            const audioComplete = jobProgress.external_has_audio || jobProgress.local_has_audio;
-                                                                            const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
-                                                                            const cacheDeleted = !audioComplete && transcriptionComplete;
+                                                                            const cacheDeleted = !isStep1aDone && isStep1bDone;
 
                                                                             if (cacheDeleted) {
                                                                                 return (

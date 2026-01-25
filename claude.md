@@ -203,34 +203,48 @@ batch_transcription_{timestamp}.json
 
 ### ステータスマッピング
 
-#### Step 1-B（バックグラウンド文字起こし）のステータス対応
+#### Step 1-B（バックグラウンド文字起こし）の外部API対応
 
-| 外部 API ステータス | DebaTube API ステータス | 説明 |
+| 外部 API ステータス | バックエンド ステータス | 説明 |
 |-------------------|---------------------|------|
 | 404 (Not Found) | `NOT_IN_QUEUE` | キューに登録されていない |
 | `PENDING` | `IN_QUEUE` | キューに登録済み、処理待ち |
 | `PROCESSING` | `PROCESSING` | 処理中 |
 | `COMPLETED` | `DONE` | 完了 |
-| `ERROR` | `ERROR` | エラー発生 |
 
-#### その他のステップ（1-A, 1-C, 1-D, 2, 3, 4）
+#### バックエンド → フロントエンドのステータス変換
 
-| ステータス | 説明 |
-|-----------|------|
-| `NOT_IN_QUEUE` | 未実行 |
-| `DONE` | 完了 |
+バックエンドからのレスポンス（大文字）をフロントエンドの型に変換：
 
-#### Step 1（統合）のステータス
+| バックエンド | フロントエンド | 説明 |
+|-----------|-------------|------|
+| `"NOT_IN_QUEUE"` | `'not_in_queue'` | 未実行・キューに未登録 |
+| `"IN_QUEUE"` | `'in_queue'` | キューに登録済み（処理待ち） |
+| `"PROCESSING"` | `'processing'` | 処理中 |
+| `"DONE"` | `'done'` | 完了 |
 
-Step 1 は Step 1-B, 1-C, 1-D のステータスから自動計算される：
+### フロントエンドの型定義
 
-- `DONE`: 1b, 1c, 1d が全て `DONE` のとき
-- `PROCESSING`: 1b が `PROCESSING` のとき
-- `IN_QUEUE`: 1b が `IN_QUEUE` のとき
-- `ERROR`: 1b が `ERROR` のとき
-- `NOT_IN_QUEUE`: 上記以外
+```typescript
+export type BackgroundStepStatus = 'not_in_queue' | 'in_queue' | 'processing' | 'done';
 
-### BackgroundJobStatus Enum
+export function mapBackgroundStatus(backendStatus: string): BackgroundStepStatus {
+  switch (backendStatus) {
+    case 'NOT_IN_QUEUE':
+      return 'not_in_queue';
+    case 'IN_QUEUE':
+      return 'in_queue';
+    case 'PROCESSING':
+      return 'processing';
+    case 'DONE':
+      return 'done';
+    default:
+      return 'not_in_queue';
+  }
+}
+```
+
+### バックエンド BackgroundJobStatus Enum
 
 ```python
 class BackgroundJobStatus(str, Enum):
@@ -238,7 +252,6 @@ class BackgroundJobStatus(str, Enum):
     IN_QUEUE = "IN_QUEUE"          # キューに登録済み（処理待ち）
     PROCESSING = "PROCESSING"       # 処理中
     DONE = "DONE"                   # 完了
-    ERROR = "ERROR"                 # エラー
 ```
 
 ### レスポンス例

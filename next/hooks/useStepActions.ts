@@ -5,9 +5,10 @@ import { ProcessingStepStatus } from '../components/shared/ProcessingSteps';
 interface UseStepActionsProps {
     roundId: string | number;
     t: (key: string) => string;
+    is_background?: boolean;
 }
 
-export const useStepActions = ({ roundId, t }: UseStepActionsProps) => {
+export const useStepActions = ({ roundId, t, is_background = true }: UseStepActionsProps) => {
 
     const getProgress = async () => {
         try {
@@ -104,20 +105,83 @@ export const useStepActions = ({ roundId, t }: UseStepActionsProps) => {
             const transDone = progress?.has_all_raw_speech_transcription || progress?.has_raw_round_transcription;
             if (!transDone) {
                 setDownloadProgress(30);
-                toast.loading('Step 1-B: Transcribing...', { id: 'step1b' });
 
-                const res = await fetch(getAPIRoot() + `/transcribe-audio/${roundData.id}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
+                if (is_background) {
+                    // Background transcription
+                    toast.loading('Step 1-B: Starting background transcription...', { id: 'step1b' });
 
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Transcription failed');
+                    const startRes = await fetch(getAPIRoot() + `/start-background-transcription`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            round_id: roundData.id,
+                            url: targetUrl,
+                            num_chunks: 4,
+                            max_workers: 2,
+                            is_forced: true
+                        }),
+                    });
+
+                    if (!startRes.ok) {
+                        const err = await startRes.json();
+                        throw new Error(err.detail || 'Background transcription start failed');
+                    }
+
+                    toast.loading('Step 1-B: Transcribing in background...', { id: 'step1b' });
+                    setDownloadProgress(35);
+
+                    // Poll for status
+                    let status = 'IN_QUEUE';
+                    while (status !== 'DONE' && status !== 'ERROR') {
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+
+                        const statusRes = await fetch(getAPIRoot() + `/transcription-status?round_id=${roundData.id}`);
+                        if (!statusRes.ok) {
+                            throw new Error('Failed to check transcription status');
+                        }
+
+                        const statusData = await statusRes.json();
+                        status = statusData.status;
+
+                        if (status === 'PROCESSING') {
+                            setDownloadProgress(40);
+                        }
+
+                        if (status === 'ERROR') {
+                            throw new Error('Background transcription failed');
+                        }
+                    }
+
+                    // Get result
+                    setDownloadProgress(50);
+                    toast.loading('Step 1-B: Retrieving result...', { id: 'step1b' });
+
+                    const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
+                    if (!resultRes.ok) {
+                        const err = await resultRes.json();
+                        throw new Error(err.detail || 'Failed to get transcription result');
+                    }
+
+                    toast.success('Step 1-B: Completed', { id: 'step1b' });
+                    await onRefresh();
+                    progress = await getProgress();
+                } else {
+                    // Synchronous transcription (existing behavior)
+                    toast.loading('Step 1-B: Transcribing...', { id: 'step1b' });
+
+                    const res = await fetch(getAPIRoot() + `/transcribe-audio/${roundData.id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.detail || 'Transcription failed');
+                    }
+                    toast.success('Step 1-B: Completed', { id: 'step1b' });
+                    await onRefresh();
+                    progress = await getProgress();
                 }
-                toast.success('Step 1-B: Completed', { id: 'step1b' });
-                await onRefresh();
-                progress = await getProgress();
             } else {
                 setDownloadProgress(60);
                 toast.success('Step 1-B: Already completed', { id: 'step1b', duration: 2000 });
