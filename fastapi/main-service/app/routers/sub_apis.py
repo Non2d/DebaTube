@@ -1122,9 +1122,9 @@ async def reset_progress(
                 except Exception as ext_e:
                     logger.warning(f"Reset Step 1-a: Error calling service to delete external cache: {str(ext_e)}")
                 
-                # 3. Clear video_id from Round to ensure status checks return NOT_IN_QUEUE
-                round_obj.video_id = None
-                db.add(round_obj)
+                # 3. Clear video_id from Round -> REMOVED
+                # round_obj.video_id = None
+                # db.add(round_obj)
                     
             else:
                 logger.warning(f"Reset Step 1-a: Round {round_id} has no video_id")
