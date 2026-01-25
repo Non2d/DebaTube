@@ -13,9 +13,12 @@ from google import genai
 from groq import Groq
 from openai import OpenAI, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from routers.round import RoundResponse
+from typing import Optional
 
 from db import get_db
-from models.round import Speech, Word, Sentence, Adu, Rebuttal
+from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from cruds import round as round_crud
 from sqlalchemy import delete, select
 import shutil
@@ -1133,3 +1136,126 @@ async def reset_progress(
         await db.rollback()
         logger.error(f"Error resetting progress: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to reset progress: {str(e)}")
+
+
+# ===== Detailed Round Data Endpoint (Debug/Sub API) =====
+
+class WordResponse(BaseModel):
+    id: int
+    text: str
+    start_time: float
+    end_time: float
+    confidence: Optional[float] = None
+    
+    class Config:
+        from_attributes = True
+
+class SentenceDetailResponse(BaseModel):
+    id: int
+    text: str
+    start_word_id: Optional[int] = None
+    end_word_id: Optional[int] = None
+    
+    class Config:
+        from_attributes = True
+
+class RebuttalDetailResponse(BaseModel):
+    id: int
+    src_adu_id: int
+    tgt_adu_id: int
+    
+    class Config:
+        from_attributes = True
+
+class AduDetailResponse(BaseModel):
+    id: int
+    text: str
+    role: str
+    rebuttals_as_source: List[RebuttalDetailResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+class SpeechDetailResponse(BaseModel):
+    id: int
+    position: str
+    adus: List[AduDetailResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+class RoundDetailAllResponse(RoundResponse):
+    words: List[WordResponse] = []
+    sentences: List[SentenceDetailResponse] = []
+    speeches: List[SpeechDetailResponse] = []
+
+
+@router.get("/rounds/detail/{round_id}", response_model=RoundDetailAllResponse)
+async def get_round_detail(round_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    ラウンドの詳細情報（全関連データ）を取得
+    Words, Sentences, Speeches, ADUs, Rebuttals をすべて含む。
+    
+    DEBUG用途のため、Words と Sentences は最大100件に制限されています。
+    """
+    # 1. Fetch Round with Speeches hierarchy
+    stmt = (
+        select(Round)
+        .options(
+            selectinload(Round.speeches).selectinload(Speech.adus).selectinload(Adu.rebuttals_as_source)
+        )
+        .where(Round.id == round_id)
+    )
+    result = await db.execute(stmt)
+    r = result.scalar_one_or_none()
+    
+    if not r:
+        raise HTTPException(status_code=404, detail="Round not found")
+
+    # 3. Fetch Words (Limit 100)
+    words_stmt = select(Word).where(Word.round_id == round_id).order_by(Word.id).limit(100)
+    words_result = await db.execute(words_stmt)
+    words = words_result.scalars().all()
+    
+    # 4. Fetch Sentences (Limit 100)
+    sentences_stmt = select(Sentence).where(Sentence.round_id == round_id).order_by(Sentence.id).limit(100)
+    sentences_result = await db.execute(sentences_stmt)
+    sentences = sentences_result.scalars().all()
+
+    # Construct response
+    # Map speeches
+    speeches_resp = []
+    for s in r.speeches:
+        adus_resp = []
+        for a in s.adus:
+            # Rebuttals
+            rebuttals_resp = [
+                RebuttalDetailResponse(
+                    id=reb.id, src_adu_id=reb.src_adu_id, tgt_adu_id=reb.tgt_adu_id
+                ) for reb in a.rebuttals_as_source
+            ]
+            
+            # ADUs
+            adus_resp.append(AduDetailResponse(
+                id=a.id, text=a.text, role=a.role, rebuttals_as_source=rebuttals_resp
+            ))
+        
+        # Speeches
+        speeches_resp.append(SpeechDetailResponse(
+            id=s.id, position=s.position, adus=adus_resp
+        ))
+        
+    return RoundDetailAllResponse(
+        id=r.id,
+        name=r.name,
+        try_count=r.try_count,
+        type=r.type,
+        note=r.note,
+        style=r.style,
+        motion=r.motion,
+        video_id=r.video_id,
+        created_at=r.created_at.isoformat(),
+        words=words,
+        sentences=sentences,
+        speeches=speeches_resp
+    )

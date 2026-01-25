@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy import select, func
+import math
 
 from db import get_db
 from cruds import round as round_crud
@@ -170,6 +171,7 @@ class SentenceWithTime(BaseModel):
         from_attributes = True
 
 
+
 # ==================== Round Endpoints ====================
 
 @router.post("/rounds", response_model=RoundResponse)
@@ -311,7 +313,6 @@ async def delete_round(round_name: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Round not found")
     return {"status": "success", "message": f"Round {round_name} deleted"}
 
-
 # ==================== Round Summary Endpoints ====================
 
 class RoundSummaryResponse(BaseModel):
@@ -341,6 +342,7 @@ class PaginatedRoundSummaryResponse(BaseModel):
     total: int
     page: int
     limit: int
+
     total_pages: int
 
 
@@ -408,7 +410,7 @@ async def get_rounds_summary(
             motion=r.motion,
             style=r.style,
             date_uploaded=r.created_at.isoformat(),
-            channel_id=r.channel_id,
+            channel_id="", # TODO: Add channel_id
             tag=r.type, # タグとしてタイプを表示
             poi_count=poi_cnt,
             rebuttal_count=rebuttal_cnt,
@@ -422,7 +424,6 @@ async def get_rounds_summary(
             step4_status=step4_status
         ))
     
-    import math
     total_pages = math.ceil(total / limit) if limit > 0 else 0
     
     return PaginatedRoundSummaryResponse(
