@@ -1,5 +1,6 @@
 import httpx
 import os
+import json
 from fastapi import HTTPException
 from typing import Dict, List, Any, Optional
 from config import TRANSCRIPTION_API_URL
@@ -164,6 +165,65 @@ async def delete_audio_cache_remote(video_id: str) -> None:
 
         if resp.status_code not in [200, 404]:
              raise HTTPException(status_code=resp.status_code, detail=f"Failed to delete external cache: {resp.text}")
+
+async def delete_background_transcription_batch_remote(
+    video_ids: Optional[List[str]] = None,
+    round_ids: Optional[List[int]] = None
+) -> Dict[str, Any]:
+    """
+    Delete background transcription data in batch from external service.
+
+    Args:
+        video_ids: List of video IDs to delete
+        round_ids: List of round IDs to delete
+
+    Returns:
+        Dictionary with deleted_count and message
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background/batch"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.request(
+                "DELETE",
+                target_url,
+                json={
+                    "video_ids": video_ids or [],
+                    "round_ids": round_ids or []
+                },
+                timeout=10.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Batch deletion failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Batch Deletion Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (batch deletion)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Batch Deletion General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Batch Deletion"
+        )
 
 async def transcribe_background_remote(
     round_id: int,

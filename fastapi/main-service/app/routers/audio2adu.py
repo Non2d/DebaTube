@@ -25,7 +25,8 @@ from services.transcription_service import (
     transcribe_audio_remote,
     transcribe_background_remote,
     get_transcription_status_remote,
-    get_transcription_result_remote
+    get_transcription_result_remote,
+    delete_background_transcription_batch_remote
 )
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
@@ -798,62 +799,44 @@ async def start_background_transcription(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Integrated endpoint: STEP1-A (download) -> STEP1-B (background transcription start)
+    Step 1-B (Background): Start background transcription.
 
-    This endpoint automatically:
-    1. Downloads and splits audio from YouTube URL (STEP1-A)
-    2. Immediately starts background transcription (STEP1-B)
+    Prerequisites:
+        - Step 1-A must be completed first (use POST /download-audio/{round_id})
+        - Round must have video_id set
 
     Args:
         request: Contains round_id, url, num_chunks, max_workers, is_forced
 
     Returns:
-        Status information including video_id and transcription status
+        Status information including transcription status
 
     Use GET /transcription-status?round_id=N to check progress
     Use GET /transcription-result?round_id=N to get results when completed
     """
     start_time = time.time()
     round_id = request.round_id
-    print(f"[/start-background-transcription] 処理開始 - round_id: {round_id}, url: {request.url}")
+    print(f"[Step 1-B Background: /start-background-transcription] 処理開始 - round_id: {round_id}")
 
-    # Fetch Round from DB
+    # Fetch Round from DB and verify video_id exists
     try:
         round_obj = await round_crud.get_round_by_id(db, round_id)
         if not round_obj:
             raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+
+        if not round_obj.video_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No video_id found. Please run Step 1-A (POST /download-audio) first."
+            )
+    except HTTPException:
+        raise
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-    # STEP 1-A: Download audio
+    # Start background transcription
     try:
-        print(f"[STEP1-A] Downloading audio via service with URL: {request.url}")
-        download_result = await download_audio_remote(request.url, num_chunks=request.num_chunks)
-
-        video_id = download_result.get("video_id")
-        if not video_id:
-            raise HTTPException(status_code=500, detail="No video_id returned from download")
-
-        # Verify and update video_id
-        if round_obj.video_id and round_obj.video_id != video_id:
-            logger.warning(f"video_id mismatch: Round has {round_obj.video_id}, download returned {video_id}")
-
-        if not round_obj.video_id:
-            round_obj.video_id = video_id
-            await db.commit()
-
-        logger.info(f"[STEP1-A] Complete: Audio downloaded for video_id={video_id}, Round {round_id}")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[STEP1-A] Error: {str(e)}")
-        logger.error(f"Error in audio download: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"STEP1-A failed: {str(e)}")
-
-    # STEP 1-B: Start background transcription
-    try:
-        print(f"[STEP1-B] Starting background transcription for round_id: {round_id}")
+        print(f"[Step 1-B] Starting background transcription for round_id: {round_id}")
         transcription_status = await transcribe_background_remote(
             round_id=round_id,
             url=request.url,
@@ -862,17 +845,16 @@ async def start_background_transcription(
             is_forced=request.is_forced
         )
 
-        logger.info(f"[STEP1-B] Background transcription started for Round {round_id}")
+        logger.info(f"[Step 1-B] Background transcription started for Round {round_id}")
         logger.info(f"Status: {transcription_status}")
 
         elapsed_time = time.time() - start_time
-        print(f"[/start-background-transcription] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+        print(f"[Step 1-B Background: /start-background-transcription] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
 
         return {
             "status": "success",
             "round_id": round_id,
-            "video_id": video_id,
-            "is_cached": download_result.get("is_cached", False),
+            "video_id": round_obj.video_id,
             "transcription_status": transcription_status.get("status", "PENDING"),
             "message": "Background transcription started. Use /transcription-status to check progress.",
             "processing_time_seconds": round(elapsed_time, 2)
@@ -881,9 +863,9 @@ async def start_background_transcription(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[STEP1-B] Error: {str(e)}")
+        print(f"[Step 1-B] Error: {str(e)}")
         logger.error(f"Error starting background transcription: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"STEP1-B failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Step 1-B failed: {str(e)}")
 
 @router.get("/transcription-status")
 async def get_transcription_status(round_id: int):
@@ -958,6 +940,35 @@ async def get_transcription_result(
         raise
     except Exception as e:
         logger.error(f"Error getting transcription result: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class DeleteBackgroundTranscriptionRequest(BaseModel):
+    """Request body for deleting background transcription data"""
+    video_ids: List[str]
+
+@router.delete("/delete-background-transcription")
+async def delete_background_transcription(
+    request: DeleteBackgroundTranscriptionRequest
+):
+    """
+    Delete background transcription data from external service in batch.
+
+    Args:
+        request: Contains video_ids (list) to delete
+
+    Returns:
+        Dictionary with deleted_count and message
+    """
+    try:
+        result = await delete_background_transcription_batch_remote(
+            video_ids=request.video_ids,
+            round_ids=None
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting background transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/extract-words-from-transcript/{round_id}")
