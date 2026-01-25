@@ -98,7 +98,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                 progress = await getProgress();
             } else {
                 setDownloadProgress(25);
-                toast.success('Step 1-A: Already completed', { id: 'step1a', duration: 2000 });
+                // Silent skip - no toast needed
             }
 
             // Step 1-B: Transcription
@@ -108,59 +108,48 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                 if (is_background) {
                     // Background transcription
-                    toast.loading('Step 1-B: Starting background transcription...', { id: 'step1b' });
+                    toast.loading('Step 1-B: Checking transcription status...', { id: 'step1b' });
 
-                    const startRes = await fetch(getAPIRoot() + `/start-background-transcription`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            round_id: roundData.id,
-                            url: targetUrl,
-                            num_chunks: 4,
-                            max_workers: 2,
-                            is_forced: false
-                        }),
-                    });
+                    // Check current status first
+                    const statusRes = await fetch(getAPIRoot() + `/transcription-status?round_id=${roundData.id}`);
+                    let status = 'NOT_IN_QUEUE';
 
-                    if (!startRes.ok) {
-                        const err = await startRes.json();
-                        if (startRes.status === 409) { // 409 Conflict (Already Exists) はスルーする
-                            console.warn("Existing transcription job found. Resuming...");
-                            toast('Existing transcription job found. Resuming...', { icon: 'ℹ️', id: 'step1b' });
-                        } else {
-                            throw new Error(err.detail || 'Background transcription start failed');
-                        }
-                    }
-
-                    toast.loading('Step 1-B: Transcribing in background...', { id: 'step1b' });
-                    setDownloadProgress(35);
-
-                    // Poll for status
-                    let status = 'IN_QUEUE';
-                    while (status !== 'DONE' && status !== 'COMPLETED' && status !== 'ERROR') {
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
-
-                        const statusRes = await fetch(getAPIRoot() + `/transcription-status?round_id=${roundData.id}`);
-                        if (!statusRes.ok) {
-                            throw new Error('Failed to check transcription status');
-                        }
-
+                    if (statusRes.ok) {
                         const statusData = await statusRes.json();
                         status = statusData.status;
-
-                        if (status === 'PROCESSING') {
-                            setDownloadProgress(40);
-                        }
-
-                        if (status === 'ERROR') {
-                            throw new Error('Background transcription failed');
-                        }
                     }
 
-                    // Get result
-                    setDownloadProgress(50);
-                    toast.loading('Step 1-B: Retrieving result...', { id: 'step1b' });
+                    // If not done, start background transcription
+                    if (status !== 'DONE' && status !== 'COMPLETED') {
+                        const startRes = await fetch(getAPIRoot() + `/start-background-transcription`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                round_id: roundData.id,
+                                url: targetUrl,
+                                num_chunks: 4,
+                                max_workers: 2,
+                                is_forced: false
+                            }),
+                        });
 
+                        if (!startRes.ok) {
+                            const err = await startRes.json();
+                            if (startRes.status === 409) {
+                                console.warn("Existing transcription job found.");
+                            } else {
+                                throw new Error(err.detail || 'Background transcription start failed');
+                            }
+                        }
+
+                        toast.success('Step 1-B: Background transcription in progress. Please wait for completion.', { id: 'step1b', duration: 3000 });
+                        setDownloadProgress(35);
+                        await onRefresh();
+                        return; // Exit - page-level polling will handle completion
+                    }
+
+                    // Status is DONE - retrieve result
+                    toast.loading('Step 1-B: Retrieving result...', { id: 'step1b' });
                     const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
                     if (!resultRes.ok) {
                         const err = await resultRes.json();
@@ -168,6 +157,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                     }
 
                     toast.success('Step 1-B: Completed', { id: 'step1b' });
+                    setDownloadProgress(60);
                     await onRefresh();
                     progress = await getProgress();
                 } else {
@@ -189,7 +179,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                 }
             } else {
                 setDownloadProgress(60);
-                toast.success('Step 1-B: Already completed', { id: 'step1b', duration: 2000 });
+                // Silent skip - no toast needed
             }
 
             // Step 1-C: Words
@@ -211,7 +201,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                 progress = await getProgress();
             } else {
                 setDownloadProgress(80);
-                toast.success('Step 1-C: Already completed', { id: 'step1c', duration: 2000 });
+                // Silent skip - no toast needed
             }
 
             // Step 1-D: Group Sentences
@@ -233,7 +223,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                 await onRefresh();
             } else {
                 setDownloadProgress(100);
-                toast.success('Step 1-D: Already completed', { id: 'step1d', duration: 2000 });
+                // Silent skip - no toast needed
             }
 
             toast.success('Step 1 All Complete!');

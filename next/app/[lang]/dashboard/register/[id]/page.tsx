@@ -187,6 +187,139 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         fetchJobProgress();
     }, [roundData]);
 
+    // Polling for background processing
+    useEffect(() => {
+        if (!roundData || !jobProgress) return;
+
+        // Check if any background step is in progress
+        const backgroundSteps = [
+            jobProgress.step_1a,
+            jobProgress.step_1b,
+            jobProgress.step_1c,
+            jobProgress.step_1d,
+            jobProgress.step_2,
+            jobProgress.step_3,
+            jobProgress.step_4
+        ];
+
+        const hasActiveBackgroundTask = backgroundSteps.some((status: string) => {
+            const mappedStatus = mapBackgroundStatus(status);
+            return mappedStatus === 'processing' || mappedStatus === 'in_queue';
+        });
+
+        if (!hasActiveBackgroundTask) {
+            return; // No polling needed
+        }
+
+        // Poll every 3 seconds while processing
+        const intervalId = setInterval(() => {
+            fetchJobProgress();
+        }, 3000);
+
+        return () => clearInterval(intervalId);
+    }, [roundData, jobProgress]);
+
+    // Auto-continue Step 1-C and 1-D when Step 1-B completes
+    const prevJobProgressRef = useRef<any>(null);
+    useEffect(() => {
+        if (!jobProgress || !prevJobProgressRef.current || !roundData) {
+            prevJobProgressRef.current = jobProgress;
+            return;
+        }
+
+        const prev = prevJobProgressRef.current;
+        const curr = jobProgress;
+
+        // Check if Step 1-B just completed
+        const prevStep1bStatus = mapBackgroundStatus(prev.step_1b);
+        const currStep1bStatus = mapBackgroundStatus(curr.step_1b);
+
+        if (prevStep1bStatus !== 'done' && currStep1bStatus === 'done') {
+            // Step 1-B just completed, first retrieve the result, then execute 1-C and 1-D
+            (async () => {
+                try {
+                    // Get transcription result and save to DB
+                    setDownloadProgress(50);
+                    toast.loading('Step 1-B: Retrieving result...', { id: 'step1b-result' });
+
+                    const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
+                    if (!resultRes.ok) {
+                        const err = await resultRes.json();
+                        throw new Error(err.detail || 'Failed to get transcription result');
+                    }
+
+                    toast.success('Step 1-B: Result saved to DB', { id: 'step1b-result' });
+                    await fetchJobProgress();
+
+                    // Re-fetch progress
+                    const progressRes = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+                    let progress = curr;
+                    if (progressRes.ok) {
+                        progress = await progressRes.json();
+                    }
+
+                    // Step 1-C: Extract Words
+                    if (!progress?.words_registered) {
+                        setDownloadProgress(70);
+                        toast.loading('Step 1-C: Extracting words...', { id: 'step1c' });
+
+                        const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.detail || 'Word extraction failed');
+                        }
+                        toast.success('Step 1-C: Completed', { id: 'step1c' });
+                        await fetchJobProgress();
+
+                        // Re-fetch progress for next step
+                        const progressRes = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+                        if (progressRes.ok) {
+                            progress = await progressRes.json();
+                        }
+                    } else {
+                        setDownloadProgress(80);
+                        // Silent skip
+                    }
+
+                    // Step 1-D: Group Sentences
+                    if (!progress?.sentences_registered) {
+                        setDownloadProgress(85);
+                        toast.loading('Step 1-D: Grouping sentences...', { id: 'step1d' });
+
+                        const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.detail || 'Sentence generation failed');
+                        }
+                        const data = await res.json();
+                        toast.success(`Step 1-D: ${data.total_sentences} sentences`, { id: 'step1d' });
+                        await fetchJobProgress();
+                    } else {
+                        setDownloadProgress(100);
+                        // Silent skip
+                    }
+
+                    toast.success('Step 1 All Complete!');
+                } catch (error: any) {
+                    console.error(error);
+                    toast.dismiss('step1c');
+                    toast.dismiss('step1d');
+                    toast.error(error.message);
+                }
+            })();
+        }
+
+        prevJobProgressRef.current = jobProgress;
+    }, [jobProgress, roundData]);
+
     const runAutoDiarization = async () => {
         try {
             const toastId = toast.loading(t('dashboard.steps.status.processing') || "Processing Auto Diarization...");

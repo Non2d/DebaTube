@@ -59,25 +59,47 @@ export function useRounds(type?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchRounds = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getRoundsSummary(type, page, limit);
-        setRounds(data.items);
-        setTotal(data.total);
-        setTotalPages(data.total_pages);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch rounds');
-        console.error('Error fetching rounds:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchRounds = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getRoundsSummary(type, page, limit);
+      setRounds(data.items);
+      setTotal(data.total);
+      setTotalPages(data.total_pages);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch rounds');
+      console.error('Error fetching rounds:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchRounds();
   }, [type, page, limit]);
+
+  // Polling for background processing
+  useEffect(() => {
+    // Check if any round has processing steps
+    const hasProcessingRound = rounds.some(round =>
+      round.step1_status === 'processing' || round.step1_status === 'in_queue' ||
+      round.step2_status === 'processing' || round.step2_status === 'in_queue' ||
+      round.step3_status === 'processing' || round.step3_status === 'in_queue' ||
+      round.step4_status === 'processing' || round.step4_status === 'in_queue'
+    );
+
+    if (!hasProcessingRound) {
+      return; // No polling needed
+    }
+
+    // Poll every 5 seconds while processing
+    const intervalId = setInterval(() => {
+      fetchRounds();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [rounds, type, page, limit]);
 
   const goToPage = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
