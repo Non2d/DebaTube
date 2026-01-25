@@ -156,11 +156,215 @@ async def delete_audio_cache_remote(video_id: str) -> None:
     """
     if not TRANSCRIPTION_API_URL:
         raise ValueError("TRANSCRIPTION_API_URL not configured")
-    
+
     target_url = f"{TRANSCRIPTION_API_URL}/audio/{video_id}"
-    
+
     async with httpx.AsyncClient() as client:
         resp = await client.delete(target_url, timeout=5.0)
-        
+
         if resp.status_code not in [200, 404]:
              raise HTTPException(status_code=resp.status_code, detail=f"Failed to delete external cache: {resp.text}")
+
+async def transcribe_background_remote(
+    round_id: int,
+    url: str,
+    num_chunks: int = 4,
+    max_workers: int = 2,
+    is_forced: bool = False
+) -> Dict[str, Any]:
+    """
+    Start background transcription via external service.
+    Returns initial status information.
+
+    Args:
+        round_id: Round ID for tracking
+        url: YouTube URL
+        num_chunks: Number of chunks to split audio into
+        max_workers: Maximum number of parallel workers
+        is_forced: Force re-processing even if already completed
+
+    Returns:
+        Dictionary with video_id, round_id, and status
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={
+                    "round_id": round_id,
+                    "url": url,
+                    "num_chunks": num_chunks,
+                    "max_workers": max_workers,
+                    "is_forced": is_forced
+                },
+                timeout=30.0  # Background job start should be quick
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Background transcription start failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Background Transcription Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (background)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Background Transcription General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Background Transcription Start"
+        )
+
+async def get_transcription_status_remote(round_id: int) -> Dict[str, Any]:
+    """
+    Get the status of a background transcription job.
+
+    Args:
+        round_id: Round ID to check status for
+
+    Returns:
+        Dictionary with video_id, round_id, and status (PENDING/PROCESSING/COMPLETED/ERROR)
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background/status"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                target_url,
+                params={"round_id": round_id},
+                timeout=5.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Status check failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Status Check Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (status check)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Status Check General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Status Check"
+        )
+
+async def get_transcription_result_remote(round_id: int) -> Dict[str, Any]:
+    """
+    Get the result of a completed background transcription job.
+    Converts from LocalWhisper format to standard Whisper verbose format.
+
+    Args:
+        round_id: Round ID to get results for
+
+    Returns:
+        Dictionary in standard Whisper verbose format with task, language, duration, text, and words
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                target_url,
+                params={"round_id": round_id},
+                timeout=30.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Result retrieval failed: {error_detail}"
+                )
+
+            external_result = resp.json()
+
+            # Validate status
+            status = external_result.get("status", "PENDING")
+            if status != "COMPLETED":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Transcription not completed yet. Current status: {status}"
+                )
+
+            # Convert from LocalWhisper format to standard Whisper verbose format
+            # LocalWhisper has: text, language, duration, duration_after_vad, segments (with words)
+            # Standard format needs: task, language, duration, text, words (flat list)
+
+            all_words = []
+            if "segments" in external_result and external_result["segments"]:
+                for segment in external_result["segments"]:
+                    if "words" in segment and segment["words"]:
+                        for word_obj in segment["words"]:
+                            all_words.append({
+                                "word": word_obj.get("word", ""),
+                                "start": word_obj.get("start", 0.0),
+                                "end": word_obj.get("end", 0.0)
+                            })
+
+            standard_response = {
+                "task": "transcribe",
+                "language": external_result.get("language", "en"),
+                "duration": external_result.get("duration", 0.0),
+                "text": external_result.get("text", ""),
+                "words": all_words
+            }
+
+            return standard_response
+
+    except httpx.RequestError as e:
+        print(f"Result Retrieval Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (result retrieval)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Result Retrieval General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Result Retrieval"
+        )

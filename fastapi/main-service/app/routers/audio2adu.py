@@ -22,7 +22,10 @@ from .utils import (
 )
 from services.transcription_service import (
     download_audio_remote,
-    transcribe_audio_remote
+    transcribe_audio_remote,
+    transcribe_background_remote,
+    get_transcription_status_remote,
+    get_transcription_result_remote
 )
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
@@ -651,6 +654,13 @@ async def audio_to_transcript_batch(
 class DownloadAudioRequestBody(BaseModel):
     url: str
 
+class BackgroundTranscriptionRequest(BaseModel):
+    """Request body for background transcription with all parameters"""
+    url: str
+    num_chunks: int = 4
+    max_workers: int = 2
+    is_forced: bool = False
+
 @router.post("/download-audio/{round_id}")
 async def download_audio(
     round_id: int,
@@ -779,6 +789,169 @@ async def transcribe_audio(
         elapsed_time = time.time() - start_time
         print(f"[Step 1-B: /transcribe-audio] Error: {str(e)}")
         logger.error(f"Error in transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/start-background-transcription/{round_id}")
+async def start_background_transcription(
+    round_id: int,
+    request: BackgroundTranscriptionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Integrated endpoint: STEP1-A (download) -> STEP1-B (background transcription start)
+
+    This endpoint automatically:
+    1. Downloads and splits audio from YouTube URL (STEP1-A)
+    2. Immediately starts background transcription (STEP1-B)
+
+    Args:
+        round_id: Round ID
+        request: Contains url, num_chunks, max_workers, is_forced
+
+    Returns:
+        Status information including video_id and transcription status
+
+    Use GET /transcription-status/{round_id} to check progress
+    Use GET /transcription-result/{round_id} to get results when completed
+    """
+    start_time = time.time()
+    print(f"[/start-background-transcription] 処理開始 - round_id: {round_id}, url: {request.url}")
+
+    # Fetch Round from DB
+    try:
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+    except Exception as db_e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
+
+    # STEP 1-A: Download audio
+    try:
+        print(f"[STEP1-A] Downloading audio via service with URL: {request.url}")
+        download_result = await download_audio_remote(request.url, num_chunks=request.num_chunks)
+
+        video_id = download_result.get("video_id")
+        if not video_id:
+            raise HTTPException(status_code=500, detail="No video_id returned from download")
+
+        # Verify and update video_id
+        if round_obj.video_id and round_obj.video_id != video_id:
+            logger.warning(f"video_id mismatch: Round has {round_obj.video_id}, download returned {video_id}")
+
+        if not round_obj.video_id:
+            round_obj.video_id = video_id
+            await db.commit()
+
+        logger.info(f"[STEP1-A] Complete: Audio downloaded for video_id={video_id}, Round {round_id}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[STEP1-A] Error: {str(e)}")
+        logger.error(f"Error in audio download: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"STEP1-A failed: {str(e)}")
+
+    # STEP 1-B: Start background transcription
+    try:
+        print(f"[STEP1-B] Starting background transcription for round_id: {round_id}")
+        transcription_status = await transcribe_background_remote(
+            round_id=round_id,
+            url=request.url,
+            num_chunks=request.num_chunks,
+            max_workers=request.max_workers,
+            is_forced=request.is_forced
+        )
+
+        logger.info(f"[STEP1-B] Background transcription started for Round {round_id}")
+        logger.info(f"Status: {transcription_status}")
+
+        elapsed_time = time.time() - start_time
+        print(f"[/start-background-transcription] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "round_id": round_id,
+            "video_id": video_id,
+            "is_cached": download_result.get("is_cached", False),
+            "transcription_status": transcription_status.get("status", "PENDING"),
+            "message": "Background transcription started. Use /transcription-status to check progress.",
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[STEP1-B] Error: {str(e)}")
+        logger.error(f"Error starting background transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"STEP1-B failed: {str(e)}")
+
+@router.get("/transcription-status/{round_id}")
+async def get_transcription_status(round_id: int):
+    """
+    Check the status of a background transcription job.
+
+    Returns:
+        Status information (PENDING/PROCESSING/COMPLETED/ERROR)
+    """
+    try:
+        status_info = await get_transcription_status_remote(round_id)
+        return status_info
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking transcription status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/transcription-result/{round_id}")
+async def get_transcription_result(
+    round_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get the result of a completed background transcription job.
+    Also saves the result to Round.raw_transcription.
+
+    Returns:
+        Transcription result in standard Whisper verbose format
+    """
+    start_time = time.time()
+
+    try:
+        # Get result from external service
+        transcription_result = await get_transcription_result_remote(round_id)
+
+        # Save to database
+        round_obj = await round_crud.get_round_by_id(db, round_id)
+        if not round_obj:
+            raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+
+        # Validate the response format
+        try:
+            validated_data = VerboseTranscriptionResponse(**transcription_result)
+            logger.info(f"Background transcription validated successfully for round {round_id}")
+        except ValidationError as val_error:
+            logger.error(f"Validation failed for background transcription: {val_error}")
+            raise HTTPException(status_code=500, detail=f"Invalid transcription format: {val_error}")
+
+        # Save transcription to Round
+        round_obj.raw_transcription = transcription_result
+        await db.commit()
+
+        logger.info(f"Background transcription result saved for Round {round_id}")
+
+        elapsed_time = time.time() - start_time
+
+        return {
+            "status": "success",
+            "round_id": round_id,
+            "transcription": transcription_result,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting transcription result: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/extract-words-from-transcript/{round_id}")
