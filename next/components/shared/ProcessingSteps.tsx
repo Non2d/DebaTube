@@ -261,6 +261,14 @@ export default function ProcessingSteps({
                                                                             const transcriptionComplete = jobProgress.has_all_raw_speech_transcription || jobProgress.has_raw_round_transcription;
                                                                             const cacheDeleted = !audioComplete && transcriptionComplete;
 
+                                                                            if (cacheDeleted) {
+                                                                                return (
+                                                                                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                                                                                        キャッシュが削除されています
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            return null;
                                                                         })()
                                                                     )}
                                                                 </div>
