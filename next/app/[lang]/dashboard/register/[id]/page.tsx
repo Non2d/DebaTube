@@ -37,7 +37,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [roundData, setRoundData] = useState<any>(null);
     const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled']);
     const [currentStep, setCurrentStep] = useState(1);
-    const [downloadProgress, setDownloadProgress] = useState(0);
     const [jobProgress, setJobProgress] = useState<any>(null);
 
     // Ref to track stepsStatus to avoid stale closures in async callbacks
@@ -239,16 +238,15 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             (async () => {
                 try {
                     // Get transcription result and save to DB
-                    setDownloadProgress(50);
-                    toast.loading('Step 1-B: Retrieving result...', { id: 'step1b-result' });
+                    toast.loading(t('dashboard.steps.messages.retrievingResult') || 'Step 1-B: Retrieving result...', { id: 'step1b-result' });
 
                     const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
                     if (!resultRes.ok) {
                         const err = await resultRes.json();
-                        throw new Error(err.detail || 'Failed to get transcription result');
+                        throw new Error(err.detail || t('dashboard.steps.messages.failedGetTranscriptionResult') || 'Failed to get transcription result');
                     }
 
-                    toast.success('Step 1-B: Result saved to DB', { id: 'step1b-result' });
+                    toast.success(t('dashboard.steps.messages.resultSavedToDb') || 'Step 1-B: Result saved to DB', { id: 'step1b-result' });
                     await fetchJobProgress();
 
                     // Re-fetch progress
@@ -260,8 +258,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
                     // Step 1-C: Extract Words
                     if (!progress?.words_registered) {
-                        setDownloadProgress(70);
-                        toast.loading('Step 1-C: Extracting words...', { id: 'step1c' });
+                        toast.loading(t('dashboard.steps.messages.extractingWords') || 'Step 1-C: Extracting words...', { id: 'step1c' });
 
                         const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
                             method: 'POST',
@@ -270,9 +267,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
                         if (!res.ok) {
                             const err = await res.json();
-                            throw new Error(err.detail || 'Word extraction failed');
+                            throw new Error(err.detail || t('dashboard.steps.messages.wordExtractionFailed') || 'Word extraction failed');
                         }
-                        toast.success('Step 1-C: Completed', { id: 'step1c' });
+                        toast.success(t('dashboard.steps.messages.wordExtractionCompleted') || 'Step 1-C: Completed', { id: 'step1c' });
                         await fetchJobProgress();
 
                         // Re-fetch progress for next step
@@ -281,14 +278,12 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             progress = await progressRes.json();
                         }
                     } else {
-                        setDownloadProgress(80);
                         // Silent skip
                     }
 
                     // Step 1-D: Group Sentences
                     if (!progress?.sentences_registered) {
-                        setDownloadProgress(85);
-                        toast.loading('Step 1-D: Grouping sentences...', { id: 'step1d' });
+                        toast.loading(t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...', { id: 'step1d' });
 
                         const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
                             method: 'POST',
@@ -297,17 +292,16 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
                         if (!res.ok) {
                             const err = await res.json();
-                            throw new Error(err.detail || 'Sentence generation failed');
+                            throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
                         }
                         const data = await res.json();
-                        toast.success(`Step 1-D: ${data.total_sentences} sentences`, { id: 'step1d' });
+                        toast.success((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences), { id: 'step1d' });
                         await fetchJobProgress();
                     } else {
-                        setDownloadProgress(100);
                         // Silent skip
                     }
 
-                    toast.success('Step 1 All Complete!');
+                    toast.success(t('dashboard.steps.messages.step1Complete') || 'Step 1 All Complete!');
                 } catch (error: any) {
                     console.error(error);
                     toast.dismiss('step1c');
@@ -335,7 +329,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 throw new Error(err.detail || "Auto Diarization failed");
             }
 
-            toast.success("Diarization Complete!");
+            toast.success(t('dashboard.steps.messages.diarizationComplete') || "Diarization Complete!");
             await fetchJobProgress();
         } catch (e: any) {
             toast.error(e.message);
@@ -355,10 +349,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.detail || "Auto ADU Generation failed");
+                throw new Error(err.detail || t('dashboard.steps.messages.autoAduGenerationFailed') || "Auto ADU Generation failed");
             }
 
-            toast.success("ADU Generation Complete!");
+            toast.success(t('dashboard.steps.messages.aduGenerationComplete') || "ADU Generation Complete!");
             await fetchJobProgress();
         } catch (e: any) {
             toast.error(e.message);
@@ -378,10 +372,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.detail || "Auto Rebuttal Generation failed");
+                throw new Error(err.detail || t('dashboard.steps.messages.autoRebuttalGenerationFailed') || "Auto Rebuttal Generation failed");
             }
 
-            toast.success("Rebuttal Generation Complete!");
+            toast.success(t('dashboard.steps.messages.rebuttalGenerationComplete') || "Rebuttal Generation Complete!");
             await fetchJobProgress();
         } catch (e: any) {
             toast.error(e.message);
@@ -393,7 +387,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         try {
             // Check which steps are already completed and skip them
             if (stepsStatusRef.current[0] !== 'completed') {
-                await runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, async () => await fetchJobProgress());
+                await runStep1(roundData, setStepsStatus, stepsStatus, async () => await fetchJobProgress());
             }
             if (stepsStatusRef.current[1] !== 'completed') {
                 await runAutoDiarization();
@@ -404,7 +398,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             if (stepsStatusRef.current[3] !== 'completed') {
                 await runAutoRebuttal();
             }
-            toast.success("All Steps Completed Successfully!");
+            toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
         } catch (e: any) {
             console.error("End-to-End Workflow Stopped:", e);
         }
@@ -418,7 +412,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
 
         if (stepIndex === 1) {
-            runStep1(roundData, setDownloadProgress, setStepsStatus, stepsStatus, fetchJobProgress);
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
             return;
         }
 
@@ -507,7 +501,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
         await runStep1(
             roundData,
-            setDownloadProgress,
             setStepsStatus,
             stepsStatus,
             async () => {
@@ -840,7 +833,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             currentStep={currentStep}
                             stepsStatus={stepsStatus}
                             onStepAction={handleStepAction}
-                            downloadProgress={downloadProgress}
                             isRegistrationComplete={true}
                             renderStepContent={renderStepExtras}
                             jobProgress={jobProgress}

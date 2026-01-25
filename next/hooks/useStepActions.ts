@@ -48,11 +48,8 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
     // Run Step 1 (Transcription) with skip logic
     const runStep1 = async (
         roundData: any,
-        setDownloadProgress: (p: number) => void,
         setStepsStatus: (s: ProcessingStepStatus[]) => void,
         stepsStatus: ProcessingStepStatus[],
-        // Fix duplicate argument: stepsStatus was listed twice
-        // stepsStatus: ProcessingStepStatus[],
         onRefresh: () => Promise<void>,
         videoUrl?: string // Optional override for missing video_id recovery
     ) => {
@@ -60,7 +57,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
         const extractedId = videoUrl ? (videoUrl.match(/(?:v=|youtu\.be\/)([^&]+)/)?.[1] || null) : null;
 
         if (!roundData?.video_id && !extractedId) {
-            toast.error("Error: No video_id found in round data");
+            toast.error(t('dashboard.steps.messages.noVideoId') || "Error: No video_id found in round data");
             console.error("runStep1 aborted: missing video_id", roundData);
             return;
         }
@@ -71,7 +68,6 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
         const newStatus = [...stepsStatus];
         newStatus[0] = 'processing';
         setStepsStatus(newStatus);
-        setDownloadProgress(0);
 
         try {
             let progress = await getProgress();
@@ -79,8 +75,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
             // Step 1-A: Download Audio
             const audioDone = progress?.external_has_audio || progress?.local_has_audio;
             if (!audioDone) {
-                setDownloadProgress(10);
-                toast.loading('Step 1-A: Downloading audio...', { id: 'step1a' });
+                toast.loading(t('dashboard.steps.messages.downloadingAudio') || 'Step 1-A: Downloading audio...', { id: 'step1a' });
 
                 const res = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
                     method: 'POST',
@@ -90,25 +85,23 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                 if (!res.ok) {
                     const err = await res.json();
-                    throw new Error(err.detail || 'Audio download failed');
+                    throw new Error(err.detail || t('dashboard.steps.messages.audioDownloadFailed') || 'Audio download failed');
                 }
                 const data = await res.json();
-                toast.success(`Step 1-A: Downloaded (${data.video_id})`, { id: 'step1a' });
+                toast.success((t('dashboard.steps.messages.downloadedAudio') || 'Step 1-A: Downloaded (${video_id})').replace('${video_id}', data.video_id), { id: 'step1a' });
                 await onRefresh();
                 progress = await getProgress();
             } else {
-                setDownloadProgress(25);
                 // Silent skip - no toast needed
             }
 
             // Step 1-B: Transcription
             const transDone = progress?.has_all_raw_speech_transcription || progress?.has_raw_round_transcription;
             if (!transDone) {
-                setDownloadProgress(30);
 
                 if (is_background) {
                     // Background transcription
-                    toast.loading('Step 1-B: Checking transcription status...', { id: 'step1b' });
+                    toast.loading(t('dashboard.steps.messages.checkingTranscriptionStatus') || 'Step 1-B: Checking transcription status...', { id: 'step1b' });
 
                     // Check current status first
                     const statusRes = await fetch(getAPIRoot() + `/transcription-status?round_id=${roundData.id}`);
@@ -138,31 +131,29 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                             if (startRes.status === 409) {
                                 console.warn("Existing transcription job found.");
                             } else {
-                                throw new Error(err.detail || 'Background transcription start failed');
+                                throw new Error(err.detail || t('dashboard.steps.messages.backgroundTranscriptionStartFailed') || 'Background transcription start failed');
                             }
                         }
 
-                        toast.success('Step 1-B: Background transcription in progress. Please wait for completion.', { id: 'step1b', duration: 3000 });
-                        setDownloadProgress(35);
+                        toast.success(t('dashboard.steps.messages.backgroundTranscriptionInProgress') || 'Step 1-B: Background transcription in progress. Please wait for completion.', { id: 'step1b', duration: 3000 });
                         await onRefresh();
                         return; // Exit - page-level polling will handle completion
                     }
 
                     // Status is DONE - retrieve result
-                    toast.loading('Step 1-B: Retrieving result...', { id: 'step1b' });
+                    toast.loading(t('dashboard.steps.messages.retrievingResult') || 'Step 1-B: Retrieving result...', { id: 'step1b' });
                     const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
                     if (!resultRes.ok) {
                         const err = await resultRes.json();
-                        throw new Error(err.detail || 'Failed to get transcription result');
+                        throw new Error(err.detail || t('dashboard.steps.messages.failedGetTranscriptionResult') || 'Failed to get transcription result');
                     }
 
-                    toast.success('Step 1-B: Completed', { id: 'step1b' });
-                    setDownloadProgress(60);
+                    toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Completed', { id: 'step1b' });
                     await onRefresh();
                     progress = await getProgress();
                 } else {
                     // Synchronous transcription (existing behavior)
-                    toast.loading('Step 1-B: Transcribing...', { id: 'step1b' });
+                    toast.loading(t('dashboard.steps.messages.transcribing') || 'Step 1-B: Transcribing...', { id: 'step1b' });
 
                     const res = await fetch(getAPIRoot() + `/transcribe-audio/${roundData.id}`, {
                         method: 'POST',
@@ -171,21 +162,19 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                     if (!res.ok) {
                         const err = await res.json();
-                        throw new Error(err.detail || 'Transcription failed');
+                        throw new Error(err.detail || t('dashboard.steps.messages.transcriptionFailed') || 'Transcription failed');
                     }
-                    toast.success('Step 1-B: Completed', { id: 'step1b' });
+                    toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Completed', { id: 'step1b' });
                     await onRefresh();
                     progress = await getProgress();
                 }
             } else {
-                setDownloadProgress(60);
                 // Silent skip - no toast needed
             }
 
             // Step 1-C: Words
             if (!progress?.words_registered) {
-                setDownloadProgress(70);
-                toast.loading('Step 1-C: Extracting words...', { id: 'step1c' });
+                toast.loading(t('dashboard.steps.messages.extractingWords') || 'Step 1-C: Extracting words...', { id: 'step1c' });
 
                 const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
                     method: 'POST',
@@ -194,20 +183,18 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                 if (!res.ok) {
                     const err = await res.json();
-                    throw new Error(err.detail || 'Word extraction failed');
+                    throw new Error(err.detail || t('dashboard.steps.messages.wordExtractionFailed') || 'Word extraction failed');
                 }
-                toast.success('Step 1-C: Completed', { id: 'step1c' });
+                toast.success(t('dashboard.steps.messages.wordExtractionCompleted') || 'Step 1-C: Completed', { id: 'step1c' });
                 await onRefresh();
                 progress = await getProgress();
             } else {
-                setDownloadProgress(80);
                 // Silent skip - no toast needed
             }
 
             // Step 1-D: Group Sentences
             if (!progress?.sentences_registered) {
-                setDownloadProgress(85);
-                toast.loading('Step 1-D: Grouping sentences...', { id: 'step1d' });
+                toast.loading(t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...', { id: 'step1d' });
 
                 const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
                     method: 'POST',
@@ -216,17 +203,16 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                 if (!res.ok) {
                     const err = await res.json();
-                    throw new Error(err.detail || 'Sentence generation failed');
+                    throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
                 }
                 const data = await res.json();
-                toast.success(`Step 1-D: ${data.total_sentences} sentences`, { id: 'step1d' });
+                toast.success((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences), { id: 'step1d' });
                 await onRefresh();
             } else {
-                setDownloadProgress(100);
                 // Silent skip - no toast needed
             }
 
-            toast.success('Step 1 All Complete!');
+            toast.success(t('dashboard.steps.messages.step1Complete') || 'Step 1 All Complete!');
 
         } catch (error: any) {
             console.error(error);
