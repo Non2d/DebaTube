@@ -164,3 +164,178 @@ async def delete_audio_cache_remote(video_id: str) -> None:
         
         if resp.status_code not in [200, 404]:
              raise HTTPException(status_code=resp.status_code, detail=f"Failed to delete external cache: {resp.text}")
+
+async def get_batch_transcription_status(round_ids: List[int]) -> Dict[int, Optional[str]]:
+    """
+    Get batch transcription status from Galleria API.
+    
+    Args:
+        round_ids: List of round IDs to check
+        
+    Returns:
+        Dictionary mapping round_id to status string:
+        - "PENDING" -> task is queued
+        - "PROCESSING" -> task is running
+        - "COMPLETED" -> task is done
+        - "ERROR" -> task failed
+        - None -> not found (404)
+        # TODO: Unify status naming across Galleria API, DebaTube API, and Frontend
+        # Current mapping:
+        #   Galleria: PENDING/PROCESSING/COMPLETED/ERROR
+        #   DebaTube: not_in_queue/in_queue/processing/done
+        #   Frontend: pending/processing/completed/error/disabled
+    """
+    if not TRANSCRIPTION_API_URL:
+        return {}
+    
+    if not round_ids:
+        return {}
+    
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background/status/batch"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={"round_ids": round_ids},
+                timeout=10.0
+            )
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                # Actual format from Galleria API: [{"round_id": 50, "status": "COMPLETED", ...}, ...]
+                result = {}
+                
+                if isinstance(data, list):
+                    # Array format: convert to dict
+                    for item in data:
+                        rid = item.get("round_id")
+                        status = item.get("status")
+                        if rid is not None:
+                            result[rid] = status
+                else:
+                    # Legacy object format: {round_id: {"status": "PENDING", ...}, ...}
+                    for round_id in round_ids:
+                        round_id_str = str(round_id)
+                        if round_id_str in data and data[round_id_str]:
+                            result[round_id] = data[round_id_str].get("status")
+                        else:
+                            result[round_id] = None
+                
+                # Fill in None for missing round_ids
+                for round_id in round_ids:
+                    if round_id not in result:
+                        result[round_id] = None
+                
+                return result
+            else:
+                # If batch endpoint fails, return empty dict (fallback to DB-based status)
+                return {}
+                
+    except Exception as e:
+        print(f"Batch Status Check Error: {str(e)}")
+        return {}  # Graceful fallback
+
+async def start_transcription_background(
+    round_id: int,
+    url: str,
+    num_chunks: int = 4,
+    max_workers: int = 2,
+    is_forced: bool = False
+) -> Dict[str, Any]:
+    """
+    Start background transcription task via Galleria API.
+    
+    Args:
+        round_id: Round ID
+        url: YouTube URL
+        num_chunks: Number of audio chunks (default: 4)
+        max_workers: Number of parallel workers (default: 2)
+        is_forced: Force re-transcription even if cached (default: False)
+        
+    Returns:
+        {"task_id": "xxx", "status": "started"}
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+    
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={
+                    "round_id": round_id,
+                    "url": url,
+                    "num_chunks": num_chunks,
+                    "max_workers": max_workers,
+                    "is_forced": is_forced
+                },
+                timeout=10.0  # Quick response expected (just task creation)
+            )
+            
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(status_code=resp.status_code, detail=f"Failed to start background transcription: {error_detail}")
+            
+            return resp.json()
+            
+    except httpx.RequestError as e:
+        print(f"Background Transcription Start Error: {str(e)}")
+        raise HTTPException(status_code=503, detail="Transcription Service Unreachable")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Background Transcription Start General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Service Error During Background Transcription Start")
+
+
+async def get_transcription_result(round_id: int) -> Dict[str, Any]:
+    """
+    Get completed transcription result from Galleria API.
+    
+    Args:
+        round_id: Round ID
+        
+    Returns:
+        Transcription result in standard Whisper verbose format
+        
+    Raises:
+        HTTPException: If result not found or not yet completed
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+    
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background?round_id={round_id}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(target_url, timeout=10.0)
+            
+            if resp.status_code == 404:
+                raise HTTPException(status_code=404, detail="Transcription result not found or not yet completed")
+            
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(status_code=resp.status_code, detail=f"Failed to get transcription result: {error_detail}")
+            
+            return resp.json()
+            
+    except httpx.RequestError as e:
+        print(f"Get Transcription Result Error: {str(e)}")
+        raise HTTPException(status_code=503, detail="Transcription Service Unreachable")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Get Transcription Result General Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Service Error During Get Transcription Result")
+
