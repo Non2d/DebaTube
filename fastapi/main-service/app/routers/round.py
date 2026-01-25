@@ -3,14 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy import select, func
-import math
 
 from db import get_db
 from cruds import round as round_crud
 from models.round import Round, Speech, Adu, Rebuttal, Sentence, Word
 from sqlalchemy.orm import selectinload, aliased
-from services.transcription_service import get_batch_transcription_status, get_cached_video_ids_remote
-from utils.audio import get_audio_path
 
 router = APIRouter()
 
@@ -334,14 +331,7 @@ class RoundSummaryResponse(BaseModel):
     type: RoundType
     try_count: int
     # Step progress (not_in_queue, in_queue, processing, done)
-    # Step 1 overall (done only if 1-B, 1-C, 1-D are all done)
     step1_status: StepStatus = StepStatus.NOT_IN_QUEUE
-    # Step 1 sub-steps
-    step1a_status: StepStatus = StepStatus.NOT_IN_QUEUE  # Audio download
-    step1b_status: StepStatus = StepStatus.NOT_IN_QUEUE  # Transcription (Galleria API)
-    step1c_status: StepStatus = StepStatus.NOT_IN_QUEUE  # Words registered
-    step1d_status: StepStatus = StepStatus.NOT_IN_QUEUE  # Sentences registered
-    # Other steps
     step2_status: StepStatus = StepStatus.NOT_IN_QUEUE
     step3_status: StepStatus = StepStatus.NOT_IN_QUEUE
     step4_status: StepStatus = StepStatus.NOT_IN_QUEUE
@@ -364,7 +354,6 @@ async def get_rounds_summary(
     """
     ダッシュボード用のラウンドサマリーを取得（ページング付き）
     """
-    
     skip = (page - 1) * limit
     
     # Get total count
@@ -372,10 +361,6 @@ async def get_rounds_summary(
     
     # Get paginated items
     rounds = await round_crud.get_all_rounds_with_details(db, type=type, skip=skip, limit=limit)
-    
-    # Get batch transcription status from Galleria API
-    round_ids = [r.id for r in rounds]
-    galleria_statuses = await get_batch_transcription_status(round_ids)
     
     summary_list = []
     for r in rounds:
@@ -398,150 +383,7 @@ async def get_rounds_summary(
                 rebuttal_cnt += len(rebuttals)
         
         # Determine step statuses (simplified logic - only DONE or NOT_IN_QUEUE for now)
-        # TODO:IN_QUEUE and PROCESSING will be determined by background job system in the future (EXCEPT FOR STEP 1-B, which is already updated.)
-
-        # === Step 1 Sub-steps ===
-        
-        # Step 1-A: Audio Download (check cache)
-        
-        external_has_audio = False
-        local_has_audio = False
-        
-        if r.video_id:
-            # Check external cache
-            try:
-                cache_data = await get_cached_video_ids_remote()
-                cached_video_ids = cache_data.get("cached_video_ids", [])
-                external_has_audio = r.video_id in cached_video_ids
-            except:
-                pass
-            
-            # Check local cache
-            audio_path = get_audio_path(r.video_id)
-            local_has_audio = bool(audio_path)
-        
-        step1a_status = StepStatus.DONE if (external_has_audio or local_has_audio) else StepStatus.NOT_IN_QUEUE
-        
-        # Step 1-B: Transcription (Galleria API)
-        galleria_status = galleria_statuses.get(r.id)
-        has_raw_transcription = r.raw_transcription is not None
-        
-        if galleria_status == "COMPLETED" or has_raw_transcription:
-            step1b_status = StepStatus.DONE
-        elif galleria_status == "PROCESSING":
-            step1b_status = StepStatus.PROCESSING
-        elif galleria_status == "PENDING":
-            step1b_status = StepStatus.IN_QUEUE
-        elif galleria_status == "ERROR":
-            step1b_status = StepStatus.NOT_IN_QUEUE
-        else:
-            step1b_status = StepStatus.NOT_IN_QUEUE
-        
-        # Step 1-C: Words registered
-        word_count_stmt = select(func.count(Word.id)).where(Word.round_id == r.id)
-        word_count = (await db.execute(word_count_stmt)).scalar() or 0
-        step1c_status = StepStatus.DONE if word_count >= 3 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 1-D: Sentences registered
-        sentence_count_stmt = select(func.count(Sentence.id)).where(Sentence.round_id == r.id)
-        sentence_count = (await db.execute(sentence_count_stmt)).scalar() or 0
-        step1d_status = StepStatus.DONE if sentence_count >= 3 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 1 Overall: Done only if 1-B, 1-C, 1-D are all done
-        if step1b_status == StepStatus.DONE and step1c_status == StepStatus.DONE and step1d_status == StepStatus.DONE:
-            step1_status = StepStatus.DONE
-        elif step1b_status == StepStatus.PROCESSING or step1c_status == StepStatus.PROCESSING or step1d_status == StepStatus.PROCESSING:
-            step1_status = StepStatus.PROCESSING
-        elif step1b_status == StepStatus.IN_QUEUE or step1c_status == StepStatus.IN_QUEUE or step1d_status == StepStatus.IN_QUEUE:
-            step1_status = StepStatus.IN_QUEUE
-        else:
-            step1_status = StepStatus.NOT_IN_QUEUE
-        
-        # Step 2: Speaker Diarization (check if speeches with sentence ranges exist)
-        speeches_with_sentences = [s for s in speeches if s.first_sentence_id is not None]
-        step2_status = StepStatus.DONE if len(speeches_with_sentences) >= 4 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 3: ADU Segmentation (check if ADUs exist)
-        step3_status = StepStatus.DONE if adu_cnt > 0 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 4: Rebuttal Detection (check if rebuttals exist)
-        step4_status = StepStatus.DONE if rebuttal_cnt > 0 else StepStatus.NOT_IN_QUEUE
-        
-        summary_list.append(RoundSummaryResponse(
-            id=r.id,
-            video_id=r.video_id or "",
-            title=r.name,
-            description=r.note or "",
-            motion=r.motion,
-            style=r.style,
-            date_uploaded=r.created_at.isoformat(),
-            channel_id="", # 未実装
-            tag=r.type, # タグとしてタイプを表示
-            poi_count=poi_cnt,
-            rebuttal_count=rebuttal_cnt,
-            speech_count=speech_cnt,
-            total_argument_units=adu_cnt,
-            type=r.type,
-            try_count=r.try_count,
-            step1_status=step1_status,
-            step1a_status=step1a_status,
-            step1b_status=step1b_status,
-            step1c_status=step1c_status,
-            step1d_status=step1d_status,
-            step2_status=step2_status,
-            step3_status=step3_status,
-            step4_status=step4_status
-        ))
-    
-    total_pages = math.ceil(total / limit) if limit > 0 else 0
-    
-    return PaginatedRoundSummaryResponse(
-        items=summary_list,
-        total=total,
-        page=page,
-        limit=limit,
-        total_pages=total_pages
-    )
-
-
-@router.get("/rounds-summary-blocking", response_model=PaginatedRoundSummaryResponse)
-async def get_rounds_summary_blocking(
-    type: Optional[str] = Query(None), 
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    ダッシュボード用のラウンドサマリーを取得（ページング付き）
-    Blocking version: No Galleria API integration, DB-based status only
-    """
-    skip = (page - 1) * limit
-    
-    # Get total count
-    total = await round_crud.get_rounds_count(db, type=type)
-    
-    # Get paginated items
-    rounds = await round_crud.get_all_rounds_with_details(db, type=type, skip=skip, limit=limit)
-    
-    summary_list = []
-    for r in rounds:
-        speeches = r.speeches or []
-        speech_cnt = len(speeches)
-        
-        # Count ADUs
-        adu_cnt = 0
-        rebuttal_cnt = 0
-        poi_cnt = 0
-        
-        for s in speeches:
-            adus = s.adus or []
-            adu_cnt += len(adus)
-            for a in adus:
-                if a.role == 'poi':
-                    poi_cnt += 1
-                # Count rebuttals starting from this ADU
-                rebuttals = a.rebuttals_as_source or []
-                rebuttal_cnt += len(rebuttals)
+        # TODO:IN_QUEUE and PROCESSING will be determined by background job system in the future
         
         # Step 1: Transcript Generation (check if sentences exist)
         sentence_count_stmt = select(func.count(Sentence.id)).where(Sentence.round_id == r.id)
@@ -560,7 +402,7 @@ async def get_rounds_summary_blocking(
         
         summary_list.append(RoundSummaryResponse(
             id=r.id,
-            video_id=r.video_id or "",
+            video_id="", # 未実装
             title=r.name,
             description=r.note or "",
             motion=r.motion,
@@ -580,6 +422,7 @@ async def get_rounds_summary_blocking(
             step4_status=step4_status
         ))
     
+    import math
     total_pages = math.ceil(total / limit) if limit > 0 else 0
     
     return PaginatedRoundSummaryResponse(
@@ -589,7 +432,6 @@ async def get_rounds_summary_blocking(
         limit=limit,
         total_pages=total_pages
     )
-
 
 
 # ==================== Speech Endpoints ====================
