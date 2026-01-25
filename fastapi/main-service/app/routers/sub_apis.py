@@ -20,6 +20,7 @@ from cruds import round as round_crud
 from sqlalchemy import delete, select
 import shutil
 from config import AUDIO_DIR
+from services.transcription_service import delete_background_transcription_batch_remote, delete_audio_cache_remote
 
 
 router = APIRouter()
@@ -1085,6 +1086,14 @@ async def reset_progress(
         if target_level <= 1:
             round_obj.raw_transcription = None
             db.add(round_obj) # Mark for update
+            
+            # Reset remote background transcription status
+            try:
+                await delete_background_transcription_batch_remote(round_ids=[round_id])
+                logger.info(f"Reset Step 1-b: Deleted remote background job for Round {round_id}")
+            except Exception as e:
+                logger.warning(f"Reset Step 1-b: Failed to delete remote background job: {e}")
+
             logger.info(f"Reset Step 1-b: Cleared raw_transcription for Round {round_id}")
             
         # Step 1-a: Audio Download (Deletes local audio file)
@@ -1105,11 +1114,14 @@ async def reset_progress(
                 
                 # 2. Delete cache from external GPU server
                 try:
-                    from routers.proxy import delete_audio_cache_internal
-                    await delete_audio_cache_internal(video_id)
+                    await delete_audio_cache_remote(video_id)
                     logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
                 except Exception as ext_e:
-                    logger.warning(f"Reset Step 1-a: Error calling proxy to delete external cache: {str(ext_e)}")
+                    logger.warning(f"Reset Step 1-a: Error calling service to delete external cache: {str(ext_e)}")
+                
+                # 3. Clear video_id from Round to ensure status checks return NOT_IN_QUEUE
+                round_obj.video_id = None
+                db.add(round_obj)
                     
             else:
                 logger.warning(f"Reset Step 1-a: Round {round_id} has no video_id")

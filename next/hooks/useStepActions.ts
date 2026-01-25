@@ -118,7 +118,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                             url: targetUrl,
                             num_chunks: 4,
                             max_workers: 2,
-                            is_forced: true
+                            is_forced: false
                         }),
                     });
 
