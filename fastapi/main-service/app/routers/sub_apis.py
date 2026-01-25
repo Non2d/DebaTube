@@ -1091,11 +1091,8 @@ async def reset_progress(
             db.add(round_obj) # Mark for update
             
             # Reset remote background transcription status
-            try:
-                await delete_background_transcription_batch_remote(round_ids=[round_id])
-                logger.info(f"Reset Step 1-b: Deleted remote background job for Round {round_id}")
-            except Exception as e:
-                logger.warning(f"Reset Step 1-b: Failed to delete remote background job: {e}")
+            await delete_background_transcription_batch_remote(round_ids=[round_id])
+            logger.info(f"Reset Step 1-b: Deleted remote background job for Round {round_id}")
 
             logger.info(f"Reset Step 1-b: Cleared raw_transcription for Round {round_id}")
             
@@ -1107,21 +1104,15 @@ async def reset_progress(
                 # 1. Delete local directory: AUDIO_DIR/video_id
                 target_dir = os.path.join(AUDIO_DIR, video_id)
                 if os.path.exists(target_dir):
-                    try:
-                        shutil.rmtree(target_dir)
-                        logger.info(f"Reset Step 1-a: Deleted local audio directory {target_dir}")
-                    except Exception as rm_err:
-                        logger.error(f"Reset Step 1-a: Failed to delete directory {target_dir}: {rm_err}")
+                    shutil.rmtree(target_dir)
+                    logger.info(f"Reset Step 1-a: Deleted local audio directory {target_dir}")
                 else:
                     logger.info(f"Reset Step 1-a: Local audio directory {target_dir} not found")
                 
                 # 2. Delete cache from external GPU server
-                try:
-                    await delete_audio_cache_remote(video_id)
-                    logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
-                except Exception as ext_e:
-                    logger.warning(f"Reset Step 1-a: Error calling service to delete external cache: {str(ext_e)}")
-                
+                await delete_audio_cache_remote(video_id)
+                logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
+
                 # 3. Clear video_id from Round -> REMOVED
                 # round_obj.video_id = None
                 # db.add(round_obj)
