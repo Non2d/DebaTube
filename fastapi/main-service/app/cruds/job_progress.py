@@ -124,7 +124,7 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     - Step 4 (反論特定): 反論データが存在すれば DONE
 
     Step 1全体のステータス決定ロジック (A, B, C, Dの状況に基づく):
-    1. B ~ D すべてが DONE なら -> DONE
+    1. B ~ D すべてが DONE なら -> DONE (1-Aは完了条件に含めない)
     2. 上記以外で、A ~ Dのいずれかが PROCESSING なら -> PROCESSING
     3. 上記以外で、A ~ Dのいずれかが IN_QUEUE なら -> IN_QUEUE
     4. それ以外は -> NOT_IN_QUEUE
@@ -249,8 +249,7 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
         step_1_status = "DONE"
     else:
-        # Note: step_1a is exception - not included in targets_for_active
-        targets_for_active = [step_1b_status, step_1c_status, step_1d_status]
+        targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
 
         if any(s == "PROCESSING" for s in targets_for_active):
             step_1_status = "PROCESSING"
@@ -439,7 +438,7 @@ async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[in
         if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
             step_1_status = "DONE"
         else:
-            targets_for_active = [step_1b_status, step_1c_status, step_1d_status]
+            targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
             if any(s == "PROCESSING" for s in targets_for_active):
                 step_1_status = "PROCESSING"
             elif any(s == "IN_QUEUE" for s in targets_for_active):

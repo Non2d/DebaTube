@@ -46,7 +46,7 @@ class JobProgressResponse(BaseModel):
 class JobProgressBackgroundResponse(BaseModel):
     """バックグラウンド文字起こし用の処理進捗"""
     round_id: int
-    step_1: BackgroundJobStatus   # 1b, 1c, 1d が全て DONE のとき DONE
+    step_1: BackgroundJobStatus   # 1b, 1c, 1d が全て DONE のとき DONE (1aは完了条件に含めない)
     step_1a: BackgroundJobStatus  # NOT_IN_QUEUE, IN_QUEUE, PROCESSING, DONE
     step_1b: BackgroundJobStatus  # NOT_IN_QUEUE, IN_QUEUE, PROCESSING, DONE, ERROR
     step_1c: BackgroundJobStatus  # NOT_IN_QUEUE or DONE

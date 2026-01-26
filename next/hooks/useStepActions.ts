@@ -103,7 +103,26 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
             // Step 1-B: Transcription
             const transDone = progress?.step_1b === 'DONE';
-            if (!transDone) {
+
+            // Check if transcription result needs to be retrieved
+            // (step_1b is DONE but words not yet registered, meaning result not retrieved yet)
+            const needsResultRetrieval = transDone && progress?.step_1c !== 'DONE';
+
+            if (needsResultRetrieval) {
+                // Transcription is done externally, but result not yet retrieved and saved to DB
+                toast.loading(t('dashboard.steps.messages.retrievingResult') || 'Step 1-B: Retrieving result...', { id: 'step1b-result' });
+
+                const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
+                if (!resultRes.ok) {
+                    const err = await resultRes.json();
+                    throw new Error(err.detail || t('dashboard.steps.messages.failedGetTranscriptionResult') || 'Failed to get transcription result');
+                }
+
+                toast.success(t('dashboard.steps.messages.resultSavedToDb') || 'Step 1-B: Result saved to DB', { id: 'step1b-result' });
+                await onRefresh();
+                progress = await getProgress();
+            } else if (!transDone) {
+                // Transcription not done yet
 
                 if (is_background) {
                     // Background transcription
@@ -128,7 +147,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                                 url: targetUrl,
                                 num_chunks: 4,
                                 max_workers: 2,
-                                is_forced: false
+                                is_forced: true
                             }),
                         });
 
@@ -146,17 +165,8 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                         return; // Exit - page-level polling will handle completion
                     }
 
-                    // Status is DONE - retrieve result
-                    toast.loading(t('dashboard.steps.messages.retrievingResult') || 'Step 1-B: Retrieving result...', { id: 'step1b' });
-                    const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
-                    if (!resultRes.ok) {
-                        const err = await resultRes.json();
-                        throw new Error(err.detail || t('dashboard.steps.messages.failedGetTranscriptionResult') || 'Failed to get transcription result');
-                    }
-
-                    toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Completed', { id: 'step1b' });
-                    await onRefresh();
-                    progress = await getProgress();
+                    // Status is DONE but step_1b not yet updated by polling - should not happen
+                    // This case is now handled by needsResultRetrieval above
                 } else {
                     // Synchronous transcription (existing behavior)
                     toast.loading(t('dashboard.steps.messages.transcribing') || 'Step 1-B: Transcribing...', { id: 'step1b' });
@@ -175,6 +185,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                     progress = await getProgress();
                 }
             } else {
+                // transDone = true and step_1c = DONE, meaning result already retrieved
                 // Silent skip - no toast needed
             }
 

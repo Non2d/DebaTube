@@ -232,7 +232,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         return () => clearInterval(intervalId);
     }, [roundData, jobProgress]);
 
-    // Auto-continue Step 1-C and 1-D when Step 1-B completes
+    // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D
     const prevJobProgressRef = useRef<any>(null);
     useEffect(() => {
         if (!jobProgress || !prevJobProgressRef.current || !roundData) {
@@ -242,6 +242,16 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
         const prev = prevJobProgressRef.current;
         const curr = jobProgress;
+
+        // Check if Step 1-A just completed
+        const prevStep1aStatus = mapBackgroundStatus(prev.step_1a);
+        const currStep1aStatus = mapBackgroundStatus(curr.step_1a);
+
+        if (prevStep1aStatus !== 'done' && currStep1aStatus === 'done') {
+            // Step 1-A just completed, continue with 1-B via runStep1
+            // runStep1 will skip 1-A and start 1-B background task
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+        }
 
         // Check if Step 1-B just completed
         const prevStep1bStatus = mapBackgroundStatus(prev.step_1b);
