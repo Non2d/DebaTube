@@ -203,6 +203,11 @@ export default function VideoDashboard() {
                                 <div className="flex items-center">
                                   {(() => {
                                     const progress = jobProgress.get(round.id);
+                                    const hasError = progress ? (
+                                      (progress.step_1b !== 'not_in_queue' && progress.step_1a !== 'done') ||
+                                      (progress.step_1c !== 'not_in_queue' && progress.step_1b !== 'done') ||
+                                      (progress.step_1d !== 'not_in_queue' && progress.step_1c !== 'done')
+                                    ) : false;
                                     const step1Status =
                                       (progress?.step_1b === 'done' &&
                                         progress?.step_1c === 'done' &&
@@ -222,7 +227,7 @@ export default function VideoDashboard() {
                                         />
                                         <div
                                           className={`w-3 h-1 ${
-                                            step1Status === 'done' ? 'bg-green-500' : 'bg-gray-400'
+                                            hasError ? 'bg-red-500' : step1Status === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
                                           }`}
                                         />
                                         {[2, 3, 4].map((stepNum, idx) => {
@@ -239,7 +244,7 @@ export default function VideoDashboard() {
                                                   className={`w-3 h-1 ${
                                                     status === 'done'
                                                       ? 'bg-green-500'
-                                                      : 'bg-gray-400'
+                                                      : 'bg-gray-300 dark:bg-gray-700'
                                                   }`}
                                                 />
                                               )}
@@ -251,7 +256,7 @@ export default function VideoDashboard() {
                                                       ? 'bg-blue-500'
                                                       : status === 'in_queue'
                                                         ? 'bg-purple-500'
-                                                        : 'bg-gray-300'
+                                                        : 'bg-gray-300 dark:bg-gray-700'
                                                 }`}
                                                 title={`Step ${stepNum}: ${status}`}
                                               >

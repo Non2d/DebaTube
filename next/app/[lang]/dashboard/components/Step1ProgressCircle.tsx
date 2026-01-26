@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from 'next-themes';
 import { BackgroundStepStatus } from '@/components/lib/utils';
 
 interface Step1ProgressCircleProps {
@@ -21,6 +22,7 @@ export default function Step1ProgressCircle({
   step1c,
   step1d,
 }: Step1ProgressCircleProps) {
+  const { theme } = useTheme();
   // エラーチェック（依存関係）
   const hasError =
     (step1b !== 'not_in_queue' && step1a !== 'done') ||
@@ -42,25 +44,21 @@ export default function Step1ProgressCircle({
     }
   }
 
-  // 円グラフの色を決定
-  const getGradientColor = (): string => {
-    // 何か処理が進んでいれば緑
-    if (step1b !== 'not_in_queue' || step1c !== 'not_in_queue' || step1d !== 'not_in_queue') {
-      return '#10b981'; // green-500
-    }
-    // デフォルト
-    return '#d1d5db'; // gray-300
-  };
-
-  const gradientColor = getGradientColor();
   const progressDeg = (totalProgress / 100) * 360;
 
+  const progressColor = '#22c55e'; // bg-green-500
   const errorColor = '#ef4444'; // red-500
+  const baseColor = theme === 'dark' ? '#374151' : '#d1d5db'; // gray-700 dark, gray-300 light
+  const gradientColor = hasError
+    ? errorColor
+    : step1b !== 'not_in_queue' || step1c !== 'not_in_queue' || step1d !== 'not_in_queue'
+    ? progressColor
+    : baseColor;
 
   return (
     <div className="relative w-5 h-5">
-      {/* ベース：暗い灰色 */}
-      <div className="absolute inset-0 rounded-full bg-gray-700" />
+      {/* ベース：明るい灰色（ライト）/ 暗い灰色（ダーク） */}
+      <div className="absolute inset-0 rounded-full bg-gray-300 dark:bg-gray-700" />
 
       {/* 進捗部分：緑またはエラー色 */}
       {!hasError && (
@@ -83,12 +81,13 @@ export default function Step1ProgressCircle({
       </div>
 
       {/* 処理中のアニメーション */}
-      {(step1a === 'processing' ||
+      {(hasError ||
+        step1a === 'processing' ||
         step1b === 'processing' ||
         step1c === 'processing' ||
         step1d === 'processing') && (
         <div
-          className="absolute inset-0 rounded-full border border-transparent animate-spin z-10"
+          className="absolute inset-0 rounded-full border-2 border-transparent animate-spin z-10"
           style={{
             borderTopColor: hasError ? errorColor : gradientColor,
           }}
