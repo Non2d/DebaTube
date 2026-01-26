@@ -1,5 +1,29 @@
 import { useEffect, useState } from 'react';
-import { getAPIRoot, type BackgroundStepStatus } from '../../../../components/lib/utils';
+import { getAPIRoot, type BackgroundStepStatus, mapBackgroundStatus } from '../../../../components/lib/utils';
+
+export interface JobProgressRaw {
+  round_id: number;
+  step_1: string;
+  step_1a: string;
+  step_1b: string;
+  step_1c: string;
+  step_1d: string;
+  step_2: string;
+  step_3: string;
+  step_4: string;
+}
+
+export interface JobProgress {
+  round_id: number;
+  step_1: BackgroundStepStatus;
+  step_1a: BackgroundStepStatus;
+  step_1b: BackgroundStepStatus;
+  step_1c: BackgroundStepStatus;
+  step_1d: BackgroundStepStatus;
+  step_2: BackgroundStepStatus;
+  step_3: BackgroundStepStatus;
+  step_4: BackgroundStepStatus;
+}
 
 export interface RoundSummary {
   id: number;
@@ -17,10 +41,6 @@ export interface RoundSummary {
   type: string;
   try_count: number;
   style: string;
-  step1_status: BackgroundStepStatus;
-  step2_status: BackgroundStepStatus;
-  step3_status: BackgroundStepStatus;
-  step4_status: BackgroundStepStatus;
 }
 
 export interface PaginatedRoundSummaryResponse {
@@ -59,6 +79,8 @@ export function useRounds(type?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [jobProgress, setJobProgress] = useState<Map<number, JobProgress>>(new Map());
+
   const fetchRounds = async () => {
     try {
       setLoading(true);
@@ -75,18 +97,63 @@ export function useRounds(type?: string) {
     }
   };
 
+  const fetchAllJobProgress = async (roundIds: number[]) => {
+    if (roundIds.length === 0) return;
+
+    try {
+      const apiRoot = getAPIRoot();
+      const response = await fetch(`${apiRoot}/job-progress-background-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ round_ids: roundIds }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch job progress batch:', response.status);
+        return;
+      }
+
+      const results = await response.json() as JobProgressRaw[];
+      const progressMap = new Map<number, JobProgress>();
+
+      results.forEach(rawData => {
+        const progress: JobProgress = {
+          round_id: rawData.round_id,
+          step_1: mapBackgroundStatus(rawData.step_1),
+          step_1a: mapBackgroundStatus(rawData.step_1a),
+          step_1b: mapBackgroundStatus(rawData.step_1b),
+          step_1c: mapBackgroundStatus(rawData.step_1c),
+          step_1d: mapBackgroundStatus(rawData.step_1d),
+          step_2: mapBackgroundStatus(rawData.step_2),
+          step_3: mapBackgroundStatus(rawData.step_3),
+          step_4: mapBackgroundStatus(rawData.step_4),
+        };
+        progressMap.set(rawData.round_id, progress);
+      });
+
+      setJobProgress(progressMap);
+    } catch (err) {
+      console.error('Error fetching job progress:', err);
+    }
+  };
+
   useEffect(() => {
     fetchRounds();
   }, [type, page, limit]);
 
+  // Fetch job progress for all rounds
+  useEffect(() => {
+    const roundIds = rounds.map(r => r.id);
+    fetchAllJobProgress(roundIds);
+  }, [rounds]);
+
   // Polling for background processing
   useEffect(() => {
     // Check if any round has processing steps
-    const hasProcessingRound = rounds.some(round =>
-      round.step1_status === 'processing' || round.step1_status === 'in_queue' ||
-      round.step2_status === 'processing' || round.step2_status === 'in_queue' ||
-      round.step3_status === 'processing' || round.step3_status === 'in_queue' ||
-      round.step4_status === 'processing' || round.step4_status === 'in_queue'
+    const hasProcessingRound = Array.from(jobProgress.values()).some(progress =>
+      progress.step_1b === 'processing' || progress.step_1b === 'in_queue'
     );
 
     if (!hasProcessingRound) {
@@ -95,11 +162,12 @@ export function useRounds(type?: string) {
 
     // Poll every 5 seconds while processing
     const intervalId = setInterval(() => {
-      fetchRounds();
+      const roundIds = rounds.map(r => r.id);
+      fetchAllJobProgress(roundIds);
     }, 5000);
 
     return () => clearInterval(intervalId);
-  }, [rounds, type, page, limit]);
+  }, [jobProgress, rounds]);
 
   const goToPage = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -111,6 +179,7 @@ export function useRounds(type?: string) {
     rounds,
     loading,
     error,
+    jobProgress,
     pagination: {
       page,
       limit,

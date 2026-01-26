@@ -344,6 +344,57 @@ async def get_transcription_status_remote(round_id: int) -> Dict[str, Any]:
             detail="Internal Service Error During Status Check"
         )
 
+async def get_transcription_status_remote_batch(round_ids: List[int]) -> List[Dict[str, Any]]:
+    """
+    Get the status of multiple background transcription jobs in batch.
+
+    Args:
+        round_ids: List of round IDs to check status for
+
+    Returns:
+        List of dictionaries with video_id, round_id, and status (PENDING/PROCESSING/COMPLETED/ERROR)
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background/status/batch"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={"round_ids": round_ids},
+                timeout=10.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Batch status check failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Batch Status Check Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (batch status check)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Batch Status Check General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Batch Status Check"
+        )
+
 async def get_transcription_result_remote(round_id: int) -> Dict[str, Any]:
     """
     Get the result of a completed background transcription job.

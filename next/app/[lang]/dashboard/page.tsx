@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import Header from '../../../components/shared/Header';
 import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../../context/LanguageContext';
+import { type BackgroundStepStatus } from '../../../components/lib/utils';
 
 export default function VideoDashboard() {
-  const { rounds, loading, error, pagination } = useRounds('external_video');
+  const { rounds, loading, error, pagination, jobProgress } = useRounds('external_video');
   const { t, language } = useTranslation();
   const router = useRouter();
 
@@ -200,42 +201,122 @@ export default function VideoDashboard() {
                               <td className="py-2 px-4">
                                 <div className="flex items-center gap-0.5">
                                   {(() => {
+                                    const progress = jobProgress.get(round.id);
+
+                                    // Check for dependency errors in Step 1 (1a is exception)
+                                    const hasStep1Error = (() => {
+                                      const step1b = progress?.step_1b || 'not_in_queue';
+                                      const step1c = progress?.step_1c || 'not_in_queue';
+                                      const step1d = progress?.step_1d || 'not_in_queue';
+
+                                      // 1c is done but 1b is not
+                                      if (step1c !== 'not_in_queue' && step1b !== 'done') return true;
+                                      // 1d is done but 1c is not
+                                      if (step1d !== 'not_in_queue' && step1c !== 'done') return true;
+
+                                      return false;
+                                    })();
+
+                                    // Compute effective step status
+                                    const getEffectiveStepStatus = (stepNum: number): BackgroundStepStatus | 'error' => {
+                                      if (stepNum === 1) {
+                                        if (hasStep1Error) return 'error';
+
+                                        // Step 1 is done only if 1b, 1c, 1d are all done (1a is exception)
+                                        const step1b = progress?.step_1b || 'not_in_queue';
+                                        const step1c = progress?.step_1c || 'not_in_queue';
+                                        const step1d = progress?.step_1d || 'not_in_queue';
+
+                                        if (step1b === 'done' && step1c === 'done' && step1d === 'done') {
+                                          return 'done';
+                                        } else if (step1b === 'processing' || step1c === 'processing' || step1d === 'processing') {
+                                          return 'processing';
+                                        } else if (step1b === 'in_queue' || step1c === 'in_queue' || step1d === 'in_queue') {
+                                          return 'in_queue';
+                                        }
+                                        return 'not_in_queue';
+                                      }
+
+                                      if (stepNum === 2) {
+                                        return progress?.step_2 || 'not_in_queue';
+                                      } else if (stepNum === 3) {
+                                        return progress?.step_3 || 'not_in_queue';
+                                      } else if (stepNum === 4) {
+                                        return progress?.step_4 || 'not_in_queue';
+                                      }
+                                      return 'not_in_queue';
+                                    };
+
+                                    const getDisplayStatus = (
+                                      stepNum: number,
+                                      stepStatus: BackgroundStepStatus
+                                    ): BackgroundStepStatus | 'error' => {
+                                      // Step 1 doesn't depend on anything
+                                      if (stepNum === 1) {
+                                        return stepStatus;
+                                      }
+
+                                      // For steps 2-4, check if previous step is done
+                                      if (stepStatus !== 'not_in_queue') {
+                                        const prevStepStatus = (() => {
+                                          if (stepNum === 2) return getEffectiveStepStatus(1);
+                                          if (stepNum === 3) return getEffectiveStepStatus(2);
+                                          if (stepNum === 4) return getEffectiveStepStatus(3);
+                                          return 'not_in_queue';
+                                        })();
+
+                                        if (prevStepStatus !== 'done') {
+                                          return 'error';
+                                        }
+                                      }
+
+                                      return stepStatus;
+                                    };
+
                                     const steps = [
-                                      { num: 1, status: round.step1_status },
-                                      { num: 2, status: round.step2_status },
-                                      { num: 3, status: round.step3_status },
-                                      { num: 4, status: round.step4_status },
+                                      { num: 1, status: getEffectiveStepStatus(1) },
+                                      { num: 2, status: getEffectiveStepStatus(2) },
+                                      { num: 3, status: getEffectiveStepStatus(3) },
+                                      { num: 4, status: getEffectiveStepStatus(4) },
                                     ];
-                                    return steps.map((step, idx) => (
-                                      <div key={idx} className="flex items-center">
-                                        <div
-                                          className={`w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold leading-none relative ${step.status === 'done'
-                                            ? 'bg-green-500 text-white'
-                                            : step.status === 'processing'
-                                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                                              : step.status === 'in_queue'
-                                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-                                                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                                            }`}
-                                          title={`Step ${step.num}: ${step.status}`}
-                                        >
-                                          {step.status === 'processing' && (
-                                            <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
-                                          )}
-                                          <span className="-translate-y-px inline-block">
-                                            {step.status === 'done' ? '✓' : step.num}
-                                          </span>
-                                        </div>
-                                        {idx < steps.length - 1 && (
+
+                                    return steps.map((step, idx) => {
+                                      const displayStatus = getDisplayStatus(step.num, step.status);
+                                      return (
+                                        <div key={idx} className="flex items-center">
                                           <div
-                                            className={`w-3 h-0.5 ${step.status === 'done'
-                                              ? 'bg-green-500'
-                                              : 'bg-gray-200 dark:bg-gray-700'
+                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold leading-none relative ${displayStatus === 'done'
+                                              ? 'bg-green-500 text-white'
+                                              : displayStatus === 'error'
+                                                ? 'bg-red-500 text-white'
+                                                : displayStatus === 'processing'
+                                                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                                  : displayStatus === 'in_queue'
+                                                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
+                                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
                                               }`}
-                                          />
-                                        )}
-                                      </div>
-                                    ));
+                                            title={`Step ${step.num}: ${displayStatus}`}
+                                          >
+                                            {displayStatus === 'processing' && (
+                                              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
+                                            )}
+                                            <span className="-translate-y-px inline-block">
+                                              {displayStatus === 'done' ? '✓' : displayStatus === 'error' ? '!' : step.num}
+                                            </span>
+                                          </div>
+                                          {idx < steps.length - 1 && (
+                                            <div
+                                              className={`w-3 h-0.5 ${displayStatus === 'done'
+                                                ? 'bg-green-500'
+                                                : displayStatus === 'error'
+                                                  ? 'bg-red-500'
+                                                  : 'bg-gray-200 dark:bg-gray-700'
+                                                }`}
+                                            />
+                                          )}
+                                        </div>
+                                      );
+                                    });
                                   })()}
                                 </div>
                               </td>

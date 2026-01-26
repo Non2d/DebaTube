@@ -331,11 +331,6 @@ class RoundSummaryResponse(BaseModel):
     total_argument_units: int
     type: RoundType
     try_count: int
-    # Step progress (not_in_queue, in_queue, processing, done)
-    step1_status: StepStatus = StepStatus.NOT_IN_QUEUE
-    step2_status: StepStatus = StepStatus.NOT_IN_QUEUE
-    step3_status: StepStatus = StepStatus.NOT_IN_QUEUE
-    step4_status: StepStatus = StepStatus.NOT_IN_QUEUE
 
 class PaginatedRoundSummaryResponse(BaseModel):
     items: List[RoundSummaryResponse]
@@ -384,24 +379,6 @@ async def get_rounds_summary(
                 rebuttals = a.rebuttals_as_source or []
                 rebuttal_cnt += len(rebuttals)
         
-        # Determine step statuses (simplified logic - only DONE or NOT_IN_QUEUE for now)
-        # TODO:IN_QUEUE and PROCESSING will be determined by background job system in the future
-        
-        # Step 1: Transcript Generation (check if sentences exist)
-        sentence_count_stmt = select(func.count(Sentence.id)).where(Sentence.round_id == r.id)
-        sentence_count = (await db.execute(sentence_count_stmt)).scalar() or 0
-        step1_status = StepStatus.DONE if sentence_count >= 3 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 2: Speaker Diarization (check if speeches with sentence ranges exist)
-        speeches_with_sentences = [s for s in speeches if s.first_sentence_id is not None]
-        step2_status = StepStatus.DONE if len(speeches_with_sentences) >= 4 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 3: ADU Segmentation (check if ADUs exist)
-        step3_status = StepStatus.DONE if adu_cnt > 0 else StepStatus.NOT_IN_QUEUE
-        
-        # Step 4: Rebuttal Detection (check if rebuttals exist)
-        step4_status = StepStatus.DONE if rebuttal_cnt > 0 else StepStatus.NOT_IN_QUEUE
-        
         summary_list.append(RoundSummaryResponse(
             id=r.id,
             video_id=r.video_id,
@@ -417,11 +394,7 @@ async def get_rounds_summary(
             speech_count=speech_cnt,
             total_argument_units=adu_cnt,
             type=r.type,
-            try_count=r.try_count,
-            step1_status=step1_status,
-            step2_status=step2_status,
-            step3_status=step3_status,
-            step4_status=step4_status
+            try_count=r.try_count
         ))
     
     total_pages = math.ceil(total / limit) if limit > 0 else 0

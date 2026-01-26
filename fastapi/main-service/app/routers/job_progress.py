@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from enum import Enum
 
 from db import get_db
@@ -55,6 +55,11 @@ class JobProgressBackgroundResponse(BaseModel):
     step_4: BackgroundJobStatus   # NOT_IN_QUEUE or DONE
 
 
+class JobProgressBackgroundBatchRequest(BaseModel):
+    """複数ラウンドの処理進捗取得リクエスト"""
+    round_ids: List[int]
+
+
 @router.get("/job-progress/{round_id}", response_model=JobProgressResponse)
 async def get_job_progress(
     round_id: int,
@@ -93,5 +98,28 @@ async def get_job_progress_background(
     try:
         progress = await job_progress_crud.get_job_progress_background(db, round_id)
         return JobProgressBackgroundResponse(**progress)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/job-progress-background-batch", response_model=List[JobProgressBackgroundResponse])
+async def post_job_progress_background_batch(
+    request: JobProgressBackgroundBatchRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    バックグラウンド文字起こし用のラウンド処理進捗を取得（複数試合一括）
+
+    - Step 1-A, 1-C, 1-D, 2, 3, 4: "not_in_queue" or "done"
+    - Step 1-B: 外部APIステータスと対応
+        - "NOT_IN_QUEUE" (404)
+        - "IN_QUEUE" (PENDING)
+        - "PROCESSING"
+        - "DONE" (COMPLETED)
+        - "ERROR"
+    """
+    try:
+        results = await job_progress_crud.get_job_progress_background_batch(db, request.round_ids)
+        return [JobProgressBackgroundResponse(**r) for r in results]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

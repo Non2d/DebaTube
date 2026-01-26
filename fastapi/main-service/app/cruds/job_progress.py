@@ -3,7 +3,7 @@ from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from utils.audio import get_audio_path
-from services.transcription_service import get_cached_video_ids_remote, get_transcription_status_remote
+from services.transcription_service import get_cached_video_ids_remote, get_transcription_status_remote, get_transcription_status_remote_batch
 from fastapi import HTTPException
 import os
 
@@ -109,7 +109,7 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
 async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     """
     バックグラウンド処理用の詳細なジョブ進捗を取得する関数。
-    
+
     各ステップのステータス定義:
     - Step 1-A (音声取得): 外部サーバーまたはローカルにキャッシュがあれば DONE
     - Step 1-B (文字起こし): 外部APIのステータスに依存 (404->NOT_IN_QUEUE, PENDING->IN_QUEUE, PROCESSING->PROCESSING, COMPLETED->DONE)
@@ -127,6 +127,20 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     """
     round_result = await db.execute(select(Round).where(Round.id == round_id))
     round_obj = round_result.scalar_one_or_none()
+
+    # Round が存在しなければ全て NOT_IN_QUEUE
+    if not round_obj:
+        return {
+            "round_id": round_id,
+            "step_1": "NOT_IN_QUEUE",
+            "step_1a": "NOT_IN_QUEUE",
+            "step_1b": "NOT_IN_QUEUE",
+            "step_1c": "NOT_IN_QUEUE",
+            "step_1d": "NOT_IN_QUEUE",
+            "step_2": "NOT_IN_QUEUE",
+            "step_3": "NOT_IN_QUEUE",
+            "step_4": "NOT_IN_QUEUE"
+        }
 
     external_has_audio = False
     local_has_audio = False
@@ -172,18 +186,6 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     sentence_count = (await db.execute(stmt)).scalar() or 0
     step_1d_status = "DONE" if sentence_count >= 3 else "NOT_IN_QUEUE"
 
-    if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
-        step_1_status = "DONE"
-    else:
-        targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
-        
-        if any(s == "PROCESSING" for s in targets_for_active):
-            step_1_status = "PROCESSING"
-        elif any(s == "IN_QUEUE" for s in targets_for_active):
-            step_1_status = "IN_QUEUE"
-        else:
-            step_1_status = "NOT_IN_QUEUE"
-
     speeches_result = await db.execute(
         select(Speech).where(Speech.round_id == round_id).order_by(Speech.id)
     )
@@ -217,6 +219,18 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     has_rebuttals = rebuttals_exist.scalar()
     step_4_status = "DONE" if has_rebuttals else "NOT_IN_QUEUE"
 
+    if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
+        step_1_status = "DONE"
+    else:
+        targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
+
+        if any(s == "PROCESSING" for s in targets_for_active):
+            step_1_status = "PROCESSING"
+        elif any(s == "IN_QUEUE" for s in targets_for_active):
+            step_1_status = "IN_QUEUE"
+        else:
+            step_1_status = "NOT_IN_QUEUE"
+
     return {
         "round_id": round_id,
         "step_1": step_1_status,
@@ -228,3 +242,165 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
         "step_3": step_3_status,
         "step_4": step_4_status
     }
+
+
+async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[int]) -> List[Dict]:
+    """
+    複数ラウンドのバックグラウンド処理進捗を一括取得。
+
+    - キャッシュと外部API呼び出しを共有して効率化
+    - DBクエリとAPI呼び出しを並列実行
+    """
+    if not round_ids:
+        return []
+
+    # Step 1: Get all rounds at once
+    rounds_result = await db.execute(
+        select(Round).where(Round.id.in_(round_ids)).order_by(Round.id)
+    )
+    rounds = rounds_result.scalars().all()
+    round_map = {r.id: r for r in rounds}
+
+    # Step 2: Get cached video IDs once (shared for all rounds)
+    cached_video_ids = []
+    try:
+        cache_data = await get_cached_video_ids_remote()
+        cached_video_ids = cache_data.get("cached_video_ids", [])
+    except Exception:
+        pass
+
+    # Step 3: Get transcription status for all rounds in batch
+    transcription_statuses = {}
+    try:
+        transcription_results = await get_transcription_status_remote_batch(round_ids)
+
+        for result in transcription_results:
+            round_id = result.get("round_id")
+            external_status = result.get("status", "PENDING")
+            status_mapping = {
+                "PENDING": "IN_QUEUE",
+                "PROCESSING": "PROCESSING",
+                "COMPLETED": "DONE",
+                "ERROR": "ERROR"
+            }
+            transcription_statuses[round_id] = status_mapping.get(external_status, "NOT_IN_QUEUE")
+    except Exception as e:
+        # If batch call fails, set all to NOT_IN_QUEUE
+        print(f"Error fetching transcription status batch: {str(e)}")
+        for round_id in round_ids:
+            transcription_statuses[round_id] = "NOT_IN_QUEUE"
+
+    # Step 4: Get word/sentence counts for all rounds
+    word_counts_result = await db.execute(
+        select(Word.round_id, func.count(Word.id).label("count"))
+        .where(Word.round_id.in_(round_ids))
+        .group_by(Word.round_id)
+    )
+    word_counts = {row.round_id: row.count for row in word_counts_result.all()}
+
+    sentence_counts_result = await db.execute(
+        select(Sentence.round_id, func.count(Sentence.id).label("count"))
+        .where(Sentence.round_id.in_(round_ids))
+        .group_by(Sentence.round_id)
+    )
+    sentence_counts = {row.round_id: row.count for row in sentence_counts_result.all()}
+
+    # Step 5: Get speeches for all rounds
+    speeches_result = await db.execute(
+        select(Speech).where(Speech.round_id.in_(round_ids)).order_by(Speech.round_id, Speech.id)
+    )
+    speeches = speeches_result.scalars().all()
+    speeches_by_round = {}
+    for speech in speeches:
+        if speech.round_id not in speeches_by_round:
+            speeches_by_round[speech.round_id] = []
+        speeches_by_round[speech.round_id].append(speech)
+
+    # Step 6: Get ADU existence for all speeches in one query
+    adu_results = await db.execute(
+        select(Adu.speech_id).distinct().where(Adu.speech_id.in_([s.id for s in speeches]))
+    )
+    speeches_with_adus = set(row.speech_id for row in adu_results.all())
+
+    # Step 7: Get rebuttal existence for all rounds
+    rebuttals_result = await db.execute(
+        select(Speech.round_id).distinct().where(
+            and_(
+                Rebuttal.src_adu_id == Adu.id,
+                Adu.speech_id == Speech.id,
+                Speech.round_id.in_(round_ids)
+            )
+        )
+    )
+    rounds_with_rebuttals = set(row.round_id for row in rebuttals_result.all())
+
+    # Step 8: Build results
+    results = []
+    for round_id in round_ids:
+        round_obj = round_map.get(round_id)
+
+        if not round_obj:
+            results.append({
+                "round_id": round_id,
+                "step_1": "NOT_IN_QUEUE",
+                "step_1a": "NOT_IN_QUEUE",
+                "step_1b": "NOT_IN_QUEUE",
+                "step_1c": "NOT_IN_QUEUE",
+                "step_1d": "NOT_IN_QUEUE",
+                "step_2": "NOT_IN_QUEUE",
+                "step_3": "NOT_IN_QUEUE",
+                "step_4": "NOT_IN_QUEUE"
+            })
+            continue
+
+        # Determine step statuses
+        external_has_audio = round_obj.video_id in cached_video_ids if round_obj.video_id else False
+        audio_path = get_audio_path(round_obj.video_id) if round_obj.video_id else None
+        local_has_audio = bool(audio_path)
+
+        step_1a_status = "DONE" if (external_has_audio or local_has_audio) else "NOT_IN_QUEUE"
+        step_1b_status = transcription_statuses.get(round_id, "NOT_IN_QUEUE")
+
+        word_count = word_counts.get(round_id, 0)
+        step_1c_status = "DONE" if word_count >= 3 else "NOT_IN_QUEUE"
+
+        sentence_count = sentence_counts.get(round_id, 0)
+        step_1d_status = "DONE" if sentence_count >= 3 else "NOT_IN_QUEUE"
+
+        speeches = speeches_by_round.get(round_id, [])
+        has_enough_speeches = len(speeches) >= 4
+        step_2_status = "DONE" if has_enough_speeches else "NOT_IN_QUEUE"
+
+        adus_complete = has_enough_speeches and all(
+            s.id in speeches_with_adus for s in speeches
+        )
+        step_3_status = "DONE" if adus_complete else "NOT_IN_QUEUE"
+
+        has_rebuttals = round_id in rounds_with_rebuttals
+        step_4_status = "DONE" if has_rebuttals else "NOT_IN_QUEUE"
+
+        # Determine step_1 status
+        if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
+            step_1_status = "DONE"
+        else:
+            targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
+            if any(s == "PROCESSING" for s in targets_for_active):
+                step_1_status = "PROCESSING"
+            elif any(s == "IN_QUEUE" for s in targets_for_active):
+                step_1_status = "IN_QUEUE"
+            else:
+                step_1_status = "NOT_IN_QUEUE"
+
+        results.append({
+            "round_id": round_id,
+            "step_1": step_1_status,
+            "step_1a": step_1a_status,
+            "step_1b": step_1b_status,
+            "step_1c": step_1c_status,
+            "step_1d": step_1d_status,
+            "step_2": step_2_status,
+            "step_3": step_3_status,
+            "step_4": step_4_status
+        })
+
+    return results
