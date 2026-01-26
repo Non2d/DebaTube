@@ -247,45 +247,94 @@ export default function VideoDashboard() {
                                       return 'not_in_queue';
                                     };
 
+                                    // Get status for individual sub-steps
+                                    const getSubStepStatus = (subStep: '1a' | '1b' | '1c' | '1d'): BackgroundStepStatus => {
+                                      if (subStep === '1a') return progress?.step_1a || 'not_in_queue';
+                                      if (subStep === '1b') return progress?.step_1b || 'not_in_queue';
+                                      if (subStep === '1c') return progress?.step_1c || 'not_in_queue';
+                                      if (subStep === '1d') return progress?.step_1d || 'not_in_queue';
+                                      return 'not_in_queue';
+                                    };
+
                                     const getDisplayStatus = (
-                                      stepNum: number,
+                                      stepType: '1a' | '1b' | '1c' | '1d' | '2' | '3' | '4',
                                       stepStatus: BackgroundStepStatus
                                     ): BackgroundStepStatus | 'error' => {
-                                      // Step 1 doesn't depend on anything
-                                      if (stepNum === 1) {
+                                      // Sub-steps within Step 1
+                                      if (stepType === '1a') {
                                         return stepStatus;
-                                      }
-
-                                      // For steps 2-4, check if previous step is done
-                                      if (stepStatus !== 'not_in_queue') {
-                                        const prevStepStatus = (() => {
-                                          if (stepNum === 2) return getEffectiveStepStatus(1);
-                                          if (stepNum === 3) return getEffectiveStepStatus(2);
-                                          if (stepNum === 4) return getEffectiveStepStatus(3);
-                                          return 'not_in_queue';
-                                        })();
-
-                                        if (prevStepStatus !== 'done') {
-                                          return 'error';
+                                      } else if (stepType === '1b') {
+                                        // 1b depends on 1a
+                                        if (stepStatus !== 'not_in_queue') {
+                                          const prev1aStatus = getSubStepStatus('1a');
+                                          if (prev1aStatus !== 'done') {
+                                            return 'error';
+                                          }
                                         }
+                                        return stepStatus;
+                                      } else if (stepType === '1c') {
+                                        // 1c depends on 1b
+                                        if (stepStatus !== 'not_in_queue') {
+                                          const prev1bStatus = getSubStepStatus('1b');
+                                          if (prev1bStatus !== 'done') {
+                                            return 'error';
+                                          }
+                                        }
+                                        return stepStatus;
+                                      } else if (stepType === '1d') {
+                                        // 1d depends on 1c
+                                        if (stepStatus !== 'not_in_queue') {
+                                          const prev1cStatus = getSubStepStatus('1c');
+                                          if (prev1cStatus !== 'done') {
+                                            return 'error';
+                                          }
+                                        }
+                                        return stepStatus;
+                                      } else if (stepType === '2') {
+                                        // Step 2 depends on Step 1
+                                        if (stepStatus !== 'not_in_queue') {
+                                          if (getEffectiveStepStatus(1) !== 'done') {
+                                            return 'error';
+                                          }
+                                        }
+                                        return stepStatus;
+                                      } else if (stepType === '3') {
+                                        // Step 3 depends on Step 2
+                                        if (stepStatus !== 'not_in_queue') {
+                                          if (getEffectiveStepStatus(2) !== 'done') {
+                                            return 'error';
+                                          }
+                                        }
+                                        return stepStatus;
+                                      } else if (stepType === '4') {
+                                        // Step 4 depends on Step 3
+                                        if (stepStatus !== 'not_in_queue') {
+                                          if (getEffectiveStepStatus(3) !== 'done') {
+                                            return 'error';
+                                          }
+                                        }
+                                        return stepStatus;
                                       }
 
                                       return stepStatus;
                                     };
 
                                     const steps = [
-                                      { num: 1, status: getEffectiveStepStatus(1) },
-                                      { num: 2, status: getEffectiveStepStatus(2) },
-                                      { num: 3, status: getEffectiveStepStatus(3) },
-                                      { num: 4, status: getEffectiveStepStatus(4) },
+                                      { label: '1-A', stepType: '1a' as const, status: getSubStepStatus('1a') },
+                                      { label: '1-B', stepType: '1b' as const, status: getSubStepStatus('1b') },
+                                      { label: '1-C', stepType: '1c' as const, status: getSubStepStatus('1c') },
+                                      { label: '1-D', stepType: '1d' as const, status: getSubStepStatus('1d') },
+                                      { label: '2', stepType: '2' as const, status: getEffectiveStepStatus(2) },
+                                      { label: '3', stepType: '3' as const, status: getEffectiveStepStatus(3) },
+                                      { label: '4', stepType: '4' as const, status: getEffectiveStepStatus(4) },
                                     ];
 
                                     return steps.map((step, idx) => {
-                                      const displayStatus = getDisplayStatus(step.num, step.status);
+                                      const displayStatus = getDisplayStatus(step.stepType, step.status);
                                       return (
                                         <div key={idx} className="flex items-center">
                                           <div
-                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-sm font-bold leading-none relative ${displayStatus === 'done'
+                                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold leading-none relative ${displayStatus === 'done'
                                               ? 'bg-green-500 text-white'
                                               : displayStatus === 'error'
                                                 ? 'bg-red-500 text-white'
@@ -295,13 +344,13 @@ export default function VideoDashboard() {
                                                     ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
                                                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
                                               }`}
-                                            title={`Step ${step.num}: ${displayStatus}`}
+                                            title={`Step ${step.label}: ${displayStatus}`}
                                           >
                                             {displayStatus === 'processing' && (
                                               <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
                                             )}
                                             <span className="-translate-y-px inline-block">
-                                              {displayStatus === 'done' ? '✓' : displayStatus === 'error' ? '!' : step.num}
+                                              {displayStatus === 'done' ? '✓' : displayStatus === 'error' ? '!' : step.label}
                                             </span>
                                           </div>
                                           {idx < steps.length - 1 && (

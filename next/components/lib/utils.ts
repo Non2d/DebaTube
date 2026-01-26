@@ -7,8 +7,9 @@ import { twMerge } from "tailwind-merge"
  * - in_queue: キューに登録済み（処理待ち）
  * - processing: 処理中
  * - done: 完了
+ * - error: エラー（前ステップが完了していない）
  */
-export type BackgroundStepStatus = 'not_in_queue' | 'in_queue' | 'processing' | 'done';
+export type BackgroundStepStatus = 'not_in_queue' | 'in_queue' | 'processing' | 'done' | 'error';
 
 /**
  * バックエンド側のステータス文字列をフロント側の型に変換
