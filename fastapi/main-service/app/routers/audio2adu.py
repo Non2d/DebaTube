@@ -26,7 +26,9 @@ from services.transcription_service import (
     transcribe_background_remote,
     get_transcription_status_remote,
     get_transcription_result_remote,
-    delete_background_transcription_batch_remote
+    delete_background_transcription_batch_remote,
+    download_audio_background_batch_remote,
+    get_download_audio_status_remote_batch
 )
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
@@ -663,6 +665,22 @@ class BackgroundTranscriptionRequest(BaseModel):
     max_workers: int = 2
     is_forced: bool = False
 
+class BackgroundDownloadBatchItem(BaseModel):
+    """Item in batch download request"""
+    url: str
+
+class BackgroundDownloadBatchRequest(BaseModel):
+    """Request body for batch background audio download"""
+    items: List[BackgroundDownloadBatchItem]
+    num_chunks: int = 4
+    max_workers: int = 2
+    is_forced: bool = False
+
+class BackgroundDownloadBatchStatusRequest(BaseModel):
+    """Request body for batch audio download status check"""
+    video_ids: Optional[List[str]] = None
+    round_ids: Optional[List[int]] = None
+
 @router.post("/download-audio/{round_id}")
 async def download_audio(
     round_id: int,
@@ -686,34 +704,82 @@ async def download_audio(
     except Exception as db_e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(db_e)}")
 
-    # Call external transcription service for audio download
+    # Extract video_id from URL
     try:
-        print(f"Downloading audio via service with URL: {request.url}")
-        download_result = await download_audio_remote(request.url, num_chunks=4)
-        
-        video_id = download_result.get("video_id")
+        # Handle both YouTube formats: https://youtube.com/watch?v=ID and https://youtu.be/ID
+        url = request.url
+        video_id = None
+
+        if "youtube.com" in url:
+            # Extract from youtube.com/watch?v=...
+            match = re.search(r'v=([a-zA-Z0-9_-]{11})', url)
+            if match:
+                video_id = match.group(1)
+        elif "youtu.be" in url:
+            # Extract from youtu.be/...
+            match = re.search(r'youtu\.be/([a-zA-Z0-9_-]{11})', url)
+            if match:
+                video_id = match.group(1)
+
         if not video_id:
-            raise HTTPException(status_code=500, detail="No video_id returned from download")
-        
+            raise HTTPException(status_code=400, detail="Could not extract video_id from URL")
+
         # Verify video_id matches (should be the same YouTube video ID)
         if round_obj.video_id and round_obj.video_id != video_id:
-            logger.warning(f"video_id mismatch: Round has {round_obj.video_id}, download returned {video_id}")
-        
-        # Ensure video_id is set (in case it wasn't set during Round creation)
+            logger.warning(f"video_id mismatch: Round has {round_obj.video_id}, URL has {video_id}")
+
+        # Set video_id in Round
         if not round_obj.video_id:
             round_obj.video_id = video_id
             await db.commit()
-        
-        logger.info(f"Step 1-A Complete: Audio downloaded for video_id={video_id}, Round {round_id}")
+
+        # Start background audio download via external service
+        print(f"[Step 1-A] Starting background audio download for video_id={video_id}")
+        message = await download_audio_background_batch_remote(
+            items=[{"url": request.url}],
+            num_chunks=4,
+            max_workers=2,
+            is_forced=False
+        )
+
+        # Get initial download status
+        dl_audio_status = "IN_QUEUE"
+        try:
+            status_list = await get_download_audio_status_remote_batch(
+                video_ids=[video_id]
+            )
+
+            status_mapping = {
+                "NOT_IN_QUEUE": "NOT_IN_QUEUE",
+                "PENDING": "IN_QUEUE",
+                "IN_QUEUE": "IN_QUEUE",
+                "PROCESSING": "PROCESSING",
+                "COMPLETED": "DONE",
+                "DONE": "DONE",
+                "ERROR": "ERROR"
+            }
+
+            for status_item in status_list:
+                if status_item.get("video_id") == video_id:
+                    external_status = status_item.get("dl_audio_status", "IN_QUEUE")
+                    dl_audio_status = status_mapping.get(external_status, "IN_QUEUE")
+                    break
+        except Exception as e:
+            # If we can't get status, assume it's in queue
+            dl_audio_status = "IN_QUEUE"
+            logger.warning(f"Could not get download status for {video_id}: {str(e)}")
+
+        logger.info(f"Step 1-A: Background audio download started for video_id={video_id}, Round {round_id}, status={dl_audio_status}")
 
         elapsed_time = time.time() - start_time
-        print(f"[Step 1-A: /download-audio] 処理完了 - 処理時間: {elapsed_time:.2f}秒")
+        print(f"[Step 1-A] Background download started - 処理時間: {elapsed_time:.2f}秒")
 
         return {
             "status": "success",
             "round_id": round_id,
             "video_id": video_id,
-            "is_cached": download_result.get("is_cached", False),
+            "dl_audio_status": dl_audio_status,
+            "message": "Background audio download started. Use /job-progress-background to check progress.",
             "processing_time_seconds": round(elapsed_time, 2)
         }
 
@@ -969,6 +1035,76 @@ async def delete_background_transcription(
         raise
     except Exception as e:
         logger.error(f"Error deleting background transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/download-and-split-audio-background/batch")
+async def download_audio_background_batch(
+    request: BackgroundDownloadBatchRequest
+):
+    """
+    Start background audio download and split via external service.
+
+    Prerequisites:
+        - External GPU service must have `/download-and-split-audio-background/batch` endpoint
+
+    Args:
+        request: Contains items (list of URLs), num_chunks, max_workers, is_forced
+
+    Returns:
+        String message from external API
+
+    Use POST /download-and-split-audio-background/status/batch to check progress
+    """
+    start_time = time.time()
+    print(f"[/download-and-split-audio-background/batch] Processing {len(request.items)} URLs")
+
+    try:
+        # Convert items to list of dicts
+        items_list = [{"url": item.url} for item in request.items]
+
+        message = await download_audio_background_batch_remote(
+            items=items_list,
+            num_chunks=request.num_chunks,
+            max_workers=request.max_workers,
+            is_forced=request.is_forced
+        )
+
+        elapsed_time = time.time() - start_time
+        print(f"[/download-and-split-audio-background/batch] Completed - {elapsed_time:.2f}s")
+        logger.info(f"Background audio download started for {len(request.items)} URLs")
+
+        return message
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[/download-and-split-audio-background/batch] Error: {str(e)}")
+        logger.error(f"Error starting background audio download: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Background audio download failed: {str(e)}")
+
+@router.post("/download-and-split-audio-background/status/batch")
+async def get_download_audio_background_status_batch(
+    request: BackgroundDownloadBatchStatusRequest
+):
+    """
+    Check the status of background audio download jobs in batch.
+
+    Args:
+        request: Contains video_ids and/or round_ids
+
+    Returns:
+        List of status items with video_id and dl_audio_status
+    """
+    try:
+        status_list = await get_download_audio_status_remote_batch(
+            video_ids=request.video_ids,
+            round_ids=request.round_ids
+        )
+        return status_list
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking audio download status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/extract-words-from-transcript/{round_id}")

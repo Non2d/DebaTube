@@ -479,3 +479,127 @@ async def get_transcription_result_remote(round_id: int) -> Dict[str, Any]:
             status_code=500,
             detail="Internal Service Error During Result Retrieval"
         )
+
+async def download_audio_background_batch_remote(
+    items: List[Dict[str, str]],
+    num_chunks: int = 4,
+    max_workers: int = 2,
+    is_forced: bool = False
+) -> str:
+    """
+    Start background audio download via external service in batch.
+    Returns message from external API.
+
+    Args:
+        items: List of items with url (e.g., [{"url": "..."}, ...])
+        num_chunks: Number of chunks to split audio into
+        max_workers: Maximum number of parallel workers
+        is_forced: Force re-processing even if already completed
+
+    Returns:
+        String message from external API
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/download-and-split-audio-background/batch"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={
+                    "items": items,
+                    "num_chunks": num_chunks,
+                    "max_workers": max_workers,
+                    "is_forced": is_forced
+                },
+                timeout=30.0  # Background job start should be quick
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Background audio download start failed: {error_detail}"
+                )
+
+            # Return the response text as a string message
+            return resp.text
+
+    except httpx.RequestError as e:
+        print(f"Background Audio Download Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (background audio download)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Background Audio Download General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Background Audio Download Start"
+        )
+
+async def get_download_audio_status_remote_batch(
+    video_ids: Optional[List[str]] = None,
+    round_ids: Optional[List[int]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Get the status of multiple background audio download jobs in batch.
+
+    Args:
+        video_ids: List of video IDs to check status for
+        round_ids: List of round IDs to check status for (optional)
+
+    Returns:
+        List of dictionaries with video_id and dl_audio_status
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/download-and-split-audio-background/status/batch"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={
+                    "video_ids": video_ids or [],
+                    "round_ids": round_ids or []
+                },
+                timeout=10.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Batch status check failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Batch Audio Download Status Check Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (batch audio download status check)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Batch Audio Download Status Check General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Batch Audio Download Status Check"
+        )

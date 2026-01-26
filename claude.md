@@ -252,6 +252,7 @@ class BackgroundJobStatus(str, Enum):
     IN_QUEUE = "IN_QUEUE"          # キューに登録済み（処理待ち）
     PROCESSING = "PROCESSING"       # 処理中
     DONE = "DONE"                   # 完了
+    ERROR = "ERROR"                 # エラー
 ```
 
 ### レスポンス例

@@ -248,81 +248,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const currStep1bStatus = mapBackgroundStatus(curr.step_1b);
 
         if (prevStep1bStatus !== 'done' && currStep1bStatus === 'done') {
-            // Step 1-B just completed, first retrieve the result, then execute 1-C and 1-D
-            (async () => {
-                try {
-                    // Get transcription result and save to DB
-                    toast.loading(t('dashboard.steps.messages.retrievingResult') || 'Step 1-B: Retrieving result...', { id: 'step1b-result' });
-
-                    const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
-                    if (!resultRes.ok) {
-                        const err = await resultRes.json();
-                        throw new Error(err.detail || t('dashboard.steps.messages.failedGetTranscriptionResult') || 'Failed to get transcription result');
-                    }
-
-                    toast.success(t('dashboard.steps.messages.resultSavedToDb') || 'Step 1-B: Result saved to DB', { id: 'step1b-result' });
-                    await fetchJobProgress();
-
-                    // Re-fetch progress
-                    const progressRes = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
-                    let progress = curr;
-                    if (progressRes.ok) {
-                        progress = await progressRes.json();
-                    }
-
-                    // Step 1-C: Extract Words
-                    if (!progress?.words_registered) {
-                        toast.loading(t('dashboard.steps.messages.extractingWords') || 'Step 1-C: Extracting words...', { id: 'step1c' });
-
-                        const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                        });
-
-                        if (!res.ok) {
-                            const err = await res.json();
-                            throw new Error(err.detail || t('dashboard.steps.messages.wordExtractionFailed') || 'Word extraction failed');
-                        }
-                        toast.success(t('dashboard.steps.messages.wordExtractionCompleted') || 'Step 1-C: Completed', { id: 'step1c' });
-                        await fetchJobProgress();
-
-                        // Re-fetch progress for next step
-                        const progressRes = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
-                        if (progressRes.ok) {
-                            progress = await progressRes.json();
-                        }
-                    } else {
-                        // Silent skip
-                    }
-
-                    // Step 1-D: Group Sentences
-                    if (!progress?.sentences_registered) {
-                        toast.loading(t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...', { id: 'step1d' });
-
-                        const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                        });
-
-                        if (!res.ok) {
-                            const err = await res.json();
-                            throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
-                        }
-                        const data = await res.json();
-                        toast.success((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences), { id: 'step1d' });
-                        await fetchJobProgress();
-                    } else {
-                        // Silent skip
-                    }
-
-                    toast.success(t('dashboard.steps.messages.step1Complete') || 'Step 1 All Complete!');
-                } catch (error: any) {
-                    console.error(error);
-                    toast.dismiss('step1c');
-                    toast.dismiss('step1d');
-                    toast.error(error.message);
-                }
-            })();
+            // Step 1-B just completed, continue with 1-C and 1-D via runStep1
+            // runStep1 handles: result retrieval, 1-C, 1-D with skip logic
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
         }
 
         prevJobProgressRef.current = jobProgress;

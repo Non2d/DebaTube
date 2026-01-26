@@ -3,7 +3,7 @@ from sqlalchemy import select, exists, and_, func
 from typing import Dict, List
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from utils.audio import get_audio_path
-from services.transcription_service import get_cached_video_ids_remote, get_transcription_status_remote, get_transcription_status_remote_batch
+from services.transcription_service import get_transcription_status_remote, get_transcription_status_remote_batch, get_download_audio_status_remote_batch
 from fastapi import HTTPException
 import os
 
@@ -26,12 +26,16 @@ async def get_job_progress(db: AsyncSession, round_id: int) -> Dict:
     external_has_audio = False
     if round_obj and round_obj.video_id:
         try:
-            cache_data = await get_cached_video_ids_remote()
-            cached_video_ids = cache_data.get("cached_video_ids", [])
-            external_has_audio = round_obj.video_id in cached_video_ids
+            status_list = await get_download_audio_status_remote_batch(
+                video_ids=[round_obj.video_id]
+            )
+            for status_item in status_list:
+                if status_item.get("video_id") == round_obj.video_id:
+                    external_has_audio = status_item.get("dl_audio_status") == "DONE"
+                    break
         except Exception as e:
             external_has_audio = False
-    
+
     local_has_audio = False
     if round_obj and round_obj.video_id:
         audio_path = get_audio_path(round_obj.video_id)
@@ -142,20 +146,43 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
             "step_4": "NOT_IN_QUEUE"
         }
 
-    external_has_audio = False
-    local_has_audio = False
+    step_1a_status = "NOT_IN_QUEUE"
     if round_obj and round_obj.video_id:
-        try:
-            cache_data = await get_cached_video_ids_remote()
-            cached_video_ids = cache_data.get("cached_video_ids", [])
-            external_has_audio = round_obj.video_id in cached_video_ids
-        except Exception:
-            external_has_audio = False
-
+        # Check local audio first
         audio_path = get_audio_path(round_obj.video_id)
-        local_has_audio = bool(audio_path)
+        if audio_path:
+            step_1a_status = "DONE"
+            print(f"[Step 1-A] Local audio found for {round_obj.video_id}: {step_1a_status}")
+        else:
+            # Check external download status
+            try:
+                print(f"[Step 1-A] Fetching download status for video_id: {round_obj.video_id}")
+                status_list = await get_download_audio_status_remote_batch(
+                    video_ids=[round_obj.video_id]
+                )
+                print(f"[Step 1-A] Status list response: {status_list}")
 
-    step_1a_status = "DONE" if (external_has_audio or local_has_audio) else "NOT_IN_QUEUE"
+                status_mapping = {
+                    "NOT_IN_QUEUE": "NOT_IN_QUEUE",
+                    "PENDING": "IN_QUEUE",
+                    "IN_QUEUE": "IN_QUEUE",
+                    "PROCESSING": "PROCESSING",
+                    "COMPLETED": "DONE",
+                    "DONE": "DONE",
+                    "ERROR": "ERROR"
+                }
+
+                for status_item in status_list:
+                    if status_item.get("video_id") == round_obj.video_id:
+                        external_status = status_item.get("dl_audio_status", "NOT_IN_QUEUE")
+                        step_1a_status = status_mapping.get(external_status, "NOT_IN_QUEUE")
+                        print(f"[Step 1-A] Found status for {round_obj.video_id}: {external_status} → {step_1a_status}")
+                        break
+            except Exception as e:
+                print(f"[Step 1-A] Error getting download status for {round_obj.video_id}: {str(e)}")
+                step_1a_status = "NOT_IN_QUEUE"
+    else:
+        print(f"[Step 1-A] No round or video_id: round_obj={round_obj}, video_id={round_obj.video_id if round_obj else 'N/A'}")
 
     step_1b_status = "NOT_IN_QUEUE"
     try:
@@ -262,11 +289,30 @@ async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[in
     rounds = rounds_result.scalars().all()
     round_map = {r.id: r for r in rounds}
 
-    # Step 2: Get cached video IDs once (shared for all rounds)
-    cached_video_ids = []
+    # Step 2: Get download audio status for all rounds in batch
+    download_statuses = {}
+    video_ids_to_check = [r.video_id for r in rounds if r.video_id]
     try:
-        cache_data = await get_cached_video_ids_remote()
-        cached_video_ids = cache_data.get("cached_video_ids", [])
+        if video_ids_to_check:
+            download_results = await get_download_audio_status_remote_batch(
+                video_ids=video_ids_to_check
+            )
+
+            status_mapping = {
+                "NOT_IN_QUEUE": "NOT_IN_QUEUE",
+                "PENDING": "IN_QUEUE",
+                "IN_QUEUE": "IN_QUEUE",
+                "PROCESSING": "PROCESSING",
+                "COMPLETED": "DONE",
+                "DONE": "DONE",
+                "ERROR": "ERROR"
+            }
+
+            for result in download_results:
+                video_id = result.get("video_id")
+                external_status = result.get("dl_audio_status", "NOT_IN_QUEUE")
+                mapped_status = status_mapping.get(external_status, "NOT_IN_QUEUE")
+                download_statuses[video_id] = mapped_status
     except Exception:
         pass
 
@@ -364,10 +410,11 @@ async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[in
             continue
 
         # Determine step statuses
-        external_has_audio = round_obj.video_id in cached_video_ids if round_obj.video_id else False
         local_has_audio = local_audio_map.get(round_id, False)
-
-        step_1a_status = "DONE" if (external_has_audio or local_has_audio) else "NOT_IN_QUEUE"
+        if local_has_audio:
+            step_1a_status = "DONE"
+        else:
+            step_1a_status = download_statuses.get(round_obj.video_id, "NOT_IN_QUEUE") if round_obj.video_id else "NOT_IN_QUEUE"
         step_1b_status = transcription_statuses.get(round_id, "NOT_IN_QUEUE")
 
         word_count = word_counts.get(round_id, 0)
@@ -392,7 +439,7 @@ async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[in
         if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
             step_1_status = "DONE"
         else:
-            targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
+            targets_for_active = [step_1b_status, step_1c_status, step_1d_status]
             if any(s == "PROCESSING" for s in targets_for_active):
                 step_1_status = "PROCESSING"
             elif any(s == "IN_QUEUE" for s in targets_for_active):

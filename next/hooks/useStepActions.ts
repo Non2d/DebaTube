@@ -12,7 +12,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
     const getProgress = async () => {
         try {
-            const res = await fetch(getAPIRoot() + `/job-progress/${roundId}`);
+            const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
             if (res.ok) return await res.json();
         } catch (e) { console.error(e); }
         return null;
@@ -72,11 +72,9 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
         try {
             let progress = await getProgress();
 
-            // Step 1-A: Download Audio
-            const audioDone = progress?.external_has_audio || progress?.local_has_audio;
+            // Step 1-A: Download Audio (Background)
+            const audioDone = progress?.step_1a === 'DONE';
             if (!audioDone) {
-                toast.loading(t('dashboard.steps.messages.downloadingAudio') || 'Step 1-A: Downloading audio...', { id: 'step1a' });
-
                 const res = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -87,16 +85,24 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                     const err = await res.json();
                     throw new Error(err.detail || t('dashboard.steps.messages.audioDownloadFailed') || 'Audio download failed');
                 }
+
                 const data = await res.json();
-                toast.success((t('dashboard.steps.messages.downloadedAudio') || 'Step 1-A: Downloaded (${video_id})').replace('${video_id}', data.video_id), { id: 'step1a' });
+                // Background download registered
+                toast.success(t('dashboard.steps.messages.backgroundAudioDownloadRegistered') || 'Step 1-A: Background audio download registered. Waiting for completion...', { id: 'step1a' });
+
+                // Set step 1 to processing to maintain polling
+                const newStatus = [...stepsStatus];
+                newStatus[0] = 'processing';
+                setStepsStatus(newStatus);
+
                 await onRefresh();
-                progress = await getProgress();
+                return; // Exit - page-level polling will handle completion
             } else {
                 // Silent skip - no toast needed
             }
 
             // Step 1-B: Transcription
-            const transDone = progress?.has_all_raw_speech_transcription || progress?.has_raw_round_transcription;
+            const transDone = progress?.step_1b === 'DONE';
             if (!transDone) {
 
                 if (is_background) {
@@ -173,7 +179,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
             }
 
             // Step 1-C: Words
-            if (!progress?.words_registered) {
+            if (progress?.step_1c !== 'DONE') {
                 toast.loading(t('dashboard.steps.messages.extractingWords') || 'Step 1-C: Extracting words...', { id: 'step1c' });
 
                 const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
@@ -193,7 +199,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
             }
 
             // Step 1-D: Group Sentences
-            if (!progress?.sentences_registered) {
+            if (progress?.step_1d !== 'DONE') {
                 toast.loading(t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...', { id: 'step1d' });
 
                 const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {

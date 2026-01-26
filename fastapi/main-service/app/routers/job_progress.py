@@ -16,6 +16,7 @@ class BackgroundJobStatus(str, Enum):
     IN_QUEUE = "IN_QUEUE"
     PROCESSING = "PROCESSING"
     DONE = "DONE"
+    ERROR = "ERROR"
 
 
 class SpeechProgress(BaseModel):
@@ -46,7 +47,7 @@ class JobProgressBackgroundResponse(BaseModel):
     """バックグラウンド文字起こし用の処理進捗"""
     round_id: int
     step_1: BackgroundJobStatus   # 1b, 1c, 1d が全て DONE のとき DONE
-    step_1a: BackgroundJobStatus  # NOT_IN_QUEUE or DONE
+    step_1a: BackgroundJobStatus  # NOT_IN_QUEUE, IN_QUEUE, PROCESSING, DONE
     step_1b: BackgroundJobStatus  # NOT_IN_QUEUE, IN_QUEUE, PROCESSING, DONE, ERROR
     step_1c: BackgroundJobStatus  # NOT_IN_QUEUE or DONE
     step_1d: BackgroundJobStatus  # NOT_IN_QUEUE or DONE
@@ -87,13 +88,14 @@ async def get_job_progress_background(
     """
     バックグラウンド文字起こし用のラウンド処理進捗を取得
 
-    - Step 1-A, 1-C, 1-D, 2, 3, 4: "not_in_queue" or "done"
-    - Step 1-B: 外部APIステータスと対応
-        - "NOT_IN_QUEUE" (404)
-        - "IN_QUEUE" (PENDING)
+    - Step 1-A, 1-B: 外部APIステータスをマッピング
+        - "NOT_IN_QUEUE" / 404
+        - "PENDING" → "IN_QUEUE"
+        - "IN_QUEUE"
         - "PROCESSING"
-        - "DONE" (COMPLETED)
+        - "COMPLETED" → "DONE"
         - "ERROR"
+    - Step 1-C, 1-D, 2, 3, 4: "NOT_IN_QUEUE" or "DONE"
     """
     try:
         progress = await job_progress_crud.get_job_progress_background(db, round_id)
@@ -110,13 +112,14 @@ async def post_job_progress_background_batch(
     """
     バックグラウンド文字起こし用のラウンド処理進捗を取得（複数試合一括）
 
-    - Step 1-A, 1-C, 1-D, 2, 3, 4: "not_in_queue" or "done"
-    - Step 1-B: 外部APIステータスと対応
-        - "NOT_IN_QUEUE" (404)
-        - "IN_QUEUE" (PENDING)
+    - Step 1-A, 1-B: 外部APIステータスをマッピング
+        - "NOT_IN_QUEUE" / 404
+        - "PENDING" → "IN_QUEUE"
+        - "IN_QUEUE"
         - "PROCESSING"
-        - "DONE" (COMPLETED)
+        - "COMPLETED" → "DONE"
         - "ERROR"
+    - Step 1-C, 1-D, 2, 3, 4: "NOT_IN_QUEUE" or "DONE"
     """
     try:
         results = await job_progress_crud.get_job_progress_background_batch(db, request.round_ids)
