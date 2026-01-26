@@ -222,7 +222,8 @@ async def get_job_progress_background(db: AsyncSession, round_id: int) -> Dict:
     if step_1b_status == "DONE" and step_1c_status == "DONE" and step_1d_status == "DONE":
         step_1_status = "DONE"
     else:
-        targets_for_active = [step_1a_status, step_1b_status, step_1c_status, step_1d_status]
+        # Note: step_1a is exception - not included in targets_for_active
+        targets_for_active = [step_1b_status, step_1c_status, step_1d_status]
 
         if any(s == "PROCESSING" for s in targets_for_active):
             step_1_status = "PROCESSING"
