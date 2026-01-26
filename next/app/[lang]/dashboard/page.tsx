@@ -200,9 +200,18 @@ export default function VideoDashboard() {
                                 {round.motion}
                               </td>
                               <td className="py-2 px-4">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center">
                                   {(() => {
                                     const progress = jobProgress.get(round.id);
+                                    const step1Status =
+                                      (progress?.step_1b === 'done' &&
+                                        progress?.step_1c === 'done' &&
+                                        progress?.step_1d === 'done') ||
+                                      progress?.step_1b === 'processing' ||
+                                      progress?.step_1c === 'processing' ||
+                                      progress?.step_1d === 'processing'
+                                        ? 'done'
+                                        : 'not_done';
                                     return (
                                       <>
                                         <Step1ProgressCircle
@@ -211,7 +220,12 @@ export default function VideoDashboard() {
                                           step1c={progress?.step_1c || 'not_in_queue'}
                                           step1d={progress?.step_1d || 'not_in_queue'}
                                         />
-                                        {[2, 3, 4].map((stepNum) => {
+                                        <div
+                                          className={`w-3 h-1 ${
+                                            step1Status === 'done' ? 'bg-green-500' : 'bg-gray-400'
+                                          }`}
+                                        />
+                                        {[2, 3, 4].map((stepNum, idx) => {
                                           const status =
                                             stepNum === 2
                                               ? progress?.step_2 || 'not_in_queue'
@@ -219,20 +233,30 @@ export default function VideoDashboard() {
                                                 ? progress?.step_3 || 'not_in_queue'
                                                 : progress?.step_4 || 'not_in_queue';
                                           return (
-                                            <div
-                                              key={stepNum}
-                                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                                                status === 'done'
-                                                  ? 'bg-green-500'
-                                                  : status === 'processing'
-                                                    ? 'bg-blue-500'
-                                                    : status === 'in_queue'
-                                                      ? 'bg-purple-500'
-                                                      : 'bg-gray-300'
-                                              }`}
-                                              title={`Step ${stepNum}: ${status}`}
-                                            >
-                                              {status === 'done' ? '✓' : stepNum}
+                                            <div key={stepNum} className="flex items-center">
+                                              {idx > 0 && (
+                                                <div
+                                                  className={`w-3 h-1 ${
+                                                    status === 'done'
+                                                      ? 'bg-green-500'
+                                                      : 'bg-gray-400'
+                                                  }`}
+                                                />
+                                              )}
+                                              <div
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                                                  status === 'done'
+                                                    ? 'bg-green-500'
+                                                    : status === 'processing'
+                                                      ? 'bg-blue-500'
+                                                      : status === 'in_queue'
+                                                        ? 'bg-purple-500'
+                                                        : 'bg-gray-300'
+                                                }`}
+                                                title={`Step ${stepNum}: ${status}`}
+                                              >
+                                                {status === 'done' ? '✓' : stepNum}
+                                              </div>
                                             </div>
                                           );
                                         })}
