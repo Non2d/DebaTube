@@ -334,7 +334,16 @@ async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[in
     )
     rounds_with_rebuttals = set(row.round_id for row in rebuttals_result.all())
 
-    # Step 8: Build results
+    # Step 8: Precompute local audio paths for all rounds (once before loop)
+    local_audio_map = {}
+    for round_obj in rounds:
+        if round_obj.video_id:
+            audio_path = get_audio_path(round_obj.video_id)
+            local_audio_map[round_obj.id] = bool(audio_path)
+        else:
+            local_audio_map[round_obj.id] = False
+
+    # Step 9: Build results
     results = []
     for round_id in round_ids:
         round_obj = round_map.get(round_id)
@@ -355,8 +364,7 @@ async def get_job_progress_background_batch(db: AsyncSession, round_ids: List[in
 
         # Determine step statuses
         external_has_audio = round_obj.video_id in cached_video_ids if round_obj.video_id else False
-        audio_path = get_audio_path(round_obj.video_id) if round_obj.video_id else None
-        local_has_audio = bool(audio_path)
+        local_has_audio = local_audio_map.get(round_id, False)
 
         step_1a_status = "DONE" if (external_has_audio or local_has_audio) else "NOT_IN_QUEUE"
         step_1b_status = transcription_statuses.get(round_id, "NOT_IN_QUEUE")
