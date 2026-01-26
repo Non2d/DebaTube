@@ -134,41 +134,55 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         if (!roundData) return;
         try {
             const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+            let progress;
+
             if (res.ok) {
-                const progress = await res.json();
-                setJobProgress(progress); // Store progress data
-
-                // Map job-progress-background to stepsStatus - Direct 1:1 mapping
-                const newStatus: ProcessingStepStatus[] = [...stepsStatusRef.current];
-
-                const statusToProcessingStatus = (status: BackgroundStepStatus, prevCompleted: boolean): ProcessingStepStatus => {
-                    if (status === 'done') return 'completed';
-                    if (status === 'processing' || status === 'in_queue') return 'processing';
-                    // not_in_queue
-                    return prevCompleted ? 'pending' : 'disabled';
+                progress = await res.json();
+            } else if (res.status === 404) {
+                // Treat 404 as not_in_queue for all steps
+                progress = {
+                    step_1: 'NOT_IN_QUEUE',
+                    step_2: 'NOT_IN_QUEUE',
+                    step_3: 'NOT_IN_QUEUE',
+                    step_4: 'NOT_IN_QUEUE',
                 };
-
-                // Step 1
-                newStatus[0] = statusToProcessingStatus(mapBackgroundStatus(progress.step_1), true);
-
-                // Step 2
-                newStatus[1] = statusToProcessingStatus(mapBackgroundStatus(progress.step_2), newStatus[0] === 'completed');
-
-                // Step 3
-                newStatus[2] = statusToProcessingStatus(mapBackgroundStatus(progress.step_3), newStatus[1] === 'completed');
-
-                // Step 4
-                newStatus[3] = statusToProcessingStatus(mapBackgroundStatus(progress.step_4), newStatus[2] === 'completed');
-
-                setStepsStatus(newStatus);
-
-                // Update active step
-                if (newStatus[0] === 'pending' || newStatus[0] === 'processing') setCurrentStep(1);
-                else if (newStatus[1] === 'pending' || newStatus[1] === 'processing') setCurrentStep(2);
-                else if (newStatus[2] === 'pending' || newStatus[2] === 'processing') setCurrentStep(3);
-                else if (newStatus[3] === 'pending' || newStatus[3] === 'processing') setCurrentStep(4);
-                else if (newStatus[3] === 'completed') setCurrentStep(4);
+            } else {
+                // Other errors - don't update
+                return;
             }
+
+            setJobProgress(progress); // Store progress data
+
+            // Map job-progress-background to stepsStatus - Direct 1:1 mapping
+            const newStatus: ProcessingStepStatus[] = [...stepsStatusRef.current];
+
+            const statusToProcessingStatus = (status: BackgroundStepStatus, prevCompleted: boolean): ProcessingStepStatus => {
+                if (status === 'done') return 'completed';
+                if (status === 'processing' || status === 'in_queue') return 'processing';
+                // not_in_queue
+                return prevCompleted ? 'pending' : 'disabled';
+            };
+
+            // Step 1
+            newStatus[0] = statusToProcessingStatus(mapBackgroundStatus(progress.step_1), true);
+
+            // Step 2
+            newStatus[1] = statusToProcessingStatus(mapBackgroundStatus(progress.step_2), newStatus[0] === 'completed');
+
+            // Step 3
+            newStatus[2] = statusToProcessingStatus(mapBackgroundStatus(progress.step_3), newStatus[1] === 'completed');
+
+            // Step 4
+            newStatus[3] = statusToProcessingStatus(mapBackgroundStatus(progress.step_4), newStatus[2] === 'completed');
+
+            setStepsStatus(newStatus);
+
+            // Update active step
+            if (newStatus[0] === 'pending' || newStatus[0] === 'processing') setCurrentStep(1);
+            else if (newStatus[1] === 'pending' || newStatus[1] === 'processing') setCurrentStep(2);
+            else if (newStatus[2] === 'pending' || newStatus[2] === 'processing') setCurrentStep(3);
+            else if (newStatus[3] === 'pending' || newStatus[3] === 'processing') setCurrentStep(4);
+            else if (newStatus[3] === 'completed') setCurrentStep(4);
         } catch (e) {
             console.error(e);
         }

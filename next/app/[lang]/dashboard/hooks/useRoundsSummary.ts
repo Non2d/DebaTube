@@ -110,12 +110,28 @@ export function useRounds(type?: string) {
         body: JSON.stringify({ round_ids: roundIds }),
       });
 
-      if (!response.ok) {
+      let results: JobProgressRaw[];
+
+      if (response.ok) {
+        results = await response.json() as JobProgressRaw[];
+      } else if (response.status === 404) {
+        // Treat 404 as all steps being not_in_queue
+        results = roundIds.map(id => ({
+          round_id: id,
+          step_1: 'NOT_IN_QUEUE',
+          step_1a: 'NOT_IN_QUEUE',
+          step_1b: 'NOT_IN_QUEUE',
+          step_1c: 'NOT_IN_QUEUE',
+          step_1d: 'NOT_IN_QUEUE',
+          step_2: 'NOT_IN_QUEUE',
+          step_3: 'NOT_IN_QUEUE',
+          step_4: 'NOT_IN_QUEUE',
+        }));
+      } else {
         console.error('Failed to fetch job progress batch:', response.status);
         return;
       }
 
-      const results = await response.json() as JobProgressRaw[];
       const progressMap = new Map<number, JobProgress>();
 
       results.forEach(rawData => {
