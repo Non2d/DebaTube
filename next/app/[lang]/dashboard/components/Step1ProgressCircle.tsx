@@ -21,13 +21,26 @@ export default function Step1ProgressCircle({
   step1c,
   step1d,
 }: Step1ProgressCircleProps) {
+  // エラーチェック（依存関係）
+  const hasError =
+    (step1b !== 'not_in_queue' && step1a !== 'done') ||
+    (step1c !== 'not_in_queue' && step1b !== 'done') ||
+    (step1d !== 'not_in_queue' && step1c !== 'done');
+
   // Step 1 全体の進捗率を計算
-  // A, B, C, D のうち何個が done または processing, in_queue か
-  const steps = [step1a, step1b, step1c, step1d];
-  const completedCount = steps.filter(
-    (s) => s === 'done' || s === 'processing' || s === 'in_queue'
-  ).length;
-  const totalProgress = (completedCount / 4) * 100;
+  // エラーがなければ、最後に done になったステップの位置に基づいて進捗率を決定
+  let totalProgress = 0;
+  if (!hasError) {
+    if (step1d === 'done') {
+      totalProgress = 100;
+    } else if (step1c === 'done') {
+      totalProgress = 75;
+    } else if (step1b === 'done') {
+      totalProgress = 50;
+    } else if (step1a === 'done') {
+      totalProgress = 25;
+    }
+  }
 
   // 円グラフの色を決定
   const getGradientColor = (): string => {
@@ -41,12 +54,6 @@ export default function Step1ProgressCircle({
 
   const gradientColor = getGradientColor();
   const progressDeg = (totalProgress / 100) * 360;
-
-  // エラーチェック（依存関係）
-  const hasError =
-    (step1b !== 'not_in_queue' && step1a !== 'done') ||
-    (step1c !== 'not_in_queue' && step1b !== 'done') ||
-    (step1d !== 'not_in_queue' && step1c !== 'done');
 
   const errorColor = '#ef4444'; // red-500
 
@@ -81,7 +88,7 @@ export default function Step1ProgressCircle({
         step1c === 'processing' ||
         step1d === 'processing') && (
         <div
-          className="absolute inset-0 rounded-full border border-transparent animate-spin"
+          className="absolute inset-0 rounded-full border border-transparent animate-spin z-10"
           style={{
             borderTopColor: hasError ? errorColor : gradientColor,
           }}
