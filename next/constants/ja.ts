@@ -398,6 +398,7 @@ export const ja: LocaleType = {
                 downloadingAudio: "ステップ1-A: 音声をダウンロード中...",
                 audioDownloadFailed: "音声のダウンロードに失敗しました",
                 downloadedAudio: "ステップ1-A: ダウンロード完了 (${video_id})",
+                backgroundAudioDownloadRegistered: "ステップ1-A: バックグラウンドで音声のダウンロードを登録しました。完了をお待ちください。",
                 checkingTranscriptionStatus: "ステップ1-B: 文字起こしステータスを確認中...",
                 backgroundTranscriptionStartFailed: "バックグラウンド文字起こしの開始に失敗しました",
                 backgroundTranscriptionInProgress: "ステップ1-B: バックグラウンドで文字起こしを処理中です。完了するまでお待ちください。",

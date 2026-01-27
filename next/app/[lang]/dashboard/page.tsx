@@ -203,11 +203,26 @@ export default function VideoDashboard() {
                                 <div className="flex items-center">
                                   {(() => {
                                     const progress = jobProgress.get(round.id);
-                                    const hasError = progress ? (
-                                      (progress.step_1b !== 'not_in_queue' && progress.step_1a !== 'done') ||
+
+                                    // 1-B以降の依存関係エラー（1-Aを無視）
+                                    const laterStepsError = progress ? (
                                       (progress.step_1c !== 'not_in_queue' && progress.step_1b !== 'done') ||
                                       (progress.step_1d !== 'not_in_queue' && progress.step_1c !== 'done')
                                     ) : false;
+
+                                    // 警告チェック：1-A だけが not_in_queue で、1-B 以降が進んでいて、1-B以降の依存関係は正しい（キャッシュ削除）
+                                    const hasWarning = progress ? (
+                                      progress.step_1a === 'not_in_queue' &&
+                                      (progress.step_1b !== 'not_in_queue' || progress.step_1c !== 'not_in_queue' || progress.step_1d !== 'not_in_queue') &&
+                                      !laterStepsError
+                                    ) : false;
+
+                                    // エラーチェック：1-B以降の依存エラー、または1-Aの依存エラー（警告でない場合）
+                                    const hasError = progress ? (
+                                      laterStepsError ||
+                                      (progress.step_1b !== 'not_in_queue' && progress.step_1a !== 'done' && !hasWarning)
+                                    ) : false;
+
                                     const step1Status =
                                       (progress?.step_1b === 'done' &&
                                         progress?.step_1c === 'done' &&

@@ -23,11 +23,22 @@ export default function Step1ProgressCircle({
   step1d,
 }: Step1ProgressCircleProps) {
   const { theme } = useTheme();
-  // エラーチェック（依存関係）
-  const hasError =
-    (step1b !== 'not_in_queue' && step1a !== 'done') ||
+
+  // 1-B以降の依存関係エラー（1-Aを無視）
+  const laterStepsError =
     (step1c !== 'not_in_queue' && step1b !== 'done') ||
     (step1d !== 'not_in_queue' && step1c !== 'done');
+
+  // 警告チェック：1-A だけが not_in_queue で、1-B 以降が進んでいて、1-B以降の依存関係は正しい（キャッシュ削除）
+  const hasWarning =
+    step1a === 'not_in_queue' &&
+    (step1b !== 'not_in_queue' || step1c !== 'not_in_queue' || step1d !== 'not_in_queue') &&
+    !laterStepsError;
+
+  // エラーチェック：1-B以降の依存エラー、または1-Aの依存エラー（警告でない場合）
+  const hasError =
+    laterStepsError ||
+    (step1b !== 'not_in_queue' && step1a !== 'done' && !hasWarning);
 
   // Step 1 全体の進捗率を計算
   // エラーがなければ、最後に done になったステップの位置に基づいて進捗率を決定
@@ -47,10 +58,13 @@ export default function Step1ProgressCircle({
   const progressDeg = (totalProgress / 100) * 360;
 
   const progressColor = '#22c55e'; // bg-green-500
+  const warningColor = '#f59e0b'; // amber-500
   const errorColor = '#ef4444'; // red-500
   const baseColor = theme === 'dark' ? '#374151' : '#d1d5db'; // gray-700 dark, gray-300 light
   const gradientColor = hasError
     ? errorColor
+    : hasWarning
+    ? warningColor
     : step1b !== 'not_in_queue' || step1c !== 'not_in_queue' || step1d !== 'not_in_queue'
     ? progressColor
     : baseColor;
@@ -60,12 +74,22 @@ export default function Step1ProgressCircle({
       {/* ベース：明るい灰色（ライト）/ 暗い灰色（ダーク） */}
       <div className="absolute inset-0 rounded-full bg-gray-300 dark:bg-gray-700" />
 
-      {/* 進捗部分：緑またはエラー色 */}
-      {!hasError && (
+      {/* 進捗部分：緑、警告色、またはエラー色 */}
+      {!hasError && !hasWarning && (
         <div
           className="absolute inset-0 rounded-full"
           style={{
             background: `conic-gradient(${gradientColor} 0deg, ${gradientColor} ${progressDeg}deg, transparent ${progressDeg}deg)`,
+            transition: 'background 0.3s ease',
+          }}
+        />
+      )}
+
+      {hasWarning && (
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `conic-gradient(${warningColor} 0deg, ${warningColor} ${progressDeg}deg, transparent ${progressDeg}deg)`,
             transition: 'background 0.3s ease',
           }}
         />
@@ -76,8 +100,8 @@ export default function Step1ProgressCircle({
       )}
 
       {/* テキスト */}
-      <div className="absolute inset-0 rounded-full flex items-center justify-center font-bold text-white text-xs">
-        {hasError ? '!' : step1d === 'done' ? '✓' : '1'}
+      <div className="absolute inset-0 rounded-full flex items-center justify-center text-white text-sm font-black">
+        {hasError || hasWarning ? '!' : step1d === 'done' ? '✓' : '1'}
       </div>
 
       {/* 処理中のアニメーション */}

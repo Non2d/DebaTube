@@ -395,6 +395,7 @@ export const en = {
                 downloadingAudio: "Step 1-A: Downloading audio...",
                 audioDownloadFailed: "Audio download failed",
                 downloadedAudio: "Step 1-A: Downloaded (${video_id})",
+                backgroundAudioDownloadRegistered: "Step 1-A: Background audio download registered. Waiting for completion...",
                 checkingTranscriptionStatus: "Step 1-B: Checking transcription status...",
                 backgroundTranscriptionStartFailed: "Background transcription start failed",
                 backgroundTranscriptionInProgress: "Step 1-B: Background transcription in progress. Please wait for completion.",
