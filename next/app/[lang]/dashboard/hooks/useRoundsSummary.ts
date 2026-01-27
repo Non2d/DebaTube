@@ -27,7 +27,7 @@ export interface JobProgress {
 
 export interface RoundSummary {
   id: number;
-  video_id: string;
+  video_id: string | null;
   title: string;
   description: string;
   motion: string;
@@ -191,11 +191,18 @@ export function useRounds(type?: string) {
     }
   };
 
+  const refetch = async () => {
+    await fetchRounds();
+    const roundIds = rounds.map(r => r.id);
+    await fetchAllJobProgress(roundIds);
+  };
+
   return {
     rounds,
     loading,
     error,
     jobProgress,
+    refetch,
     pagination: {
       page,
       limit,

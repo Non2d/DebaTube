@@ -5,6 +5,7 @@ import ReactFlow, { useNodesState, useEdgesState, ReactFlowInstance } from 'reac
 import { Maximize } from 'lucide-react';
 import { govNode, oppNode, backgroundNode, GovEdge, OppEdge } from './CustomGraphComponents';
 import { isGovernmentFromSpeechId } from '../../../../components/lib/constants';
+import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../../../constants/constants';
 
 import 'reactflow/dist/style.css';
 
@@ -48,9 +49,17 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
 
       // キー名を討論順序にソートする関数
       const getSpeechOrder = (key: string): number => {
-        // Prop1, Prop2, etc. または Proposition_1st, Proposition_2nd, etc.
+        // Use declared format if available
+        if (debateFormat && DEBATE_FORMATS[debateFormat as DebateFormatType]) {
+          const formatSpeeches: SpeechFormat[] = DEBATE_FORMATS[debateFormat as DebateFormatType];
+
+          // Try exact match first
+          let index = formatSpeeches.findIndex((s: SpeechFormat) => s.name === key);
+          if (index !== -1) return index;
+        }
+
+        // Fallback or Unknown format default (alternating)
         const propMatch = key.match(/^Prop(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
-        // Opp1, Opp2, etc. または Opposition_1st, Opposition_2nd, etc.
         const oppMatch = key.match(/^Opp(?:osition)?[_\s]*(\d+|1st|2nd|3rd|4th)/i);
 
         const ordinalToNumber = (ordinal: string): number => {

@@ -27,6 +27,8 @@ interface DebateItem { //UI表示用にデータ生成する際のバリデー�
   description: string
   features: MacroStructuralFeatures
   tryCount: number
+  style: string
+
 
   graphItems: {
     roundId: number;
@@ -46,6 +48,7 @@ interface Round { //取得時のバリデーション
   tag: string;
   features: MacroStructuralFeatures;
   try_count: number;
+  style: string;
 
   pois: any;
   speeches: any;
@@ -132,6 +135,7 @@ const DebateGraphs = () => {
             tag: round.tag,
             features: round.features,
             tryCount: round.try_count || 1,
+            style: round.style,
             graphItems: {
               roundId: round.id,
               pois: round.pois,
@@ -386,10 +390,14 @@ const DebateGraphs = () => {
                       rebuttals: convertedRebuttals
                     };
 
-                    // Guess format
-                    const speechCount = Object.keys(convertedSpeeches).length;
-                    // Or use item.graphItems.speeches.length if array
-                    const format = (Array.isArray(item.graphItems.speeches) && item.graphItems.speeches.length === 6) ? "NA" : "BP";
+                    // Map style to format
+                    let format = "BP";
+                    if (item.style === "wsdc") format = "WSDC";
+                    else if (item.style === "asian") format = "ASIAN";
+                    else if (item.style === "hpdu") format = "HPDU";
+                    else if (item.style === "north_american") format = "NA";
+                    else if (item.style === "bp_opening_half") format = "OPENING_HALF_BP_ORDER";
+                    else if (Array.isArray(item.graphItems.speeches) && item.graphItems.speeches.length === 6) format = "NA"; // Fallback
 
                     return (
                       <div
