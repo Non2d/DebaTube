@@ -169,7 +169,13 @@ export function useRounds(type?: string) {
   useEffect(() => {
     // Check if any round has processing steps
     const hasProcessingRound = Array.from(jobProgress.values()).some(progress =>
-      progress.step_1b === 'processing' || progress.step_1b === 'in_queue'
+      progress.step_1a === 'processing' || progress.step_1a === 'in_queue' ||
+      progress.step_1b === 'processing' || progress.step_1b === 'in_queue' ||
+      progress.step_1c === 'processing' || progress.step_1c === 'in_queue' ||
+      progress.step_1d === 'processing' || progress.step_1d === 'in_queue' ||
+      progress.step_2 === 'processing' || progress.step_2 === 'in_queue' ||
+      progress.step_3 === 'processing' || progress.step_3 === 'in_queue' ||
+      progress.step_4 === 'processing' || progress.step_4 === 'in_queue'
     );
 
     if (!hasProcessingRound) {
@@ -192,7 +198,6 @@ export function useRounds(type?: string) {
   };
 
   const refetch = async () => {
-    await fetchRounds();
     const roundIds = rounds.map(r => r.id);
     await fetchAllJobProgress(roundIds);
   };

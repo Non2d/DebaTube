@@ -317,7 +317,7 @@ async def delete_round(round_name: str, db: AsyncSession = Depends(get_db)):
 
 class RoundSummaryResponse(BaseModel):
     id: int
-    video_id: str
+    video_id: Optional[str] = None
     title: str
     description: str
     motion: Optional[str] = None
@@ -859,6 +859,7 @@ async def batch_rounds_with_features(db: AsyncSession = Depends(get_db)):
                 "date_uploaded": published_date,
                 "channel_id": "", 
                 "tag": r.type,
+                "style": r.style,
                 "try_count": r.try_count,
                  # Dummy features for legacy compatibility
                 "features": {

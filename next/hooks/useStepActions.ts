@@ -10,9 +10,10 @@ interface UseStepActionsProps {
 
 export const useStepActions = ({ roundId, t, is_background = true }: UseStepActionsProps) => {
 
-    const getProgress = async () => {
+    const getProgress = async (targetRoundId?: string | number) => {
+        const effectiveRoundId = targetRoundId ?? roundId;
         try {
-            const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+            const res = await fetch(getAPIRoot() + `/job-progress-background/${effectiveRoundId}`);
             if (res.ok) return await res.json();
         } catch (e) { console.error(e); }
         return null;
@@ -70,7 +71,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
         setStepsStatus(newStatus);
 
         try {
-            let progress = await getProgress();
+            let progress = await getProgress(roundData.id);
 
             // Step 1-A: Download Audio (Background)
             const audioDone = progress?.step_1a === 'DONE';
@@ -120,7 +121,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
 
                 toast.success(t('dashboard.steps.messages.resultSavedToDb') || 'Step 1-B: Result saved to DB', { id: 'step1b-result' });
                 await onRefresh();
-                progress = await getProgress();
+                progress = await getProgress(roundData.id);
             } else if (!transDone) {
                 // Transcription not done yet
 
@@ -182,7 +183,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                     }
                     toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Completed', { id: 'step1b' });
                     await onRefresh();
-                    progress = await getProgress();
+                    progress = await getProgress(roundData.id);
                 }
             } else {
                 // transDone = true and step_1c = DONE, meaning result already retrieved
@@ -204,7 +205,7 @@ export const useStepActions = ({ roundId, t, is_background = true }: UseStepActi
                 }
                 toast.success(t('dashboard.steps.messages.wordExtractionCompleted') || 'Step 1-C: Completed', { id: 'step1c' });
                 await onRefresh();
-                progress = await getProgress();
+                progress = await getProgress(roundData.id);
             } else {
                 // Silent skip - no toast needed
             }

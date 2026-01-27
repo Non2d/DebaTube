@@ -1,18 +1,48 @@
 "use client";
 
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Header from '../../../components/shared/Header';
 import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../../context/LanguageContext';
 import { type BackgroundStepStatus } from '../../../components/lib/utils';
 import Step1ProgressCircle from './components/Step1ProgressCircle';
+import { useStepActions } from '../../../hooks/useStepActions';
+import type { ProcessingStepStatus } from '../../../components/shared/ProcessingSteps';
 
 export default function VideoDashboard() {
-  const { rounds, loading, error, pagination, jobProgress } = useRounds('external_video');
+  const { rounds, loading, error, pagination, jobProgress, refetch } = useRounds('external_video');
   const { t, language } = useTranslation();
   const router = useRouter();
+  const [processingRounds, setProcessingRounds] = useState<Set<number>>(new Set());
+  const { runStep1 } = useStepActions({ roundId: 0, t, is_background: true });
+
+  const handleRunStep1 = async (round: any) => {
+    setProcessingRounds(prev => new Set(prev).add(round.id));
+
+    const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+    const dummySetStepsStatus = () => {};
+
+    try {
+      await runStep1(
+        round,
+        dummySetStepsStatus as any,
+        dummyStepsStatus,
+        async () => {
+          await refetch();
+        },
+        round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+      );
+    } finally {
+      setProcessingRounds(prev => {
+        const next = new Set(prev);
+        next.delete(round.id);
+        return next;
+      });
+    }
+  };
 
   // Use the total from pagination for the total count widget
   // Note: counts for POIs/Rebuttals are now only for the current page
@@ -107,6 +137,7 @@ export default function VideoDashboard() {
                       <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
                       <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
                       <th className="text-left py-2 px-4 w-[120px]">Progress</th>
+                      <th className="text-left py-2 px-4 w-[100px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -123,13 +154,10 @@ export default function VideoDashboard() {
                             <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-48 rounded"></div>
                           </td>
                           <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-8 rounded"></div>
+                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-24 rounded"></div>
                           </td>
                           <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-8 rounded"></div>
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
+                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-16 rounded"></div>
                           </td>
                         </tr>
                       ))
@@ -149,7 +177,7 @@ export default function VideoDashboard() {
                         if (filteredRounds.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={6} className="py-8 text-center text-gray-500">
+                              <td colSpan={5} className="py-8 text-center text-gray-500">
                                 {t('dashboard.table.noRounds')}
                               </td>
                             </tr>
@@ -224,12 +252,10 @@ export default function VideoDashboard() {
                                     ) : false;
 
                                     const step1Status =
-                                      (progress?.step_1b === 'done' &&
+                                      (progress?.step_1a === 'done' &&
+                                        progress?.step_1b === 'done' &&
                                         progress?.step_1c === 'done' &&
-                                        progress?.step_1d === 'done') ||
-                                      progress?.step_1b === 'processing' ||
-                                      progress?.step_1c === 'processing' ||
-                                      progress?.step_1d === 'processing'
+                                        progress?.step_1d === 'done')
                                         ? 'done'
                                         : 'not_done';
                                     return (
@@ -284,6 +310,20 @@ export default function VideoDashboard() {
                                     );
                                   })()}
                                 </div>
+                              </td>
+                              <td className="py-2 px-4">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRunStep1(round);
+                                  }}
+                                  disabled={processingRounds.has(round.id)}
+                                  className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-900 disabled:cursor-not-allowed rounded transition-colors"
+                                  title="Run Step 1"
+                                >
+                                  <Play className="w-3 h-3" />
+                                  1
+                                </button>
                               </td>
                             </tr>
                           );

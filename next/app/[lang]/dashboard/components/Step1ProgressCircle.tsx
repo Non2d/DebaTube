@@ -65,7 +65,7 @@ export default function Step1ProgressCircle({
     ? errorColor
     : hasWarning
     ? warningColor
-    : step1b !== 'not_in_queue' || step1c !== 'not_in_queue' || step1d !== 'not_in_queue'
+    : step1a !== 'not_in_queue' || step1b !== 'not_in_queue' || step1c !== 'not_in_queue' || step1d !== 'not_in_queue'
     ? progressColor
     : baseColor;
 
@@ -106,10 +106,10 @@ export default function Step1ProgressCircle({
 
       {/* 処理中のアニメーション */}
       {(hasError ||
-        step1a === 'processing' ||
-        step1b === 'processing' ||
-        step1c === 'processing' ||
-        step1d === 'processing') && (
+        step1a === 'processing' || step1a === 'in_queue' ||
+        step1b === 'processing' || step1b === 'in_queue' ||
+        step1c === 'processing' || step1c === 'in_queue' ||
+        step1d === 'processing' || step1d === 'in_queue') && (
         <div
           className="absolute inset-0 rounded-full border-2 border-transparent animate-spin z-10"
           style={{
