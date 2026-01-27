@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getAPIRoot, type BackgroundStepStatus, mapBackgroundStatus } from '../../../../components/lib/utils';
+import toast from 'react-hot-toast';
+import { useTranslation } from '../../../../context/LanguageContext';
 
 export interface JobProgressRaw {
   round_id: number;
@@ -70,6 +72,7 @@ export async function getRoundsSummary(type?: string, page: number = 1, limit: n
 }
 
 export function useRounds(type?: string) {
+  const { t } = useTranslation();
   const [rounds, setRounds] = useState<RoundSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -80,6 +83,7 @@ export function useRounds(type?: string) {
   const [error, setError] = useState<string | null>(null);
 
   const [jobProgress, setJobProgress] = useState<Map<number, JobProgress>>(new Map());
+  const prevJobProgressRef = useRef<Map<number, JobProgress>>(new Map());
 
   const fetchRounds = async () => {
     try {
@@ -147,8 +151,30 @@ export function useRounds(type?: string) {
           step_4: mapBackgroundStatus(rawData.step_4),
         };
         progressMap.set(rawData.round_id, progress);
+
+        // Check for completion and show toast
+        const prevProgress = prevJobProgressRef.current.get(rawData.round_id);
+        if (prevProgress) {
+          // Step 1-A completion
+          if (prevProgress.step_1a !== 'done' && progress.step_1a === 'done') {
+            toast.success(`[Round ${rawData.round_id}] ${t('dashboard.steps.messages.step1aCompleted')}`, { duration: 3000 });
+          }
+          // Step 1-B completion
+          if (prevProgress.step_1b !== 'done' && progress.step_1b === 'done') {
+            toast.success(`[Round ${rawData.round_id}] ${t('dashboard.steps.messages.step1bCompleted')}`, { duration: 3000 });
+          }
+          // Step 1-C completion
+          if (prevProgress.step_1c !== 'done' && progress.step_1c === 'done') {
+            toast.success(`[Round ${rawData.round_id}] ${t('dashboard.steps.messages.step1cCompleted')}`, { duration: 3000 });
+          }
+          // Step 1-D completion
+          if (prevProgress.step_1d !== 'done' && progress.step_1d === 'done') {
+            toast.success(`[Round ${rawData.round_id}] ${t('dashboard.steps.messages.step1dCompleted')}`, { duration: 3000 });
+          }
+        }
       });
 
+      prevJobProgressRef.current = progressMap;
       setJobProgress(progressMap);
     } catch (err) {
       console.error('Error fetching job progress:', err);

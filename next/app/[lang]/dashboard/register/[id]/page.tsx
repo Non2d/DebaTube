@@ -248,7 +248,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const currStep1aStatus = mapBackgroundStatus(curr.step_1a);
 
         if (prevStep1aStatus !== 'done' && currStep1aStatus === 'done') {
-            // Step 1-A just completed, continue with 1-B via runStep1
+            // Step 1-A just completed, show toast and continue with 1-B via runStep1
+            toast.success(t('dashboard.steps.messages.audioDownloadCompleted') || 'Step 1-A: Audio download completed', { duration: 3000 });
             // runStep1 will skip 1-A and start 1-B background task
             runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
         }
@@ -258,7 +259,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const currStep1bStatus = mapBackgroundStatus(curr.step_1b);
 
         if (prevStep1bStatus !== 'done' && currStep1bStatus === 'done') {
-            // Step 1-B just completed, continue with 1-C and 1-D via runStep1
+            // Step 1-B just completed, show toast and continue with 1-C and 1-D via runStep1
+            toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Transcription completed', { duration: 3000 });
             // runStep1 handles: result retrieval, 1-C, 1-D with skip logic
             runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
         }

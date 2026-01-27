@@ -17,13 +17,13 @@ export default function VideoDashboard() {
   const { t, language } = useTranslation();
   const router = useRouter();
   const [processingRounds, setProcessingRounds] = useState<Set<number>>(new Set());
-  const { runStep1 } = useStepActions({ roundId: 0, t, is_background: true });
+  const { runStep1 } = useStepActions({ roundId: 0, t, is_background: true, showRoundIdInToast: true });
 
   const handleRunStep1 = async (round: any) => {
     setProcessingRounds(prev => new Set(prev).add(round.id));
 
     const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-    const dummySetStepsStatus = () => {};
+    const dummySetStepsStatus = () => { };
 
     try {
       await runStep1(
@@ -119,9 +119,6 @@ export default function VideoDashboard() {
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold">{t('dashboard.table.title')}</h3>
-            </div>
 
             {error ? (
               <div className="text-center py-8">
@@ -133,6 +130,7 @@ export default function VideoDashboard() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-2 px-4 w-[60px]">ID</th>
                       <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
                       <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
                       <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
@@ -144,6 +142,9 @@ export default function VideoDashboard() {
                     {loading ? (
                       Array.from({ length: 5 }).map((_, i) => (
                         <tr key={i} className="border-b border-gray-200 dark:border-gray-700">
+                          <td className="py-2 px-4">
+                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
+                          </td>
                           <td className="py-2 px-4">
                             <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-32 rounded"></div>
                           </td>
@@ -177,7 +178,7 @@ export default function VideoDashboard() {
                         if (filteredRounds.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={5} className="py-8 text-center text-gray-500">
+                              <td colSpan={6} className="py-8 text-center text-gray-500">
                                 {t('dashboard.table.noRounds')}
                               </td>
                             </tr>
@@ -203,6 +204,9 @@ export default function VideoDashboard() {
                               className={`${rowClass}`}
                               onClick={() => router.push(`/${language}/dashboard/register/${round.id}`)}
                             >
+                              <td className="py-2 px-4">
+                                <div className="font-medium">{round.id}</div>
+                              </td>
                               <td className="py-2 px-4 max-w-xs">
                                 {isGrouped && isSameTitleAsPrev ? (
                                   <div className="font-medium truncate opacity-0 select-none" aria-hidden="true">{round.title}</div>
@@ -267,9 +271,8 @@ export default function VideoDashboard() {
                                           step1d={progress?.step_1d || 'not_in_queue'}
                                         />
                                         <div
-                                          className={`w-3 h-1 ${
-                                            hasError ? 'bg-red-500' : step1Status === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
-                                          }`}
+                                          className={`w-3 h-1 ${hasError ? 'bg-red-500' : step1Status === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
+                                            }`}
                                         />
                                         {[2, 3, 4].map((stepNum, idx) => {
                                           const status =
@@ -282,23 +285,21 @@ export default function VideoDashboard() {
                                             <div key={stepNum} className="flex items-center">
                                               {idx > 0 && (
                                                 <div
-                                                  className={`w-3 h-1 ${
-                                                    status === 'done'
+                                                  className={`w-3 h-1 ${status === 'done'
                                                       ? 'bg-green-500'
                                                       : 'bg-gray-300 dark:bg-gray-700'
-                                                  }`}
+                                                    }`}
                                                 />
                                               )}
                                               <div
-                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                                                  status === 'done'
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${status === 'done'
                                                     ? 'bg-green-500'
                                                     : status === 'processing'
                                                       ? 'bg-blue-500'
                                                       : status === 'in_queue'
                                                         ? 'bg-purple-500'
                                                         : 'bg-gray-300 dark:bg-gray-700'
-                                                }`}
+                                                  }`}
                                                 title={`Step ${stepNum}: ${status}`}
                                               >
                                                 {status === 'done' ? '✓' : stepNum}
