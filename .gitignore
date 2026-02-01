@@ -17,3 +17,6 @@ backups/
 
 # Audio files
 fastapi/main-service/tmp-audio-save/*
+
+# Credentials
+fastapi/main-service/credentials/

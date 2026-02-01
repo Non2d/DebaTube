@@ -36,8 +36,27 @@ from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_i
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SUB_TRANSCRIPTS_DIR = os.path.join(BASE_DIR, "transcriptions", "sub-transcripts")
 
-# Initialize Gemini client
-client_gemini = genai.Client()
+# Initialize Gemini clients
+# Google AI Studio client (uses API key)
+client_studio_gemini = genai.Client()
+
+# Vertex AI client (uses service account) - Load project_id from credentials file
+vertex_credentials_path = os.getenv("VERTEX_AI_CREDENTIALS_PATH")
+vertex_project_id = None
+if vertex_credentials_path and os.path.exists(vertex_credentials_path):
+    with open(vertex_credentials_path, 'r') as f:
+        credentials_data = json.load(f)
+        vertex_project_id = credentials_data.get("project_id")
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = vertex_credentials_path
+        logger.info(f"Vertex AI credentials loaded for project: {vertex_project_id}")
+
+from google.genai.types import HttpOptions
+client_vertex_gemini = genai.Client(
+    vertexai=True,
+    project=vertex_project_id,
+    location="global",
+    http_options=HttpOptions(api_version="v1")
+) if vertex_project_id else None
 
 client = OpenAI()
 async_client = AsyncOpenAI()
@@ -568,7 +587,7 @@ async def transcript_to_adu(transcript: TranscriptRequest):
         GEMINI_MODEL = "gemini-2.5-flash"
 
         # Prepare prompt for Gemini with sentence-level data
-        response = client_gemini.models.generate_content(
+        response = client_studio_gemini.models.generate_content(
             model=GEMINI_MODEL,
             contents=f"""
 Please segment the following debate speech into Argument Discourse Units.
@@ -927,6 +946,110 @@ async def create_round_from_jsons(
         logger.error(f"Error in create_round_from_jsons: {str(e)}")
         # 必要に応じてロールバックなど検討
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===== Gemini Text Generation Endpoints =====
+
+class GeminiTextRequest(BaseModel):
+    """Request for Gemini text generation"""
+    text: str
+    model: str = "gemini-2.5-flash"
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "text": "How does AI work?",
+                "model": "gemini-2.5-flash"
+            }
+        }
+    }
+
+@router.post("/gemini-studio-generate")
+async def gemini_studio_generate(request: GeminiTextRequest):
+    """
+    Google AI Studio Gemini APIでテキスト生成
+    - Input: text (prompt), model (optional, default: gemini-2.5-flash)
+    - Output: 生のresponseとresponse.text
+    """
+    start_time = time.time()
+    print(f"[/gemini-studio-generate] 処理開始 - Provider: Google AI Studio, Model: {request.model}")
+
+    try:
+        response = client_studio_gemini.models.generate_content(
+            model=request.model,
+            contents=request.text,
+        )
+
+        # Extract response text
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        # Convert response to dict for raw response
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
+        elapsed_time = time.time() - start_time
+        print(f"[/gemini-studio-generate] 処理完了 - Provider: Google AI Studio, 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "model": request.model,
+            "provider": "google_ai_studio",
+            "response_text": response_text,
+            "raw_response": raw_response_dict,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/gemini-studio-generate] エラーで終了 - Provider: Google AI Studio, 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during Google AI Studio Gemini generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Google AI Studio Gemini generation failed: {str(e)}")
+
+
+@router.post("/gemini-vertex-generate")
+async def gemini_vertex_generate(request: GeminiTextRequest):
+    """
+    Vertex AI Gemini APIでテキスト生成
+    - Input: text (prompt), model (optional, default: gemini-2.5-flash)
+    - Output: 生のresponseとresponse.text
+    """
+    start_time = time.time()
+    print(f"[/gemini-vertex-generate] 処理開始 - Provider: Vertex AI, Model: {request.model}")
+
+    try:
+        response = client_vertex_gemini.models.generate_content(
+            model=request.model,
+            contents=request.text,
+        )
+
+        # Extract response text
+        response_text = response.text if hasattr(response, 'text') else str(response)
+
+        # Convert response to dict for raw response
+        try:
+            raw_response_dict = type(response).to_dict(response) if hasattr(type(response), 'to_dict') else str(response)
+        except:
+            raw_response_dict = str(response)
+
+        elapsed_time = time.time() - start_time
+        print(f"[/gemini-vertex-generate] 処理完了 - Provider: Vertex AI, 処理時間: {elapsed_time:.2f}秒")
+
+        return {
+            "status": "success",
+            "model": request.model,
+            "provider": "vertex_ai",
+            "response_text": response_text,
+            "raw_response": raw_response_dict,
+            "processing_time_seconds": round(elapsed_time, 2)
+        }
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print(f"[/gemini-vertex-generate] エラーで終了 - Provider: Vertex AI, 処理時間: {elapsed_time:.2f}秒")
+        logger.error(f"Error during Vertex AI Gemini generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Vertex AI Gemini generation failed: {str(e)}")
 
 
 @router.post("/groq-transcribe")
