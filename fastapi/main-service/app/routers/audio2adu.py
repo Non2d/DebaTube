@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, B
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, RootModel, ValidationError
 from log_config import logger
-from openai import OpenAI, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 import os, json, tempfile, re, csv
 from datetime import datetime
@@ -11,8 +10,7 @@ import time
 import shutil
 import httpx
 
-from google import genai
-from groq import AsyncGroq
+from clients import client, async_client, client_studio_gemini, async_groq_client
 from .utils import (
     clean_gemini_markdown_response,
     merge_adus_to_unified_csv,
@@ -108,13 +106,6 @@ class ManualRebuttalSubmitRequest(BaseModel):
     round_name: str
     try_count: int
     rebuttal_json: str  # JSON string from Gemini
-
-
-# OpenAI client初期化
-client = OpenAI()
-async_client = AsyncOpenAI()
-client_gemini = genai.Client()
-groq_client = AsyncGroq()
 
 APP_DIR = os.path.dirname(__file__)  # /app/routers
 
@@ -214,7 +205,7 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
 """
 
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
+            client_studio_gemini.models.generate_content,
             model=model_name,
             contents=prompt_content,
         )
@@ -407,7 +398,7 @@ Format:
 """
 
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
+            client_studio_gemini.models.generate_content,
             model=model_name,
             contents=prompt_content,
         )
@@ -527,7 +518,7 @@ async def transcribe_single_audio(
                 groq_model_id = transcription_model.replace("groq-", "")
                 
                 with open(temp_file_path, "rb") as audio_file:
-                    transcription = await groq_client.audio.transcriptions.create(
+                    transcription = await async_groq_client.audio.transcriptions.create(
                         file=(file.filename, audio_file.read()),
                         model=groq_model_id,
                         response_format="verbose_json",
@@ -1481,7 +1472,7 @@ async def identify_rebuttal_structure(
 
         # Call Gemini API
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content, model=model_name, contents=prompt
+            client_studio_gemini.models.generate_content, model=model_name, contents=prompt
         )
 
         # Extract response text
@@ -1579,7 +1570,7 @@ async def get_gemini_models():
     try:
         def fetch_models():
             model_list = []
-            for m in client_gemini.models.list():
+            for m in client_studio_gemini.models.list():
                 if "gemini" in m.name.lower():
                     model_list.append(m.name)
             return model_list
@@ -2273,7 +2264,7 @@ Example response format:
         # 4. Call Gemini
         logger.info(f"Calling Gemini ({model_name}) for Diarization...")
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
+            client_studio_gemini.models.generate_content,
             model=model_name,
             contents=prompt,
         )
@@ -2466,7 +2457,7 @@ Format:
         # 3. Call Gemini
         logger.info(f"Calling Gemini ({model_name}) for ADU Generation...")
         response = await asyncio.to_thread(
-            client_gemini.models.generate_content,
+            client_studio_gemini.models.generate_content,
             model=model_name,
             contents=prompt,
         )

@@ -9,10 +9,6 @@ from typing import List, Dict, Any
 import os, json, csv, time, re, tempfile
 from datetime import datetime, timezone, timedelta
 import asyncio
-from dotenv import load_dotenv
-from google import genai
-from groq import Groq
-from openai import OpenAI, AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from routers.round import RoundResponse
@@ -25,9 +21,8 @@ from sqlalchemy import delete, select
 import shutil
 from config import AUDIO_DIR
 from services.transcription_service import delete_background_transcription_batch_remote, delete_audio_cache_remote
-from google.genai.types import HttpOptions
+from clients import client, async_client, groq_client, client_studio_gemini, client_vertex_gemini
 
-load_dotenv()
 router = APIRouter()
 
 # Import shared directories
@@ -37,30 +32,6 @@ from .utils import clean_gemini_markdown_response, DEBATE_FORMATS, group_words_i
 # Define SUB_TRANSCRIPTS directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SUB_TRANSCRIPTS_DIR = os.path.join(BASE_DIR, "transcriptions", "sub-transcripts")
-
-# Initialize Gemini clients
-# Google AI Studio client (uses API key)
-client_studio_gemini = genai.Client()
-
-# Vertex AI client (uses service account) - Load project_id from credentials file
-vertex_credentials_path = os.getenv("VERTEX_AI_CREDENTIALS_PATH")
-with open(vertex_credentials_path, 'r') as f:
-    credentials_data = json.load(f)
-    vertex_project_id = credentials_data.get("project_id")
-
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = vertex_credentials_path
-logger.info(f"Vertex AI credentials loaded for project: {vertex_project_id}")
-
-client_vertex_gemini = genai.Client(
-    vertexai=True,
-    project=vertex_project_id,
-    location="global",
-    http_options=HttpOptions(api_version="v1")
-)
-
-client = OpenAI()
-async_client = AsyncOpenAI()
-groq_client = Groq()
 
 # ===== Pydantic Models =====
 
