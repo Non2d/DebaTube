@@ -43,20 +43,21 @@ class GeminiModel(Enum):
     GEMINI_3_FLASH_VERTEX = ("gemini-3-flash", "vertex")
 
 
-def _save_gemini_log_complete(input_data: dict, response: any):
+def _save_gemini_log_complete(step: int, input_data: dict, response: any):
     """Save complete Gemini API call log with input, raw response, and response.text"""
     try:
         log_dir = "gemini-logs"
         os.makedirs(log_dir, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{log_dir}/gemini_log_{timestamp}.json"
+        filename = f"{log_dir}/step{step}_log_{timestamp}.json"
 
         # Extract response text
         response_text = response.text if hasattr(response, "text") else str(response)
 
         # Build log data
         log_data = {
+            "step": step,
             "timestamp": timestamp,
             "input": input_data,
             "response_raw": str(response),  # Full response object as string
@@ -278,6 +279,7 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
 
         # Save complete log
         _save_gemini_log_complete(
+            step=2,
             input_data={"model": api_model_name, "prompt": prompt_content},
             response=response
         )
@@ -477,6 +479,7 @@ Format:
 
         # Save complete log
         _save_gemini_log_complete(
+            step=2,
             input_data={"model": api_model_name, "prompt": prompt_content},
             response=response
         )
@@ -1555,6 +1558,7 @@ async def identify_rebuttal_structure(
 
         # Save complete log
         _save_gemini_log_complete(
+            step=4,
             input_data={"model": api_model_name, "prompt": prompt},
             response=response
         )
@@ -2357,6 +2361,7 @@ Example response format:
 
         # Save complete log
         _save_gemini_log_complete(
+            step=2,
             input_data={"model": api_model_name, "prompt": prompt},
             response=response
         )
@@ -2561,6 +2566,7 @@ Format:
 
         # Save complete log
         _save_gemini_log_complete(
+            step=3,
             input_data={"model": api_model_name, "prompt": prompt},
             response=response
         )
