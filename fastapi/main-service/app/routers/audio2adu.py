@@ -9,8 +9,9 @@ import asyncio
 import time
 import shutil
 import httpx
+from enum import Enum
 
-from clients import client, async_client, client_studio_gemini, async_groq_client
+from clients import client, async_client, client_studio_gemini, client_vertex_gemini, vertex_ai_available, async_groq_client
 from .utils import (
     clean_gemini_markdown_response,
     merge_adus_to_unified_csv,
@@ -30,6 +31,17 @@ from services.transcription_service import (
 )
 
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
+
+
+class GeminiModel(Enum):
+    """Gemini model definitions with client types"""
+    GEMINI_2_5_FLASH_STUDIO = ("gemini-2.5-flash", "studio")
+    GEMINI_2_5_FLASH_VERTEX = ("gemini-2.5-flash", "vertex")
+    GEMINI_2_5_FLASH_LITE_STUDIO = ("gemini-2.5-flash-lite", "studio")
+    GEMINI_2_5_FLASH_LITE_VERTEX = ("gemini-2.5-flash-lite", "vertex")
+    GEMINI_3_FLASH_STUDIO = ("gemini-3-flash", "studio")
+    GEMINI_3_FLASH_VERTEX = ("gemini-3-flash", "vertex")
+
 
 def _save_gemini_log(response_text: str, category: str, identifier: str = "", prompt_text: str = "", model_name: str = ""):
     """Save raw Gemini response to logs directory"""
@@ -54,6 +66,44 @@ def _save_gemini_log(response_text: str, category: str, identifier: str = "", pr
         logger.info(f"Saved Gemini log to {filename}")
     except Exception as e:
         logger.error(f"Failed to save Gemini log: {e}")
+
+def parse_model_string(model_input: str) -> tuple:
+    """
+    Parse model string to GeminiModel enum and client.
+
+    Format: "gemini_2_5_flash_studio", "gemini_2_5_flash_vertex", etc.
+
+    Returns:
+        tuple: (GeminiModel, gemini_client)
+        If Vertex AI requested but unavailable, falls back to Google AI Studio with warning.
+    """
+    if not model_input or not model_input.strip():
+        logger.error("Invalid model string: empty")
+        raise ValueError("Model string cannot be empty")
+
+    try:
+        model_enum = GeminiModel[model_input.upper().replace("-", "_")]
+    except KeyError:
+        logger.error(f"Unknown model: {model_input}")
+        raise ValueError(f"Unknown model: {model_input}")
+
+    # Determine client based on model
+    if model_enum.value[1] == "vertex":
+        if not vertex_ai_available:
+            logger.warning("Vertex AI requested but not available. Falling back to Google AI Studio.")
+            client = client_studio_gemini
+        else:
+            client = client_vertex_gemini
+    else:
+        client = client_studio_gemini
+
+    return model_enum, client
+
+
+def get_gemini_api_model_name(model_enum: GeminiModel) -> str:
+    """Convert internal model enum to Gemini API model name"""
+    return model_enum.value[0]
+
 from db import get_db
 from cruds import round as round_crud
 from models.round import Speech, Adu, Rebuttal, Round, Sentence, Word
@@ -64,12 +114,21 @@ router = APIRouter()
 @router.get("/audio2adu/gemini-models")
 async def get_gemini_models():
     """Return available Gemini models for selection"""
-    return {
-        "models": [
-            "gemini-2.5-flash",
-            "gemini-3-flash"
-        ]
-    }
+    models = [
+        GeminiModel.GEMINI_2_5_FLASH_STUDIO.name.lower(),
+        GeminiModel.GEMINI_2_5_FLASH_LITE_STUDIO.name.lower(),
+        GeminiModel.GEMINI_3_FLASH_STUDIO.name.lower()
+    ]
+
+    # Add Vertex AI versions if available
+    if vertex_ai_available:
+        models.extend([
+            GeminiModel.GEMINI_2_5_FLASH_VERTEX.name.lower(),
+            GeminiModel.GEMINI_2_5_FLASH_LITE_VERTEX.name.lower(),
+            GeminiModel.GEMINI_3_FLASH_VERTEX.name.lower()
+        ])
+
+    return {"models": models}
 
 # ===== Pydantic Models =====
 
@@ -204,16 +263,21 @@ Return the result as JSON in the following format:
 IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The last sentence has index {total_sentences - 1}.
 """
 
+        # Parse model string to select appropriate client
+        model_input = model_name
+        model_enum, gemini_client = parse_model_string(model_input)
+        api_model_name = get_gemini_api_model_name(model_enum)
+
         response = await asyncio.to_thread(
-            client_studio_gemini.models.generate_content,
-            model=model_name,
+            gemini_client.models.generate_content,
+            model=api_model_name,
             contents=prompt_content,
         )
 
         response_text = response.text if hasattr(response, "text") else str(response)
-        
+
         # Save raw log with prompt
-        _save_gemini_log(response_text, "adu", f"{match_name}_{speech_key}", prompt_content, model_name=model_name)
+        _save_gemini_log(response_text, "adu", f"{match_name}_{speech_key}", prompt_content, model_name=api_model_name)
 
         try:
             raw_response_dict = (
@@ -397,16 +461,21 @@ Format:
 }}
 """
 
+        # Parse model string to select appropriate client
+        model_input = model_name
+        model_enum, gemini_client = parse_model_string(model_input)
+        api_model_name = get_gemini_api_model_name(model_enum)
+
         response = await asyncio.to_thread(
-            client_studio_gemini.models.generate_content,
-            model=model_name,
+            gemini_client.models.generate_content,
+            model=api_model_name,
             contents=prompt_content,
         )
-        
+
         response_text = response.text if hasattr(response, "text") else str(response)
-        
+
         # Save raw log
-        _save_gemini_log(response_text, "adu", match_name, prompt_content, model_name=model_name)
+        _save_gemini_log(response_text, "adu", match_name, prompt_content, model_name=api_model_name)
 
         cleaning_response = clean_gemini_markdown_response(response_text)
         try:
@@ -1469,17 +1538,21 @@ async def identify_rebuttal_structure(
         # Create Prompt and Get Mapping
         prompt, local_id_to_db_id, global_adu_index, speeches_data = await create_rebuttal_prompt_data(db, round_name, try_count)
 
+        # Parse model string to select appropriate client
+        model_input = model_name
+        model_enum, gemini_client = parse_model_string(model_input)
+        api_model_name = get_gemini_api_model_name(model_enum)
 
         # Call Gemini API
         response = await asyncio.to_thread(
-            client_studio_gemini.models.generate_content, model=model_name, contents=prompt
+            gemini_client.models.generate_content, model=api_model_name, contents=prompt
         )
 
         # Extract response text
         response_text = response.text if hasattr(response, "text") else str(response)
-        
+
         # Save raw log
-        _save_gemini_log(response_text, "reb", round_name, prompt, model_name=model_name)
+        _save_gemini_log(response_text, "reb", round_name, prompt, model_name=api_model_name)
 
         # Parse the response to extract rebuttal pairs
         rebuttal_pairs = [] # List with DB IDs for saving
@@ -2261,15 +2334,20 @@ Example response format:
 
 {transcript_preview}"""
 
-        # 4. Call Gemini
-        logger.info(f"Calling Gemini ({model_name}) for Diarization...")
+        # 4. Parse model string to select appropriate client
+        model_input = model_name
+        model_enum, gemini_client = parse_model_string(model_input)
+        api_model_name = get_gemini_api_model_name(model_enum)
+
+        # Call Gemini
+        logger.info(f"Calling Gemini ({api_model_name}) for Diarization...")
         response = await asyncio.to_thread(
-            client_studio_gemini.models.generate_content,
-            model=model_name,
+            gemini_client.models.generate_content,
+            model=api_model_name,
             contents=prompt,
         )
         response_text = response.text if hasattr(response, "text") else str(response)
-        _save_gemini_log(response_text, "diarization", round_obj.name, prompt_text=prompt, model_name=model_name)
+        _save_gemini_log(response_text, "diarization", round_obj.name, prompt_text=prompt, model_name=api_model_name)
 
         # 5. Parse JSON
         try:
@@ -2454,15 +2532,20 @@ Format:
 {full_transcript_text}
 """
 
-        # 3. Call Gemini
-        logger.info(f"Calling Gemini ({model_name}) for ADU Generation...")
+        # 3. Parse model string to select appropriate client
+        model_input = model_name
+        model_enum, gemini_client = parse_model_string(model_input)
+        api_model_name = get_gemini_api_model_name(model_enum)
+
+        # Call Gemini
+        logger.info(f"Calling Gemini ({api_model_name}) for ADU Generation...")
         response = await asyncio.to_thread(
-            client_studio_gemini.models.generate_content,
-            model=model_name,
+            gemini_client.models.generate_content,
+            model=api_model_name,
             contents=prompt,
         )
         response_text = response.text if hasattr(response, "text") else str(response)
-        _save_gemini_log(response_text, "adu_auto", round_obj.name, prompt_text=prompt, model_name=model_name)
+        _save_gemini_log(response_text, "adu_auto", round_obj.name, prompt_text=prompt, model_name=api_model_name)
 
         # 4. Parse JSON
         try:

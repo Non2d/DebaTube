@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Header from '../../../../../components/shared/Header';
-import { getAPIRoot, mapBackgroundStatus, type BackgroundStepStatus } from '../../../../../components/lib/utils';
+import { getAPIRoot, mapBackgroundStatus, formatModelName, toInternalModelName, type BackgroundStepStatus } from '../../../../../components/lib/utils';
 import { useTranslation } from '../../../../../context/LanguageContext';
 
 import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components/shared/ProcessingSteps';
@@ -64,9 +64,23 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [editedMotion, setEditedMotion] = useState("");
     const [isEditingMotion, setIsEditingMotion] = useState(false); // For recovery
 
-    // LLM Model State
-    const [llmModel, setLlmModel] = useState("gemini-2.5-flash");
-    const [geminiModels, setGeminiModels] = useState<string[]>(["gemini-2.5-flash", "gemini-3-flash"]);
+    // LLM Model State - Initialize from localStorage
+    const [geminiModels, setGeminiModels] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('geminiModels');
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        }
+        return ["gemini-2.5-flash (google ai studio)", "gemini-3-flash (google ai studio)"];
+    });
+
+    const [llmModel, setLlmModel] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('llmModel') || "gemini-2.5-flash (google ai studio)";
+        }
+        return "gemini-2.5-flash (google ai studio)";
+    });
 
     useEffect(() => {
         const fetchModels = async () => {
@@ -75,9 +89,12 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.models) {
-                        setGeminiModels(data.models);
-                        if (data.models.length > 0) {
-                            setLlmModel(data.models[0]);
+                        const formattedModels = data.models.map((m: string) => formatModelName(m));
+                        setGeminiModels(formattedModels);
+                        localStorage.setItem('geminiModels', JSON.stringify(formattedModels));
+                        // Only set default if localStorage doesn't have a value
+                        if (!localStorage.getItem('llmModel') && formattedModels.length > 0) {
+                            setLlmModel(formattedModels[0]);
                         }
                     }
                 }
@@ -87,6 +104,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         };
         fetchModels();
     }, []);
+
+    // Save llmModel to localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('llmModel', llmModel);
+        }
+    }, [llmModel]);
 
     // Workflow Mode State
     const [workflowMode, setWorkflowMode] = useState<'end-to-end' | 'manual'>(() => {
@@ -274,7 +298,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             const res = await fetch(getAPIRoot() + `/auto/diarization/${roundId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model: llmModel })
+                body: JSON.stringify({ model: toInternalModelName(llmModel) })
             });
             toast.dismiss(toastId);
 
@@ -297,7 +321,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             const res = await fetch(getAPIRoot() + `/auto/adus/${roundId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model: llmModel })
+                body: JSON.stringify({ model: toInternalModelName(llmModel) })
             });
             toast.dismiss(toastId);
 
@@ -320,7 +344,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             const res = await fetch(getAPIRoot() + `/auto/rebuttals/${roundId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model: llmModel })
+                body: JSON.stringify({ model: toInternalModelName(llmModel) })
             });
             toast.dismiss(toastId);
 
