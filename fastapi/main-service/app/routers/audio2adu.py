@@ -43,26 +43,28 @@ class GeminiModel(Enum):
     GEMINI_3_FLASH_VERTEX = ("gemini-3-flash", "vertex")
 
 
-def _save_gemini_log(response_text: str, category: str, identifier: str = "", prompt_text: str = "", model_name: str = ""):
-    """Save raw Gemini response to logs directory"""
+def _save_gemini_log_complete(input_data: dict, response: any):
+    """Save complete Gemini API call log with input, raw response, and response.text"""
     try:
-        log_dir = "logs/gemini_response"
+        log_dir = "gemini-logs"
         os.makedirs(log_dir, exist_ok=True)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_identifier = identifier.replace("/", "_").replace("\\", "_").replace(" ", "_")
-        filename = f"{log_dir}/gemini_{category}_{safe_identifier}_{timestamp}.json"
-        
-        data = {
+        filename = f"{log_dir}/gemini_log_{timestamp}.json"
+
+        # Extract response text
+        response_text = response.text if hasattr(response, "text") else str(response)
+
+        # Build log data
+        log_data = {
             "timestamp": timestamp,
-            "category": category,
-            "identifier": identifier,
-            "model": model_name,
-            "prompt": prompt_text,
-            "raw_response": response_text
+            "input": input_data,
+            "response_raw": str(response),  # Full response object as string
+            "response_text": response_text
         }
-        
+
         with open(filename, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+            json.dump(log_data, f, indent=2, ensure_ascii=False)
         logger.info(f"Saved Gemini log to {filename}")
     except Exception as e:
         logger.error(f"Failed to save Gemini log: {e}")
@@ -274,10 +276,11 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
             contents=prompt_content,
         )
 
-        response_text = response.text if hasattr(response, "text") else str(response)
-
-        # Save raw log with prompt
-        _save_gemini_log(response_text, "adu", f"{match_name}_{speech_key}", prompt_content, model_name=api_model_name)
+        # Save complete log
+        _save_gemini_log_complete(
+            input_data={"model": api_model_name, "prompt": prompt_content},
+            response=response
+        )
 
         try:
             raw_response_dict = (
@@ -472,11 +475,13 @@ Format:
             contents=prompt_content,
         )
 
+        # Save complete log
+        _save_gemini_log_complete(
+            input_data={"model": api_model_name, "prompt": prompt_content},
+            response=response
+        )
+
         response_text = response.text if hasattr(response, "text") else str(response)
-
-        # Save raw log
-        _save_gemini_log(response_text, "adu", match_name, prompt_content, model_name=api_model_name)
-
         cleaning_response = clean_gemini_markdown_response(response_text)
         try:
             parsed_json = json.loads(cleaning_response)
@@ -1548,11 +1553,14 @@ async def identify_rebuttal_structure(
             gemini_client.models.generate_content, model=api_model_name, contents=prompt
         )
 
+        # Save complete log
+        _save_gemini_log_complete(
+            input_data={"model": api_model_name, "prompt": prompt},
+            response=response
+        )
+
         # Extract response text
         response_text = response.text if hasattr(response, "text") else str(response)
-
-        # Save raw log
-        _save_gemini_log(response_text, "reb", round_name, prompt, model_name=api_model_name)
 
         # Parse the response to extract rebuttal pairs
         rebuttal_pairs = [] # List with DB IDs for saving
@@ -2346,8 +2354,14 @@ Example response format:
             model=api_model_name,
             contents=prompt,
         )
+
+        # Save complete log
+        _save_gemini_log_complete(
+            input_data={"model": api_model_name, "prompt": prompt},
+            response=response
+        )
+
         response_text = response.text if hasattr(response, "text") else str(response)
-        _save_gemini_log(response_text, "diarization", round_obj.name, prompt_text=prompt, model_name=api_model_name)
 
         # 5. Parse JSON
         try:
@@ -2544,8 +2558,14 @@ Format:
             model=api_model_name,
             contents=prompt,
         )
+
+        # Save complete log
+        _save_gemini_log_complete(
+            input_data={"model": api_model_name, "prompt": prompt},
+            response=response
+        )
+
         response_text = response.text if hasattr(response, "text") else str(response)
-        _save_gemini_log(response_text, "adu_auto", round_obj.name, prompt_text=prompt, model_name=api_model_name)
 
         # 4. Parse JSON
         try:
