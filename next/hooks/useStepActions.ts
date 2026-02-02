@@ -158,7 +158,7 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                                 url: targetUrl,
                                 num_chunks: 4,
                                 max_workers: 2,
-                                is_forced: false
+                                is_forced: true //TODO:将来的にはここをfalseにして，文字起こしが既に存在したらそれを使ってこのSTEPをスキップできるようにしたい
                             }),
                         });
 
