@@ -271,7 +271,7 @@ export default function VideoDashboard() {
                                           step1d={progress?.step_1d || 'not_in_queue'}
                                         />
                                         <div
-                                          className={`w-3 h-1 ${hasError ? 'bg-red-500' : step1Status === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
+                                          className={`w-3 h-1 ${hasError ? 'bg-red-500' : (progress?.step_1b === 'done' && progress?.step_1c === 'done' && progress?.step_1d === 'done') ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
                                             }`}
                                         />
                                         {[2, 3, 4].map((stepNum, idx) => {

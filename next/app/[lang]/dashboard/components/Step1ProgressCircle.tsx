@@ -101,7 +101,7 @@ export default function Step1ProgressCircle({
 
       {/* テキスト */}
       <div className="absolute inset-0 rounded-full flex items-center justify-center text-white text-sm font-black">
-        {hasError || hasWarning ? '!' : step1d === 'done' ? '✓' : '1'}
+        {hasError ? '!' : step1d === 'done' ? '✓' : '1'}
       </div>
 
       {/* 処理中のアニメーション */}

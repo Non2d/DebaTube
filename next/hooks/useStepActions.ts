@@ -81,7 +81,11 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
             // Step 1-A: Download Audio (Background)
             const audioDone = progress?.step_1a === 'DONE';
-            if (!audioDone) {
+            const transDone = progress?.step_1b === 'DONE';
+
+            // If Step 1-B is already done, skip Step 1-A regardless of cache status
+            // (Step 1-A cache may be deleted but Step 1-B result is available)
+            if (!audioDone && !transDone) {
                 const res = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -106,10 +110,10 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                 return; // Exit - page-level polling will handle completion
             } else {
                 // Silent skip - no toast needed
+                // (either 1-A is done or 1-B is already done, so skip 1-A)
             }
 
             // Step 1-B: Transcription
-            const transDone = progress?.step_1b === 'DONE';
 
             // Check if transcription result needs to be retrieved
             // (step_1b is DONE but words not yet registered, meaning result not retrieved yet)
