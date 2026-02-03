@@ -12,6 +12,7 @@ import { type BackgroundStepStatus, formatModelName, getAPIRoot, toInternalModel
 import Step1ProgressCircle from './components/Step1ProgressCircle';
 import { useStepActions } from '../../../hooks/useStepActions';
 import type { ProcessingStepStatus } from '../../../components/shared/ProcessingSteps';
+import { TRANSCRIPTION_MODELS } from '../../../constants/models';
 
 export default function VideoDashboard() {
   const { rounds, loading, error, pagination, jobProgress, refetch } = useRounds('external_video');
@@ -342,11 +343,9 @@ export default function VideoDashboard() {
                         onChange={(e) => setTranscriptionModel(e.target.value)}
                         className="h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                       >
-                        <option value="custom-colab-whisper">faster-whisper-large-v2 (Colab)</option>
-                        <option value="transcription-service">faster-whisper-large-v2 (Transcription Service)</option>
-                        <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
-                        <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
-                        <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                        {TRANSCRIPTION_MODELS.map((model) => (
+                          <option key={model.value} value={model.value}>{model.label}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -367,7 +366,7 @@ export default function VideoDashboard() {
                     </div>
 
                     {/* Colab URL (条件付き表示) */}
-                    {transcriptionModel === 'custom-colab-whisper' && (
+                    {transcriptionModel === 'colab-faster-whisper-large-v2' && (
                       <div className="flex flex-col gap-2 md:col-span-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
                           Cloudflare Tunnel URL

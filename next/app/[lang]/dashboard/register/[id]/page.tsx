@@ -16,6 +16,7 @@ import { ManualDiarizationWorkflow } from './components/ManualDiarizationWorkflo
 import { ManualAduWorkflow } from './components/ManualAduWorkflow';
 import { ManualRebuttalWorkflow } from './components/ManualRebuttalWorkflow';
 import { StyleChangeDialog } from './components/StyleChangeDialog';
+import { TRANSCRIPTION_MODELS } from '../../../../../constants/models';
 
 
 
@@ -405,7 +406,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const handleTestConnection = async () => {
         setIsTestingConnection(true);
         try {
-            if (transcriptionModel === 'custom-colab-whisper') {
+            if (transcriptionModel === 'colab-faster-whisper-large-v2') {
                 if (!colabUrl) {
                     toast.error("URLを入力してください");
                     setIsTestingConnection(false);
@@ -418,7 +419,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 } else {
                     toast.error(`接続失敗: ${result.message}`);
                 }
-            } else if (transcriptionModel === 'transcription-service') {
+            } else if (transcriptionModel === 'gpu-service-faster-whisper-large-v2') {
                 // Use local proxy
                 const res = await fetch(getAPIRoot() + '/transcription-service/health');
                 if (res.ok) {
@@ -580,18 +581,16 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             onChange={(e) => setTranscriptionModel(e.target.value)}
                             className="h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
                         >
-                            <option value="custom-colab-whisper">faster-whisper-whisper-large-v2 (Colab)</option>
-                            <option value="transcription-service">faster-whisper-whisper-large-v2 (Transcription Service)</option>
-                            <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
-                            <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
-                            <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                            {TRANSCRIPTION_MODELS.map((model) => (
+                                <option key={model.value} value={model.value}>{model.label}</option>
+                            ))}
                         </select>
                     </div>
 
 
 
                     {/* Colab URL Input & Test Button (Custom Colab) */}
-                    {transcriptionModel === 'custom-colab-whisper' && (
+                    {transcriptionModel === 'colab-faster-whisper-large-v2' && (
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 Cloudflare API URL
@@ -622,7 +621,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     )}
 
                     {/* External GPU Server Test Button (No URL Input) */}
-                    {transcriptionModel === 'transcription-service' && (
+                    {transcriptionModel === 'gpu-service-faster-whisper-large-v2' && (
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 Connection Check
@@ -854,15 +853,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                         onChange={(e) => setTranscriptionModel(e.target.value)}
                                                         className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/50"
                                                     >
-                                                        <option value="custom-colab-whisper">faster-whisper-large-v2 (Colab)</option>
-                                                        <option value="transcription-service">faster-whisper-large-v2 (Service)</option>
-                                                        <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
-                                                        <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
-                                                        <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                                                        {TRANSCRIPTION_MODELS.map((model) => (
+                                                            <option key={model.value} value={model.value}>{model.label}</option>
+                                                        ))}
                                                     </select>
 
                                                     {/* Colab/Service Extras */}
-                                                    {transcriptionModel === 'custom-colab-whisper' && (
+                                                    {transcriptionModel === 'colab-faster-whisper-large-v2' && (
                                                         <div className="mt-2">
                                                             <div className="flex gap-2">
                                                                 <input
@@ -882,7 +879,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {transcriptionModel === 'transcription-service' && (
+                                                    {transcriptionModel === 'gpu-service-faster-whisper-large-v2' && (
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleTestConnection(); }}
                                                             disabled={isTestingConnection}
