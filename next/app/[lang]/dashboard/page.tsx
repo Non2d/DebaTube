@@ -19,6 +19,7 @@ export default function VideoDashboard() {
   const { t, language } = useTranslation();
   const router = useRouter();
   const [processingRounds, setProcessingRounds] = useState<Set<number>>(new Set());
+  const [activeSteps, setActiveSteps] = useState<Set<string>>(new Set()); // Track active steps: "roundId-stepNum"
   const { runStep1 } = useStepActions({ roundId: 0, t, is_background: true, showRoundIdInToast: true });
 
   // LLM Model (初期値関数で localStorage から読み込み)
@@ -192,25 +193,66 @@ export default function VideoDashboard() {
         const updatedProgress = jobProgress.get(round.id);
 
         if (updatedProgress?.step_2 !== 'done') {
-          toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
-          await runStep2(round.id, llmModel);
-          toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+          const stepKey = `${round.id}-2`;
+          try {
+            setActiveSteps(prev => new Set(prev).add(stepKey));
+            toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
+            await runStep2(round.id, llmModel);
+            toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+            await refetch();
+          } catch (e: any) {
+            toast.error(`[${round.id}] Step 2 Failed: ${e.message}`, { id: `step2-${round.id}` });
+            throw e;
+          } finally {
+            setActiveSteps(prev => {
+              const next = new Set(prev);
+              next.delete(stepKey);
+              return next;
+            });
+          }
         }
 
         if (updatedProgress?.step_3 !== 'done') {
-          toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
-          await runStep3(round.id, llmModel);
-          toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
+          const stepKey = `${round.id}-3`;
+          try {
+            setActiveSteps(prev => new Set(prev).add(stepKey));
+            toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
+            await runStep3(round.id, llmModel);
+            toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
+            await refetch();
+          } catch (e: any) {
+            toast.error(`[${round.id}] Step 3 Failed: ${e.message}`, { id: `step3-${round.id}` });
+            throw e;
+          } finally {
+            setActiveSteps(prev => {
+              const next = new Set(prev);
+              next.delete(stepKey);
+              return next;
+            });
+          }
         }
 
         if (updatedProgress?.step_4 !== 'done') {
-          toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
-          await runStep4(round.id, llmModel);
-          toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
+          const stepKey = `${round.id}-4`;
+          try {
+            setActiveSteps(prev => new Set(prev).add(stepKey));
+            toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
+            await runStep4(round.id, llmModel);
+            toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
+            await refetch();
+          } catch (e: any) {
+            toast.error(`[${round.id}] Step 4 Failed: ${e.message}`, { id: `step4-${round.id}` });
+            throw e;
+          } finally {
+            setActiveSteps(prev => {
+              const next = new Set(prev);
+              next.delete(stepKey);
+              return next;
+            });
+          }
         }
 
         toast.success(`[${round.id}] All Steps Completed!`);
-        await refetch();
       }
 
     } catch (e: any) {
@@ -220,6 +262,14 @@ export default function VideoDashboard() {
       setProcessingRounds(prev => {
         const next = new Set(prev);
         next.delete(round.id);
+        return next;
+      });
+      // Clear all active steps for this round
+      setActiveSteps(prev => {
+        const next = new Set(prev);
+        [2, 3, 4].forEach(stepNum => {
+          next.delete(`${round.id}-${stepNum}`);
+        });
         return next;
       });
     }
@@ -551,34 +601,49 @@ export default function VideoDashboard() {
                                             }`}
                                         />
                                         {[2, 3, 4].map((stepNum, idx) => {
+                                          const stepKey = `${round.id}-${stepNum}`;
+                                          const isActiveInFrontend = activeSteps.has(stepKey);
                                           const status =
                                             stepNum === 2
                                               ? progress?.step_2 || 'not_in_queue'
                                               : stepNum === 3
                                                 ? progress?.step_3 || 'not_in_queue'
                                                 : progress?.step_4 || 'not_in_queue';
+                                          // Override status if frontend knows it's processing
+                                          const displayStatus = isActiveInFrontend ? 'processing' : status;
                                           return (
                                             <div key={stepNum} className="flex items-center">
                                               {idx > 0 && (
                                                 <div
-                                                  className={`w-3 h-1 ${status === 'done'
+                                                  className={`w-3 h-1 ${displayStatus === 'done'
                                                       ? 'bg-green-500'
                                                       : 'bg-gray-300 dark:bg-gray-700'
                                                     }`}
                                                 />
                                               )}
-                                              <div
-                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${status === 'done'
-                                                    ? 'bg-green-500'
-                                                    : status === 'processing'
-                                                      ? 'bg-blue-500'
-                                                      : status === 'in_queue'
-                                                        ? 'bg-purple-500'
-                                                        : 'bg-gray-300 dark:bg-gray-700'
-                                                  }`}
-                                                title={`Step ${stepNum}: ${status}`}
-                                              >
-                                                {status === 'done' ? '✓' : stepNum}
+                                              <div className="relative w-5 h-5">
+                                                <div
+                                                  className={`absolute inset-0 rounded-full flex items-center justify-center text-xs font-bold text-white ${displayStatus === 'done'
+                                                      ? 'bg-green-500'
+                                                      : displayStatus === 'processing'
+                                                        ? 'bg-blue-500'
+                                                        : displayStatus === 'in_queue'
+                                                          ? 'bg-purple-500'
+                                                          : 'bg-gray-300 dark:bg-gray-700'
+                                                    }`}
+                                                  title={`Step ${stepNum}: ${displayStatus}`}
+                                                >
+                                                  {displayStatus === 'done' ? '✓' : stepNum}
+                                                </div>
+                                                {(displayStatus === 'processing' || displayStatus === 'in_queue') && (
+                                                  <div
+                                                    className="absolute inset-0 rounded-full border-[3px] border-transparent animate-spin pointer-events-none"
+                                                    style={{
+                                                      borderTopColor: displayStatus === 'processing' ? '#60a5fa' : '#c084fc',
+                                                      borderRightColor: displayStatus === 'processing' ? 'rgba(96, 165, 250, 0.3)' : 'rgba(192, 132, 252, 0.3)',
+                                                    }}
+                                                  />
+                                                )}
                                               </div>
                                             </div>
                                           );
