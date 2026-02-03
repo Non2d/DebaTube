@@ -4,10 +4,11 @@ import { Plus, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Header from '../../../components/shared/Header';
 import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../../context/LanguageContext';
-import { type BackgroundStepStatus } from '../../../components/lib/utils';
+import { type BackgroundStepStatus, getAPIRoot, toInternalModelName } from '../../../components/lib/utils';
 import Step1ProgressCircle from './components/Step1ProgressCircle';
 import { useStepActions } from '../../../hooks/useStepActions';
 import type { ProcessingStepStatus } from '../../../components/shared/ProcessingSteps';
@@ -35,6 +36,110 @@ export default function VideoDashboard() {
         },
         round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
       );
+    } finally {
+      setProcessingRounds(prev => {
+        const next = new Set(prev);
+        next.delete(round.id);
+        return next;
+      });
+    }
+  };
+
+  const runStep2 = async (roundId: number, llmModel: string) => {
+    const res = await fetch(getAPIRoot() + `/auto/diarization/${roundId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: toInternalModelName(llmModel) })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Step 2 failed");
+    }
+  };
+
+  const runStep3 = async (roundId: number, llmModel: string) => {
+    const res = await fetch(getAPIRoot() + `/auto/adus/${roundId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: toInternalModelName(llmModel) })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Step 3 failed");
+    }
+  };
+
+  const runStep4 = async (roundId: number, llmModel: string) => {
+    const res = await fetch(getAPIRoot() + `/auto/rebuttals/${roundId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: toInternalModelName(llmModel) })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Step 4 failed");
+    }
+  };
+
+  const handleRunAllSteps = async (round: any) => {
+    setProcessingRounds(prev => new Set(prev).add(round.id));
+
+    try {
+      // Get LLM Model from localStorage
+      const llmModel = typeof window !== 'undefined'
+        ? localStorage.getItem('llmModel') || "gemini-2.5-flash (google ai studio)"
+        : "gemini-2.5-flash (google ai studio)";
+
+      const progress = jobProgress.get(round.id);
+
+      // Step 1 (未完了の場合のみ)
+      if (progress?.step_1 !== 'done') {
+        toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
+        const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+        const dummySetStepsStatus = () => { };
+        await runStep1(
+          round,
+          dummySetStepsStatus as any,
+          dummyStepsStatus,
+          async () => {
+            await refetch();
+          },
+          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+        );
+        toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
+      }
+
+      // Refresh progress after Step 1
+      await refetch();
+      const updatedProgress = jobProgress.get(round.id);
+
+      // Step 2 (未完了の場合のみ)
+      if (updatedProgress?.step_2 !== 'done') {
+        toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
+        await runStep2(round.id, llmModel);
+        toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+      }
+
+      // Step 3 (未完了の場合のみ)
+      if (updatedProgress?.step_3 !== 'done') {
+        toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
+        await runStep3(round.id, llmModel);
+        toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
+      }
+
+      // Step 4 (未完了の場合のみ)
+      if (updatedProgress?.step_4 !== 'done') {
+        toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
+        await runStep4(round.id, llmModel);
+        toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
+      }
+
+      toast.success(`[${round.id}] All Steps Completed!`);
+      await refetch();
+
+    } catch (e: any) {
+      console.error("All Steps Workflow Stopped:", e);
+      toast.error(`[${round.id}] Error: ${e.message}`);
     } finally {
       setProcessingRounds(prev => {
         const next = new Set(prev);
@@ -316,14 +421,14 @@ export default function VideoDashboard() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleRunStep1(round);
+                                    handleRunAllSteps(round);
                                   }}
                                   disabled={processingRounds.has(round.id)}
-                                  className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-900 disabled:cursor-not-allowed rounded transition-colors"
-                                  title="Run Step 1"
+                                  className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed rounded transition-colors"
+                                  title="Run All Remaining Steps"
                                 >
                                   <Play className="w-3 h-3" />
-                                  1
+                                  All
                                 </button>
                               </td>
                             </tr>
