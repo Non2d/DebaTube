@@ -3,7 +3,7 @@
 import { Plus, ChevronLeft, ChevronRight, Play, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Header from '../../../components/shared/Header';
 import { useRounds } from './hooks/useRoundsSummary';
@@ -111,6 +111,61 @@ export default function VideoDashboard() {
       localStorage.setItem('dashboardExecuteMode', executeMode);
     }
   }, [executeMode]);
+
+  // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D (Dashboard version)
+  const prevJobProgressMapRef = useRef<Map<number, any>>(new Map());
+  useEffect(() => {
+    if (jobProgress.size === 0) {
+      prevJobProgressMapRef.current = jobProgress;
+      return;
+    }
+
+    // Check each round for step completion
+    jobProgress.forEach((curr, roundId) => {
+      const prev = prevJobProgressMapRef.current.get(roundId);
+      if (!prev) return;
+
+      const round = rounds.find(r => r.id === roundId);
+      if (!round) return;
+
+      // Check if Step 1-A just completed
+      if (prev.step_1a !== 'done' && curr.step_1a === 'done') {
+        // Step 1-A just completed, continue with 1-B via runStep1
+        console.log(`[Dashboard] Round ${roundId}: Step 1-A completed, starting 1-B`);
+        const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+        const dummySetStepsStatus = () => { };
+        runStep1(
+          round,
+          dummySetStepsStatus as any,
+          dummyStepsStatus,
+          async () => {
+            await refetch();
+          },
+          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+        );
+      }
+
+      // Check if Step 1-B just completed
+      if (prev.step_1b !== 'done' && curr.step_1b === 'done') {
+        // Step 1-B just completed, continue with 1-C and 1-D via runStep1
+        console.log(`[Dashboard] Round ${roundId}: Step 1-B completed, starting 1-C and 1-D`);
+        const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+        const dummySetStepsStatus = () => { };
+        runStep1(
+          round,
+          dummySetStepsStatus as any,
+          dummyStepsStatus,
+          async () => {
+            await refetch();
+          },
+          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+        );
+      }
+    });
+
+    prevJobProgressMapRef.current = jobProgress;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobProgress, rounds, refetch]);
 
   const runStep2 = async (roundId: number, llmModel: string) => {
     const res = await fetch(getAPIRoot() + `/auto/diarization/${roundId}`, {
@@ -616,20 +671,20 @@ export default function VideoDashboard() {
                                               {idx > 0 && (
                                                 <div
                                                   className={`w-3 h-1 ${displayStatus === 'done'
-                                                      ? 'bg-green-500'
-                                                      : 'bg-gray-300 dark:bg-gray-700'
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-700'
                                                     }`}
                                                 />
                                               )}
                                               <div className="relative w-5 h-5">
                                                 <div
                                                   className={`absolute inset-0 rounded-full flex items-center justify-center text-xs font-bold text-white ${displayStatus === 'done'
-                                                      ? 'bg-green-500'
-                                                      : displayStatus === 'processing'
-                                                        ? 'bg-blue-500'
-                                                        : displayStatus === 'in_queue'
-                                                          ? 'bg-purple-500'
-                                                          : 'bg-gray-300 dark:bg-gray-700'
+                                                    ? 'bg-green-500'
+                                                    : displayStatus === 'processing'
+                                                      ? 'bg-blue-500'
+                                                      : displayStatus === 'in_queue'
+                                                        ? 'bg-purple-500'
+                                                        : 'bg-gray-300 dark:bg-gray-700'
                                                     }`}
                                                   title={`Step ${stepNum}: ${displayStatus}`}
                                                 >
@@ -660,11 +715,10 @@ export default function VideoDashboard() {
                                     executeStep(round, executeMode);
                                   }}
                                   disabled={processingRounds.has(round.id)}
-                                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium text-white rounded transition-colors ${
-                                    executeMode === 'step1'
-                                      ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400'
-                                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500'
-                                  } disabled:cursor-not-allowed`}
+                                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium text-white rounded transition-colors ${executeMode === 'step1'
+                                    ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500'
+                                    } disabled:cursor-not-allowed`}
                                   title={executeMode === 'step1' ? 'Run Step 1 Only' : 'Run All Steps'}
                                 >
                                   <Play className="w-3 h-3" />
