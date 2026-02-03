@@ -1,14 +1,14 @@
 "use client";
 
-import { Plus, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Play, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import Header from '../../../components/shared/Header';
 import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../../context/LanguageContext';
-import { type BackgroundStepStatus, getAPIRoot, toInternalModelName } from '../../../components/lib/utils';
+import { type BackgroundStepStatus, formatModelName, getAPIRoot, toInternalModelName } from '../../../components/lib/utils';
 import Step1ProgressCircle from './components/Step1ProgressCircle';
 import { useStepActions } from '../../../hooks/useStepActions';
 import type { ProcessingStepStatus } from '../../../components/shared/ProcessingSteps';
@@ -20,30 +20,91 @@ export default function VideoDashboard() {
   const [processingRounds, setProcessingRounds] = useState<Set<number>>(new Set());
   const { runStep1 } = useStepActions({ roundId: 0, t, is_background: true, showRoundIdInToast: true });
 
-  const handleRunStep1 = async (round: any) => {
-    setProcessingRounds(prev => new Set(prev).add(round.id));
-
-    const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-    const dummySetStepsStatus = () => { };
-
-    try {
-      await runStep1(
-        round,
-        dummySetStepsStatus as any,
-        dummyStepsStatus,
-        async () => {
-          await refetch();
-        },
-        round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
-      );
-    } finally {
-      setProcessingRounds(prev => {
-        const next = new Set(prev);
-        next.delete(round.id);
-        return next;
-      });
+  // LLM Model (初期値関数で localStorage から読み込み)
+  const [llmModel, setLlmModel] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('llmModel') || "gemini-2.5-flash (google ai studio)";
     }
-  };
+    return "gemini-2.5-flash (google ai studio)";
+  });
+
+  // Transcription Model (初期値関数で localStorage から読み込み)
+  const [transcriptionModel, setTranscriptionModel] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('transcriptionModel') || "groq-whisper-large-v3-turbo";
+    }
+    return "groq-whisper-large-v3-turbo";
+  });
+
+  // Colab URL (初期値関数で localStorage から読み込み)
+  const [colabUrl, setColabUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('colabUrl') || "";
+    }
+    return "";
+  });
+
+  // Gemini モデル一覧
+  const [geminiModels, setGeminiModels] = useState<string[]>([
+    "gemini-2.5-flash (google ai studio)",
+    "gemini-3-flash (google ai studio)"
+  ]);
+
+  // Settings panel collapsed/expanded
+  const [showSettings, setShowSettings] = useState(false);
+
+  // 実行モード選択 ('step1' | 'all')
+  const [executeMode, setExecuteMode] = useState<'step1' | 'all'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('dashboardExecuteMode') as 'step1' | 'all') || 'step1';
+    }
+    return 'step1';
+  });
+
+  // Gemini モデル一覧をバックエンドから取得
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const res = await fetch(getAPIRoot() + '/audio2adu/gemini-models');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.models) {
+            const formattedModels = data.models.map((m: string) => formatModelName(m));
+            setGeminiModels(formattedModels);
+            localStorage.setItem('geminiModels', JSON.stringify(formattedModels));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch Gemini models", e);
+      }
+    };
+    fetchModels();
+  }, []);
+
+  // localStorage に自動保存
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('llmModel', llmModel);
+    }
+  }, [llmModel]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('transcriptionModel', transcriptionModel);
+    }
+  }, [transcriptionModel]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('colabUrl', colabUrl);
+    }
+  }, [colabUrl]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboardExecuteMode', executeMode);
+    }
+  }, [executeMode]);
 
   const runStep2 = async (roundId: number, llmModel: string) => {
     const res = await fetch(getAPIRoot() + `/auto/diarization/${roundId}`, {
@@ -81,64 +142,74 @@ export default function VideoDashboard() {
     }
   };
 
-  const handleRunAllSteps = async (round: any) => {
+  const executeStep = async (round: any, mode: 'step1' | 'all') => {
     setProcessingRounds(prev => new Set(prev).add(round.id));
 
     try {
-      // Get LLM Model from localStorage
-      const llmModel = typeof window !== 'undefined'
-        ? localStorage.getItem('llmModel') || "gemini-2.5-flash (google ai studio)"
-        : "gemini-2.5-flash (google ai studio)";
-
       const progress = jobProgress.get(round.id);
 
-      // Step 1 (未完了の場合のみ)
-      if (progress?.step_1 !== 'done') {
-        toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
-        const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-        const dummySetStepsStatus = () => { };
-        await runStep1(
-          round,
-          dummySetStepsStatus as any,
-          dummyStepsStatus,
-          async () => {
-            await refetch();
-          },
-          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
-        );
-        toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
+      if (mode === 'step1') {
+        // Step 1 Only
+        if (progress?.step_1 !== 'done') {
+          toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
+          const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+          const dummySetStepsStatus = () => { };
+          await runStep1(
+            round,
+            dummySetStepsStatus as any,
+            dummyStepsStatus,
+            async () => {
+              await refetch();
+            },
+            round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+          );
+          toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
+        }
+      } else if (mode === 'all') {
+        // Steps 1-4
+        if (progress?.step_1 !== 'done') {
+          toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
+          const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
+          const dummySetStepsStatus = () => { };
+          await runStep1(
+            round,
+            dummySetStepsStatus as any,
+            dummyStepsStatus,
+            async () => {
+              await refetch();
+            },
+            round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+          );
+          toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
+        }
+
+        await refetch();
+        const updatedProgress = jobProgress.get(round.id);
+
+        if (updatedProgress?.step_2 !== 'done') {
+          toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
+          await runStep2(round.id, llmModel);
+          toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+        }
+
+        if (updatedProgress?.step_3 !== 'done') {
+          toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
+          await runStep3(round.id, llmModel);
+          toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
+        }
+
+        if (updatedProgress?.step_4 !== 'done') {
+          toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
+          await runStep4(round.id, llmModel);
+          toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
+        }
+
+        toast.success(`[${round.id}] All Steps Completed!`);
+        await refetch();
       }
-
-      // Refresh progress after Step 1
-      await refetch();
-      const updatedProgress = jobProgress.get(round.id);
-
-      // Step 2 (未完了の場合のみ)
-      if (updatedProgress?.step_2 !== 'done') {
-        toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
-        await runStep2(round.id, llmModel);
-        toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
-      }
-
-      // Step 3 (未完了の場合のみ)
-      if (updatedProgress?.step_3 !== 'done') {
-        toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
-        await runStep3(round.id, llmModel);
-        toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
-      }
-
-      // Step 4 (未完了の場合のみ)
-      if (updatedProgress?.step_4 !== 'done') {
-        toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
-        await runStep4(round.id, llmModel);
-        toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
-      }
-
-      toast.success(`[${round.id}] All Steps Completed!`);
-      await refetch();
 
     } catch (e: any) {
-      console.error("All Steps Workflow Stopped:", e);
+      console.error("Workflow Stopped:", e);
       toast.error(`[${round.id}] Error: ${e.message}`);
     } finally {
       setProcessingRounds(prev => {
@@ -224,6 +295,96 @@ export default function VideoDashboard() {
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+            {/* Advanced Settings Panel - Top of card */}
+            <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600"
+              >
+                <span className={`transition-transform ${showSettings ? 'rotate-90' : ''}`}>▸</span>
+                <span>Advanced Settings</span>
+              </button>
+
+              {showSettings && (
+                <div className="mt-4 space-y-4">
+                  {/* Execute Mode Selection */}
+                  <div className="flex gap-4 p-3 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        value="step1"
+                        checked={executeMode === 'step1'}
+                        onChange={(e) => setExecuteMode(e.target.value as 'step1' | 'all')}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-medium">Step 1 Only</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        value="all"
+                        checked={executeMode === 'all'}
+                        onChange={(e) => setExecuteMode(e.target.value as 'step1' | 'all')}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm font-medium">All Steps</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Transcription Model */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                        Audio Model
+                      </label>
+                      <select
+                        value={transcriptionModel}
+                        onChange={(e) => setTranscriptionModel(e.target.value)}
+                        className="h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="custom-colab-whisper">faster-whisper-large-v2 (Colab)</option>
+                        <option value="transcription-service">faster-whisper-large-v2 (Transcription Service)</option>
+                        <option value="groq-whisper-large-v3">whisper-large-v3 (Groq)</option>
+                        <option value="groq-whisper-large-v3-turbo">whisper-large-v3-turbo (Groq)</option>
+                        <option value="openai-whisper">whisper-1 (OpenAI)</option>
+                      </select>
+                    </div>
+
+                    {/* LLM Model */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                        LLM Model (Gemini)
+                      </label>
+                      <select
+                        value={llmModel}
+                        onChange={(e) => setLlmModel(e.target.value)}
+                        className="h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {geminiModels.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Colab URL (条件付き表示) */}
+                    {transcriptionModel === 'custom-colab-whisper' && (
+                      <div className="flex flex-col gap-2 md:col-span-2">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                          Cloudflare Tunnel URL
+                        </label>
+                        <input
+                          type="text"
+                          value={colabUrl}
+                          onChange={(e) => setColabUrl(e.target.value)}
+                          placeholder="https://xxxx.trycloudflare.com"
+                          className="h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {error ? (
               <div className="text-center py-8">
@@ -421,14 +582,18 @@ export default function VideoDashboard() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleRunAllSteps(round);
+                                    executeStep(round, executeMode);
                                   }}
                                   disabled={processingRounds.has(round.id)}
-                                  className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed rounded transition-colors"
-                                  title="Run All Remaining Steps"
+                                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium text-white rounded transition-colors ${
+                                    executeMode === 'step1'
+                                      ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400'
+                                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500'
+                                  } disabled:cursor-not-allowed`}
+                                  title={executeMode === 'step1' ? 'Run Step 1 Only' : 'Run All Steps'}
                                 >
                                   <Play className="w-3 h-3" />
-                                  All
+                                  {executeMode === 'step1' ? '1' : 'All'}
                                 </button>
                               </td>
                             </tr>
