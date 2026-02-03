@@ -114,6 +114,8 @@ export default function VideoDashboard() {
 
   // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D (Dashboard version)
   const prevJobProgressMapRef = useRef<Map<number, any>>(new Map());
+  const allModeRoundsRef = useRef<Set<number>>(new Set()); // Track rounds started in 'all' mode
+
   useEffect(() => {
     if (jobProgress.size === 0) {
       prevJobProgressMapRef.current = jobProgress;
@@ -121,7 +123,7 @@ export default function VideoDashboard() {
     }
 
     // Check each round for step completion
-    jobProgress.forEach((curr, roundId) => {
+    jobProgress.forEach(async (curr, roundId) => {
       const prev = prevJobProgressMapRef.current.get(roundId);
       if (!prev) return;
 
@@ -160,6 +162,75 @@ export default function VideoDashboard() {
           },
           round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
         );
+      }
+
+      // Check if Step 1-D just completed AND this round was started in 'all' mode
+      if (prev.step_1d !== 'done' && curr.step_1d === 'done' && allModeRoundsRef.current.has(roundId)) {
+        console.log(`[Dashboard] Round ${roundId}: Step 1 fully completed, starting Steps 2-4`);
+
+        // Run Steps 2-4 sequentially
+        try {
+          // Step 2
+          if (curr.step_2 !== 'done') {
+            const stepKey = `${roundId}-2`;
+            setActiveSteps(prev => new Set(prev).add(stepKey));
+            toast.loading(`[${roundId}] Running Step 2...`, { id: `step2-${roundId}` });
+            await runStep2(roundId, llmModel);
+            toast.success(`[${roundId}] Step 2 Complete`, { id: `step2-${roundId}` });
+            await refetch();
+            setActiveSteps(prev => {
+              const next = new Set(prev);
+              next.delete(stepKey);
+              return next;
+            });
+          }
+
+          // Refresh progress
+          await refetch();
+          const progressAfterStep2 = jobProgress.get(roundId);
+
+          // Step 3
+          if (progressAfterStep2?.step_3 !== 'done') {
+            const stepKey = `${roundId}-3`;
+            setActiveSteps(prev => new Set(prev).add(stepKey));
+            toast.loading(`[${roundId}] Running Step 3...`, { id: `step3-${roundId}` });
+            await runStep3(roundId, llmModel);
+            toast.success(`[${roundId}] Step 3 Complete`, { id: `step3-${roundId}` });
+            await refetch();
+            setActiveSteps(prev => {
+              const next = new Set(prev);
+              next.delete(stepKey);
+              return next;
+            });
+          }
+
+          // Refresh progress
+          await refetch();
+          const progressAfterStep3 = jobProgress.get(roundId);
+
+          // Step 4
+          if (progressAfterStep3?.step_4 !== 'done') {
+            const stepKey = `${roundId}-4`;
+            setActiveSteps(prev => new Set(prev).add(stepKey));
+            toast.loading(`[${roundId}] Running Step 4...`, { id: `step4-${roundId}` });
+            await runStep4(roundId, llmModel);
+            toast.success(`[${roundId}] Step 4 Complete`, { id: `step4-${roundId}` });
+            await refetch();
+            setActiveSteps(prev => {
+              const next = new Set(prev);
+              next.delete(stepKey);
+              return next;
+            });
+          }
+
+          toast.success(`[${roundId}] All Steps Completed!`);
+          // Remove from allModeRounds tracking
+          allModeRoundsRef.current.delete(roundId);
+        } catch (e: any) {
+          console.error(`[Dashboard] Round ${roundId}: Error in Steps 2-4:`, e);
+          toast.error(`[${roundId}] Error: ${e.message}`);
+          allModeRoundsRef.current.delete(roundId);
+        }
       }
     });
 
@@ -228,7 +299,17 @@ export default function VideoDashboard() {
         }
       } else if (mode === 'all') {
         // Steps 1-4
-        if (progress?.step_1 !== 'done') {
+        // Check if Step 1 is already fully complete
+        const step1Complete = progress?.step_1a === 'done' &&
+          progress?.step_1b === 'done' &&
+          progress?.step_1c === 'done' &&
+          progress?.step_1d === 'done';
+
+        if (!step1Complete) {
+          // Step 1 not complete - start it and let auto-transition handle the rest
+          // Mark this round as 'all' mode so Step 2-4 will run after Step 1 completes
+          allModeRoundsRef.current.add(round.id);
+
           toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
           const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
           const dummySetStepsStatus = () => { };
@@ -241,73 +322,91 @@ export default function VideoDashboard() {
             },
             round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
           );
-          toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
-        }
 
-        await refetch();
-        const updatedProgress = jobProgress.get(round.id);
+          // Check if Step 1 is now processing in background
+          await refetch();
+          const currentProgress = jobProgress.get(round.id);
+          const isProcessing = currentProgress?.step_1a === 'processing' || currentProgress?.step_1a === 'in_queue' ||
+            currentProgress?.step_1b === 'processing' || currentProgress?.step_1b === 'in_queue' ||
+            currentProgress?.step_1c === 'processing' || currentProgress?.step_1c === 'in_queue' ||
+            currentProgress?.step_1d === 'processing' || currentProgress?.step_1d === 'in_queue';
 
-        if (updatedProgress?.step_2 !== 'done') {
-          const stepKey = `${round.id}-2`;
-          try {
-            setActiveSteps(prev => new Set(prev).add(stepKey));
-            toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
-            await runStep2(round.id, llmModel);
-            toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+          if (isProcessing) {
+            toast.success(`[${round.id}] Step 1 started in background. Steps 2-4 will run automatically after completion.`, { id: `step1-${round.id}`, duration: 5000 });
+            return; // Exit - auto-transition will handle Steps 2-4 after Step 1 completes
+          } else {
+            // Step 1 completed synchronously (not in background)
+            toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
+
+            // Continue with Steps 2-4 immediately
             await refetch();
-          } catch (e: any) {
-            toast.error(`[${round.id}] Step 2 Failed: ${e.message}`, { id: `step2-${round.id}` });
-            throw e;
-          } finally {
-            setActiveSteps(prev => {
-              const next = new Set(prev);
-              next.delete(stepKey);
-              return next;
-            });
+            const updatedProgress = jobProgress.get(round.id);
+
+            if (updatedProgress?.step_2 !== 'done') {
+              const stepKey = `${round.id}-2`;
+              try {
+                setActiveSteps(prev => new Set(prev).add(stepKey));
+                toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
+                await runStep2(round.id, llmModel);
+                toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+                await refetch();
+              } catch (e: any) {
+                toast.error(`[${round.id}] Step 2 Failed: ${e.message}`, { id: `step2-${round.id}` });
+                throw e;
+              } finally {
+                setActiveSteps(prev => {
+                  const next = new Set(prev);
+                  next.delete(stepKey);
+                  return next;
+                });
+              }
+            }
+
+            if (updatedProgress?.step_3 !== 'done') {
+              const stepKey = `${round.id}-3`;
+              try {
+                setActiveSteps(prev => new Set(prev).add(stepKey));
+                toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
+                await runStep3(round.id, llmModel);
+                toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
+                await refetch();
+              } catch (e: any) {
+                toast.error(`[${round.id}] Step 3 Failed: ${e.message}`, { id: `step3-${round.id}` });
+                throw e;
+              } finally {
+                setActiveSteps(prev => {
+                  const next = new Set(prev);
+                  next.delete(stepKey);
+                  return next;
+                });
+              }
+            }
+
+            if (updatedProgress?.step_4 !== 'done') {
+              const stepKey = `${round.id}-4`;
+              try {
+                setActiveSteps(prev => new Set(prev).add(stepKey));
+                toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
+                await runStep4(round.id, llmModel);
+                toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
+                await refetch();
+              } catch (e: any) {
+                toast.error(`[${round.id}] Step 4 Failed: ${e.message}`, { id: `step4-${round.id}` });
+                throw e;
+              } finally {
+                setActiveSteps(prev => {
+                  const next = new Set(prev);
+                  next.delete(stepKey);
+                  return next;
+                });
+              }
+            }
+
+            toast.success(`[${round.id}] All Steps Completed!`);
+            // Remove from allModeRounds tracking since we completed everything
+            allModeRoundsRef.current.delete(round.id);
           }
         }
-
-        if (updatedProgress?.step_3 !== 'done') {
-          const stepKey = `${round.id}-3`;
-          try {
-            setActiveSteps(prev => new Set(prev).add(stepKey));
-            toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
-            await runStep3(round.id, llmModel);
-            toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
-            await refetch();
-          } catch (e: any) {
-            toast.error(`[${round.id}] Step 3 Failed: ${e.message}`, { id: `step3-${round.id}` });
-            throw e;
-          } finally {
-            setActiveSteps(prev => {
-              const next = new Set(prev);
-              next.delete(stepKey);
-              return next;
-            });
-          }
-        }
-
-        if (updatedProgress?.step_4 !== 'done') {
-          const stepKey = `${round.id}-4`;
-          try {
-            setActiveSteps(prev => new Set(prev).add(stepKey));
-            toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
-            await runStep4(round.id, llmModel);
-            toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
-            await refetch();
-          } catch (e: any) {
-            toast.error(`[${round.id}] Step 4 Failed: ${e.message}`, { id: `step4-${round.id}` });
-            throw e;
-          } finally {
-            setActiveSteps(prev => {
-              const next = new Set(prev);
-              next.delete(stepKey);
-              return next;
-            });
-          }
-        }
-
-        toast.success(`[${round.id}] All Steps Completed!`);
       }
 
     } catch (e: any) {
