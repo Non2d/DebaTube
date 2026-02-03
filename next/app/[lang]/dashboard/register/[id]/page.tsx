@@ -90,7 +90,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.models) {
-                        const formattedModels = data.models.map((m: string) => formatModelName(m));
+                        let formattedModels = data.models.map((m: string) => formatModelName(m));
+                        // 本番環境では Vertex AI モデルを除外
+                        if (process.env.NODE_ENV === 'production') {
+                            formattedModels = formattedModels.filter((m: string) => !m.includes('vertex ai'));
+                        }
                         setGeminiModels(formattedModels);
                         localStorage.setItem('geminiModels', JSON.stringify(formattedModels));
                         // Only set default if localStorage doesn't have a value
@@ -582,7 +586,14 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             className="h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
                         >
                             {TRANSCRIPTION_MODELS.map((model) => (
-                                <option key={model.value} value={model.value}>{model.label}</option>
+                                <option
+                                    key={model.value}
+                                    value={model.value}
+                                    disabled={!model.enabled}
+                                >
+                                    {model.label}
+                                    {!model.enabled && ' (Coming Soon)'}
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -854,7 +865,14 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                         className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/50"
                                                     >
                                                         {TRANSCRIPTION_MODELS.map((model) => (
-                                                            <option key={model.value} value={model.value}>{model.label}</option>
+                                                            <option
+                                                                key={model.value}
+                                                                value={model.value}
+                                                                disabled={!model.enabled}
+                                                            >
+                                                                {model.label}
+                                                                {!model.enabled && ' (Coming Soon)'}
+                                                            </option>
                                                         ))}
                                                     </select>
 

@@ -70,7 +70,11 @@ export default function VideoDashboard() {
         if (res.ok) {
           const data = await res.json();
           if (data && data.models) {
-            const formattedModels = data.models.map((m: string) => formatModelName(m));
+            let formattedModels = data.models.map((m: string) => formatModelName(m));
+            // 本番環境では Vertex AI モデルを除外
+            if (process.env.NODE_ENV === 'production') {
+              formattedModels = formattedModels.filter((m: string) => !m.includes('vertex ai'));
+            }
             setGeminiModels(formattedModels);
             localStorage.setItem('geminiModels', JSON.stringify(formattedModels));
           }
@@ -344,7 +348,14 @@ export default function VideoDashboard() {
                         className="h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         {TRANSCRIPTION_MODELS.map((model) => (
-                          <option key={model.value} value={model.value}>{model.label}</option>
+                          <option
+                            key={model.value}
+                            value={model.value}
+                            disabled={!model.enabled}
+                          >
+                            {model.label}
+                            {!model.enabled && ' (Coming Soon)'}
+                          </option>
                         ))}
                       </select>
                     </div>
