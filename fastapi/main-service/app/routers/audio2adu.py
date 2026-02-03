@@ -128,7 +128,6 @@ async def get_gemini_models():
         models.extend([
             GeminiModel.GEMINI_2_5_FLASH_VERTEX.name.lower(),
             GeminiModel.GEMINI_2_5_FLASH_LITE_VERTEX.name.lower(),
-            GeminiModel.GEMINI_3_FLASH_VERTEX.name.lower()
         ])
 
     return {"models": models}
