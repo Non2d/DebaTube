@@ -277,8 +277,7 @@ export default function VideoDashboard() {
           toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
         }
       } else if (mode === 'all') {
-        // Steps 1-4
-        // Check if Step 1 is already fully complete
+        // Steps 1-4: Start from the first incomplete step
         const step1Complete = progress?.step_1a === 'done' &&
           progress?.step_1b === 'done' &&
           progress?.step_1c === 'done' &&
@@ -286,9 +285,7 @@ export default function VideoDashboard() {
 
         if (!step1Complete) {
           // Step 1 not complete - start it and let auto-transition handle the rest
-          // Mark this round as 'all' mode so Step 2-4 will run after Step 1 completes
           allModeRoundsRef.current.add(round.id);
-
           toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
           const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
           const dummySetStepsStatus = () => { };
@@ -301,19 +298,61 @@ export default function VideoDashboard() {
             },
             round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
           );
-
-          // Always return after starting Step 1 in 'all' mode
-          // Auto-transition will handle Steps 2-4 after Step 1 completes
           toast.success(`[${round.id}] Step 1 processing started. Steps 2-4 will run automatically after completion.`, { id: `step1-${round.id}`, duration: 5000 });
           return;
-        } else {
-          // Step 1 already complete - mark for tracking and let auto-transition handle Steps 2-4
-          allModeRoundsRef.current.add(round.id);
-          toast.success(`[${round.id}] Step 1 already complete. Starting Steps 2-4...`, { duration: 3000 });
-          // Trigger auto-transition by simulating Step 1-D completion
-          // The useEffect will detect this and run Steps 2-4
-          return;
         }
+
+        // Step 1 is complete - run remaining steps
+        toast.success(`[${round.id}] Starting remaining steps...`, { duration: 3000 });
+
+        // Step 2
+        if (progress?.step_2 !== 'done') {
+          const stepKey = `${round.id}-2`;
+          setActiveSteps(prev => new Set(prev).add(stepKey));
+          toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
+          await runStep2(round.id, llmModel);
+          toast.success(`[${round.id}] Step 2 Complete`, { id: `step2-${round.id}` });
+          await refetch();
+          setActiveSteps(prev => {
+            const next = new Set(prev);
+            next.delete(stepKey);
+            return next;
+          });
+        }
+
+        // Step 3
+        const refreshedProgress2 = jobProgress.get(round.id);
+        if (refreshedProgress2?.step_3 !== 'done') {
+          const stepKey = `${round.id}-3`;
+          setActiveSteps(prev => new Set(prev).add(stepKey));
+          toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
+          await runStep3(round.id, llmModel);
+          toast.success(`[${round.id}] Step 3 Complete`, { id: `step3-${round.id}` });
+          await refetch();
+          setActiveSteps(prev => {
+            const next = new Set(prev);
+            next.delete(stepKey);
+            return next;
+          });
+        }
+
+        // Step 4
+        const refreshedProgress3 = jobProgress.get(round.id);
+        if (refreshedProgress3?.step_4 !== 'done') {
+          const stepKey = `${round.id}-4`;
+          setActiveSteps(prev => new Set(prev).add(stepKey));
+          toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
+          await runStep4(round.id, llmModel);
+          toast.success(`[${round.id}] Step 4 Complete`, { id: `step4-${round.id}` });
+          await refetch();
+          setActiveSteps(prev => {
+            const next = new Set(prev);
+            next.delete(stepKey);
+            return next;
+          });
+        }
+
+        toast.success(`[${round.id}] All Steps Completed!`);
       }
 
     } catch (e: any) {
