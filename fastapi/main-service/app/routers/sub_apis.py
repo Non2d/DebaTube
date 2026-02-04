@@ -17,7 +17,7 @@ from typing import Optional
 from db import get_db
 from models.round import Round, Speech, Word, Sentence, Adu, Rebuttal
 from cruds import round as round_crud
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 import shutil
 from config import AUDIO_DIR
 from services.transcription_service import delete_background_transcription_batch_remote, delete_audio_cache_remote
@@ -1135,6 +1135,13 @@ async def reset_progress(
         if not round_obj:
             raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
         
+        video_id = round_obj.video_id
+
+        # CRITICAL FIX: Detach all objects from session before bulk deletes
+        # This prevents "Instance has been deleted" errors because the session won't try
+        # to synchronize the in-memory round_obj (and its eagerly loaded speeches) with the DB.
+        db.expunge_all()
+        
         # Determine cascading deletions
         # Order is important: delete children first if not using CASCADE logic in Python, 
         # but SQLAlchemy usually handles foreign keys if ON DELETE CASCADE is set in DB.
@@ -1181,8 +1188,9 @@ async def reset_progress(
             
         # Step 1-b: Transcription (Clears Round.raw_transcription)
         if target_level <= 1:
-            round_obj.raw_transcription = None
-            db.add(round_obj) # Mark for update
+            # Use Core Update instead of ORM object manipulation
+            stmt = update(Round).where(Round.id == round_id).values(raw_transcription=None)
+            await db.execute(stmt)
             
             # Reset remote background transcription status
             await delete_background_transcription_batch_remote(round_ids=[round_id])
@@ -1192,9 +1200,7 @@ async def reset_progress(
             
         # Step 1-a: Audio Download (Deletes local audio file)
         if target_level <= 0:
-            if round_obj.video_id:
-                video_id = round_obj.video_id
-                
+            if video_id:
                 # 1. Delete local directory: AUDIO_DIR/video_id
                 target_dir = os.path.join(AUDIO_DIR, video_id)
                 if os.path.exists(target_dir):
@@ -1206,11 +1212,6 @@ async def reset_progress(
                 # 2. Delete cache from external GPU server
                 await delete_audio_cache_remote(video_id)
                 logger.info(f"Reset Step 1-a: Deleted external audio cache for {video_id}")
-
-                # 3. Clear video_id from Round -> REMOVED
-                # round_obj.video_id = None
-                # db.add(round_obj)
-                    
             else:
                 logger.warning(f"Reset Step 1-a: Round {round_id} has no video_id")
 
