@@ -347,7 +347,7 @@ export const en = {
                 runStep: "Run Step",
                 running: "Running...",
                 reset: "Reset",
-                resumeStep: "Resume from here",
+                resumeStep: "Run Step",
                 runAllSteps: "Run All Steps Automatically",
                 runAllRemainingSteps: "Run All Remaining Steps",
                 resumeAllSteps: "Resume All Steps",

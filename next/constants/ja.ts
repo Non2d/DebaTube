@@ -349,7 +349,7 @@ export const ja: LocaleType = {
                 runStep: "ステップを実行",
                 running: "実行中...",
                 reset: "リセット",
-                resumeStep: "ここから再開",
+                resumeStep: "ステップを実行",
                 runAllSteps: "全ステップを自動実行",
                 runAllRemainingSteps: "残りのステップを自動実行",
                 resumeAllSteps: "全ステップを再開",
