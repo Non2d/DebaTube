@@ -29,7 +29,7 @@ interface ProcessingStepsProps {
     downloadProgress?: number;
     renderStepContent?: (stepId: number) => React.ReactNode;
     jobProgress?: any;
-    isProcessing?: Set<string>;
+    currentProcessingStep?: string | null;
     currentJobCancellationTarget?: 'external-bg-task' | 'sync-task' | null;
 }
 
@@ -43,7 +43,7 @@ export default function ProcessingSteps({
     jobProgress,
     headerContent,
     children,
-    isProcessing,
+    currentProcessingStep,
     currentJobCancellationTarget
 }: ProcessingStepsProps & { headerContent?: React.ReactNode, children?: React.ReactNode }) {
     const { t } = useTranslation();
@@ -234,16 +234,16 @@ export default function ProcessingSteps({
                                                             // Use jobProgress data for Step 1 sub-steps
                                                             if (subIndex === 0) {
                                                                 subStatus = isStep1aDone ? 'completed' :
-                                                                    (status === 'processing' || isProcessing?.has('1-a') ? 'processing' : 'pending');
+                                                                    (status === 'processing' || currentProcessingStep === '1-a' ? 'processing' : 'pending');
                                                             } else if (subIndex === 1) {
                                                                 subStatus = isStep1bDone ? 'completed' :
-                                                                    (status === 'processing' && isStep1aDone || isProcessing?.has('1-b')) ? 'processing' : 'pending';
+                                                                    (status === 'processing' && isStep1aDone || currentProcessingStep === '1-b') ? 'processing' : 'pending';
                                                             } else if (subIndex === 2) {
                                                                 subStatus = isStep1cDone ? 'completed' :
-                                                                    ((status === 'processing' && isStep1bDone) || isProcessing?.has('1-c')) ? 'processing' : 'pending';
+                                                                    ((status === 'processing' && isStep1bDone) || currentProcessingStep === '1-c') ? 'processing' : 'pending';
                                                             } else if (subIndex === 3) {
                                                                 subStatus = isStep1dDone ? 'completed' :
-                                                                    ((status === 'processing' && isStep1cDone) || isProcessing?.has('1-d')) ? 'processing' : 'pending';
+                                                                    ((status === 'processing' && isStep1cDone) || currentProcessingStep === '1-d') ? 'processing' : 'pending';
                                                             }
                                                         } else if (status === 'processing') {
                                                             // Fallback: show all as processing if no jobProgress data

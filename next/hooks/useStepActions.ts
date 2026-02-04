@@ -58,7 +58,7 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
         stepsStatus: ProcessingStepStatus[],
         onRefresh: () => Promise<void>,
         videoUrl?: string, // Optional override for missing video_id recovery
-        setIsProcessing?: (fn: (prev: Set<string>) => Set<string>) => void, // For Step 1-C/1-D progress tracking
+        setCurrentProcessingStep?: (step: string | null) => void, // For Step 1-C/1-D progress tracking
         setCancellationTarget?: (target: 'external-bg-task' | 'sync-task' | null) => void, // For cancel logic
         keepCancellationTarget?: boolean // If true, don't reset cancellation target after completion (for auto-continue to Step 2-4)
     ) => {
@@ -117,9 +117,6 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
                 await onRefresh();
                 return; // Exit - page-level polling will handle completion
-            } else {
-                // Silent skip - no toast needed
-                // (either 1-A is done or 1-B is already done, so skip 1-A)
             }
 
             // Step 1-B: Transcription
@@ -213,16 +210,13 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                     await onRefresh();
                     progress = await getProgress(roundData.id);
                 }
-            } else {
-                // transDone = true and step_1c = DONE, meaning result already retrieved
-                // Silent skip - no toast needed
             }
 
             // Step 1-C: Words
             if (progress?.step_1c !== 'DONE') {
                 // Set cancellation target to sync-task before running 1-C
                 if (setCancellationTarget) setCancellationTarget('sync-task');
-                if (setIsProcessing) setIsProcessing(prev => new Set(prev).add('1-c'));
+                if (setCurrentProcessingStep) setCurrentProcessingStep('1-c');
                 toast.loading(toastPrefix + (t('dashboard.steps.messages.extractingWords') || 'Step 1-C: Extracting words...'), { id: 'step1c' });
 
                 const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
@@ -232,28 +226,18 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
                 if (!res.ok) {
                     const err = await res.json();
-                    if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-c'); return newSet; });
+                    if (setCurrentProcessingStep) setCurrentProcessingStep(null);
                     throw new Error(err.detail || t('dashboard.steps.messages.wordExtractionFailed') || 'Word extraction failed');
                 }
                 toast.success(toastPrefix + (t('dashboard.steps.messages.wordExtractionCompleted') || 'Step 1-C: Completed'), { id: 'step1c' });
-                // Don't delete '1-c' yet - keep it until we add '1-d' to avoid a gap
                 await onRefresh();
                 progress = await getProgress(roundData.id);
 
-                // Now check if we need to run 1-D
                 if (progress?.step_1d === 'DONE') {
-                    // 1-D is already done, clean up '1-c'
-                    if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-c'); return newSet; });
+                    // 1-D already done, keep processing step if needed
                 } else {
-                    // 1-D needs to run, transition from '1-c' to '1-d'
-                    if (setIsProcessing) setIsProcessing(prev => {
-                        const newSet = new Set(prev);
-                        newSet.delete('1-c');
-                        newSet.add('1-d');
-                        return newSet;
-                    });
+                    if (setCurrentProcessingStep) setCurrentProcessingStep('1-d');
 
-                    // Run Step 1-D
                     toast.loading(toastPrefix + (t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...'), { id: 'step1d' });
 
                     const res1d = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
@@ -263,55 +247,63 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
                     if (!res1d.ok) {
                         const err = await res1d.json();
-                        if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-d'); return newSet; });
                         throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
                     }
                     const data = await res1d.json();
                     toast.success(toastPrefix + ((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences)), { id: 'step1d' });
-                    if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-d'); return newSet; });
-                    if (setCancellationTarget) setCancellationTarget(null);
+                    if (!keepCancellationTarget && setCurrentProcessingStep) setCurrentProcessingStep(null);
                     await onRefresh();
                 }
-            } else {
-                // 1-C is already done, check 1-D
-                if (progress?.step_1d !== 'DONE') {
-                    if (setIsProcessing) setIsProcessing(prev => new Set(prev).add('1-d'));
-                    toast.loading(toastPrefix + (t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...'), { id: 'step1d' });
+            } else if (progress?.step_1c !== 'DONE') {
+                if (setCurrentProcessingStep) setCurrentProcessingStep('1-d');
+                toast.loading(toastPrefix + (t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...'), { id: 'step1d' });
 
-                    const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                    });
+                const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
 
-                    if (!res.ok) {
-                        const err = await res.json();
-                        if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-d'); return newSet; });
-                        throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
-                    }
-                    const data = await res.json();
-                    toast.success(toastPrefix + ((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences)), { id: 'step1d' });
-                    if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-d'); return newSet; });
-                    if (!keepCancellationTarget && setCancellationTarget) setCancellationTarget(null);
-                    await onRefresh();
-                } else {
-                    // Silent skip - 1-D already done, no toast needed
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
                 }
+                const data = await res.json();
+                toast.success(toastPrefix + ((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences)), { id: 'step1d' });
+                if (!keepCancellationTarget && setCurrentProcessingStep) setCurrentProcessingStep(null);
+                await onRefresh();
+            } else if (progress?.step_1d === 'DONE') {
+            } else if (progress?.step_1d !== 'DONE') {
+                if (setCurrentProcessingStep) setCurrentProcessingStep('1-d');
+                toast.loading(toastPrefix + (t('dashboard.steps.messages.groupingSentences') || 'Step 1-D: Grouping sentences...'), { id: 'step1d' });
+
+                const res = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || t('dashboard.steps.messages.sentenceGroupingFailed') || 'Sentence generation failed');
+                }
+                const data = await res.json();
+                toast.success(toastPrefix + ((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences)), { id: 'step1d' });
+                if (!keepCancellationTarget && setCurrentProcessingStep) setCurrentProcessingStep(null);
+                await onRefresh();
+            } else if (progress?.step_1d === 'DONE') {
+                toast.success(toastPrefix + (t('dashboard.steps.messages.step1Complete') || 'Step 1 All Complete!'));
             }
 
-            toast.success(toastPrefix + (t('dashboard.steps.messages.step1Complete') || 'Step 1 All Complete!'));
-
-            // Clear cancellation target (step1-all tracking removed)
-            if (!keepCancellationTarget && setCancellationTarget) setCancellationTarget(null);
+            if (!keepCancellationTarget && setCancellationTarget) {
+                setCancellationTarget(null);
+            }
 
         } catch (error: any) {
             console.error(error);
-            // Dismiss all potential loading toasts
             toast.dismiss('step1a');
             toast.dismiss('step1b');
             toast.dismiss('step1c');
             toast.dismiss('step1d');
 
-            // Clear cancellation target on error (step1-all tracking removed)
             if (setCancellationTarget) setCancellationTarget(null);
 
             const errStatus = [...stepsStatus];
