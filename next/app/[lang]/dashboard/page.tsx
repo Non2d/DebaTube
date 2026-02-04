@@ -24,6 +24,7 @@ export default function VideoDashboard() {
   const [activeSteps, setActiveSteps] = useState<Set<string>>(new Set()); // Track active steps: "roundId-stepNum"
   const cancellationTargetsRef = useRef<Map<number, 'external-bg-task' | 'sync-task' | null>>(new Map());
   const [cancellationTargetsTrigger, setCancellationTargetsTrigger] = useState(0); // Trigger for re-renders
+  const [threadStatus, setThreadStatus] = useState<{ active_tasks: string[]; zombie_tasks: string[] } | null>(null);
   const { cancelTranscription } = useCancelTranscription();
 
   // LLM Model (初期値関数で localStorage から読み込み)
@@ -94,6 +95,23 @@ export default function VideoDashboard() {
       localStorage.setItem('dashboardExecuteMode', executeMode);
     }
   }, [executeMode]);
+
+  // Fetch thread status on mount
+  useEffect(() => {
+    const fetchThreadStatus = async () => {
+      try {
+        const res = await fetch(getAPIRoot() + '/thread/status');
+        if (res.ok) {
+          const data = await res.json();
+          setThreadStatus(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch thread status:', error);
+      }
+    };
+
+    fetchThreadStatus();
+  }, []);
 
   // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D (Dashboard version)
   const prevJobProgressMapRef = useRef<Map<number, any>>(new Map());
@@ -781,271 +799,288 @@ export default function VideoDashboard() {
                 <div className="text-gray-500 text-sm">{error}</div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-2 px-4 w-[60px]">ID</th>
-                      <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
-                      <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
-                      <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
-                      <th className="text-left py-2 px-4 w-[120px]">Progress</th>
-                      <th className="text-left py-2 px-4 w-[100px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i} className="border-b border-gray-200 dark:border-gray-700">
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-32 rounded"></div>
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-48 rounded"></div>
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-24 rounded"></div>
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-16 rounded"></div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      (() => {
-                        // Filter for External Video is done by API now
-                        const filteredRounds = [...rounds]; // Copy for sorting
+              <div>
+                {/* Thread Status Info */}
+                {threadStatus && (
+                  <div className="mb-4">
+                    <div className="text-sm mb-2">
+                      <div className={`${threadStatus.zombie_tasks.length > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
+                        アクティブなプロセス: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / キャンセル途中のプロセス: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
+                      </div>
+                    </div>
+                    {threadStatus.zombie_tasks.length > 6 && (
+                      <div className="text-red-600 dark:text-red-400 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                        キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-2 px-4 w-[60px]">ID</th>
+                        <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
+                        <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
+                        <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
+                        <th className="text-left py-2 px-4 w-[120px]">Progress</th>
+                        <th className="text-left py-2 px-4 w-[100px]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i} className="border-b border-gray-200 dark:border-gray-700">
+                            <td className="py-2 px-4">
+                              <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
+                            </td>
+                            <td className="py-2 px-4">
+                              <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-32 rounded"></div>
+                            </td>
+                            <td className="py-2 px-4">
+                              <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-12 rounded"></div>
+                            </td>
+                            <td className="py-2 px-4">
+                              <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-48 rounded"></div>
+                            </td>
+                            <td className="py-2 px-4">
+                              <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-24 rounded"></div>
+                            </td>
+                            <td className="py-2 px-4">
+                              <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-4 w-16 rounded"></div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        (() => {
+                          // Filter for External Video is done by API now
+                          const filteredRounds = [...rounds]; // Copy for sorting
 
-                        // Sort by Title (asc) then Try Count (desc)
-                        filteredRounds.sort((a, b) => {
-                          if (a.title !== b.title) {
-                            return a.title.localeCompare(b.title);
+                          // Sort by Title (asc) then Try Count (desc)
+                          filteredRounds.sort((a, b) => {
+                            if (a.title !== b.title) {
+                              return a.title.localeCompare(b.title);
+                            }
+                            return (b.try_count || 1) - (a.try_count || 1);
+                          });
+
+                          if (filteredRounds.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="py-8 text-center text-gray-500">
+                                  {t('dashboard.table.noRounds')}
+                                </td>
+                              </tr>
+                            );
                           }
-                          return (b.try_count || 1) - (a.try_count || 1);
-                        });
 
-                        if (filteredRounds.length === 0) {
-                          return (
-                            <tr>
-                              <td colSpan={6} className="py-8 text-center text-gray-500">
-                                {t('dashboard.table.noRounds')}
-                              </td>
-                            </tr>
-                          );
-                        }
+                          return filteredRounds.map((round, index) => {
+                            // Check if this row is part of a group (same title as prev or next)
+                            const isSameTitleAsPrev = index > 0 && filteredRounds[index - 1].title === round.title;
+                            const isSameTitleAsNext = index < filteredRounds.length - 1 && filteredRounds[index + 1].title === round.title;
+                            const isGrouped = isSameTitleAsPrev || isSameTitleAsNext;
 
-                        return filteredRounds.map((round, index) => {
-                          // Check if this row is part of a group (same title as prev or next)
-                          const isSameTitleAsPrev = index > 0 && filteredRounds[index - 1].title === round.title;
-                          const isSameTitleAsNext = index < filteredRounds.length - 1 && filteredRounds[index + 1].title === round.title;
-                          const isGrouped = isSameTitleAsPrev || isSameTitleAsNext;
+                            // Different styling for grouped rows to visually connect them
+                            let rowClass = "border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors";
+                            if (isGrouped) {
+                              if (isSameTitleAsNext) rowClass = "border-b-0 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"; // Lighter separator
+                              else rowClass = "border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"; // End of group
+                            }
 
-                          // Different styling for grouped rows to visually connect them
-                          let rowClass = "border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors";
-                          if (isGrouped) {
-                            if (isSameTitleAsNext) rowClass = "border-b-0 border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"; // Lighter separator
-                            else rowClass = "border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"; // End of group
-                          }
-
-                          return (
-                            <tr
-                              key={round.id}
-                              className={`${rowClass}`}
-                              onClick={() => router.push(`/${language}/dashboard/register/${round.id}`)}
-                            >
-                              <td className="py-2 px-4">
-                                <div className="font-medium">{round.id}</div>
-                              </td>
-                              <td className="py-2 px-4 max-w-xs">
-                                {isGrouped && isSameTitleAsPrev ? (
-                                  <div className="font-medium truncate opacity-0 select-none" aria-hidden="true">{round.title}</div>
-                                ) : (
-                                  <div className="font-medium truncate" title={round.title}>{round.title}</div>
-                                )}
-                              </td>
-                              <td className="py-2 px-4 whitespace-nowrap">
-                                {(() => {
-                                  // Normalize display of debate styles
-                                  const style = round.style;
-                                  if (!style) return '-';
-                                  if (style === 'british_parliamentary' || style === 'BP') return 'BP';
-                                  if (style === 'north_american' || style === 'NA') return 'NA';
-                                  if (style === 'asian' || style === 'ASIAN') return 'Asian';
-                                  if (style === 'bp_opening_half' || style === 'OPENING_HALF_BP_ORDER') return 'BP Half';
-                                  if (style === 'wsdc' || style === 'WSDC') return 'WSDC';
-                                  if (style === 'hpdu' || style === 'HPDU') return 'HPDU';
-                                  return style;
-                                })()}
-                              </td>
-                              <td className="py-2 px-4 max-w-xs truncate" title={round.motion}>
-                                {round.motion}
-                              </td>
-                              <td className="py-2 px-4">
-                                <div className="flex items-center">
+                            return (
+                              <tr
+                                key={round.id}
+                                className={`${rowClass}`}
+                                onClick={() => router.push(`/${language}/dashboard/register/${round.id}`)}
+                              >
+                                <td className="py-2 px-4">
+                                  <div className="font-medium">{round.id}</div>
+                                </td>
+                                <td className="py-2 px-4 max-w-xs">
+                                  {isGrouped && isSameTitleAsPrev ? (
+                                    <div className="font-medium truncate opacity-0 select-none" aria-hidden="true">{round.title}</div>
+                                  ) : (
+                                    <div className="font-medium truncate" title={round.title}>{round.title}</div>
+                                  )}
+                                </td>
+                                <td className="py-2 px-4 whitespace-nowrap">
                                   {(() => {
-                                    const progress = jobProgress.get(round.id);
+                                    // Normalize display of debate styles
+                                    const style = round.style;
+                                    if (!style) return '-';
+                                    if (style === 'british_parliamentary' || style === 'BP') return 'BP';
+                                    if (style === 'north_american' || style === 'NA') return 'NA';
+                                    if (style === 'asian' || style === 'ASIAN') return 'Asian';
+                                    if (style === 'bp_opening_half' || style === 'OPENING_HALF_BP_ORDER') return 'BP Half';
+                                    if (style === 'wsdc' || style === 'WSDC') return 'WSDC';
+                                    if (style === 'hpdu' || style === 'HPDU') return 'HPDU';
+                                    return style;
+                                  })()}
+                                </td>
+                                <td className="py-2 px-4 max-w-xs truncate" title={round.motion}>
+                                  {round.motion}
+                                </td>
+                                <td className="py-2 px-4">
+                                  <div className="flex items-center">
+                                    {(() => {
+                                      const progress = jobProgress.get(round.id);
 
-                                    // 1-B以降の依存関係エラー（1-Aを無視）
-                                    const laterStepsError = progress ? (
-                                      (progress.step_1c !== 'not_in_queue' && progress.step_1b !== 'done') ||
-                                      (progress.step_1d !== 'not_in_queue' && progress.step_1c !== 'done')
-                                    ) : false;
+                                      // 1-B以降の依存関係エラー（1-Aを無視）
+                                      const laterStepsError = progress ? (
+                                        (progress.step_1c !== 'not_in_queue' && progress.step_1b !== 'done') ||
+                                        (progress.step_1d !== 'not_in_queue' && progress.step_1c !== 'done')
+                                      ) : false;
 
-                                    // 警告チェック：1-A だけが not_in_queue で、1-B 以降が進んでいて、1-B以降の依存関係は正しい（キャッシュ削除）
-                                    const hasWarning = progress ? (
-                                      progress.step_1a === 'not_in_queue' &&
-                                      (progress.step_1b !== 'not_in_queue' || progress.step_1c !== 'not_in_queue' || progress.step_1d !== 'not_in_queue') &&
-                                      !laterStepsError
-                                    ) : false;
+                                      // 警告チェック：1-A だけが not_in_queue で、1-B 以降が進んでいて、1-B以降の依存関係は正しい（キャッシュ削除）
+                                      const hasWarning = progress ? (
+                                        progress.step_1a === 'not_in_queue' &&
+                                        (progress.step_1b !== 'not_in_queue' || progress.step_1c !== 'not_in_queue' || progress.step_1d !== 'not_in_queue') &&
+                                        !laterStepsError
+                                      ) : false;
 
-                                    // エラーチェック：1-B以降の依存エラー、または1-Aの依存エラー（警告でない場合）
-                                    const hasError = progress ? (
-                                      laterStepsError ||
-                                      (progress.step_1b !== 'not_in_queue' && progress.step_1a !== 'done' && !hasWarning)
-                                    ) : false;
+                                      // エラーチェック：1-B以降の依存エラー、または1-Aの依存エラー（警告でない場合）
+                                      const hasError = progress ? (
+                                        laterStepsError ||
+                                        (progress.step_1b !== 'not_in_queue' && progress.step_1a !== 'done' && !hasWarning)
+                                      ) : false;
 
-                                    const step1Status =
-                                      (progress?.step_1a === 'done' &&
-                                        progress?.step_1b === 'done' &&
-                                        progress?.step_1c === 'done' &&
-                                        progress?.step_1d === 'done')
-                                        ? 'done'
-                                        : 'not_done';
-                                    return (
-                                      <>
-                                        <Step1ProgressCircle
-                                          step1a={progress?.step_1a || 'not_in_queue'}
-                                          step1b={progress?.step_1b || 'not_in_queue'}
-                                          step1c={progress?.step_1c || 'not_in_queue'}
-                                          step1d={progress?.step_1d || 'not_in_queue'}
-                                        />
-                                        <div
-                                          className={`w-3 h-1 ${hasError ? 'bg-red-500' : (progress?.step_1b === 'done' && progress?.step_1c === 'done' && progress?.step_1d === 'done') ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
-                                            }`}
-                                        />
-                                        {[2, 3, 4].map((stepNum, idx) => {
-                                          const stepKey = `${round.id}-${stepNum}`;
-                                          const isActiveInFrontend = activeSteps.has(stepKey);
-                                          const status =
-                                            stepNum === 2
-                                              ? progress?.step_2 || 'not_in_queue'
-                                              : stepNum === 3
-                                                ? progress?.step_3 || 'not_in_queue'
-                                                : progress?.step_4 || 'not_in_queue';
-                                          // Override status if frontend knows it's processing
-                                          const displayStatus = isActiveInFrontend ? 'processing' : status;
-                                          return (
-                                            <div key={stepNum} className="flex items-center">
-                                              {idx > 0 && (
-                                                <div
-                                                  className={`w-3 h-1 ${displayStatus === 'done'
-                                                    ? 'bg-green-500'
-                                                    : 'bg-gray-300 dark:bg-gray-700'
-                                                    }`}
-                                                />
-                                              )}
-                                              <div className="relative w-5 h-5">
-                                                {/* Base circle */}
-                                                <div className={`absolute inset-0 rounded-full ${displayStatus === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`} />
-
-                                                {/* Text/Status */}
-                                                <div
-                                                  className={`absolute inset-0 rounded-full flex items-center justify-center text-xs font-bold text-white ${displayStatus === 'done'
-                                                    ? 'bg-green-500'
-                                                    : 'bg-gray-300 dark:bg-gray-700'
-                                                    }`}
-                                                  title={`Step ${stepNum}: ${displayStatus}`}
-                                                >
-                                                  {displayStatus === 'done' ? '✓' : stepNum}
-                                                </div>
-
-                                                {/* Spinning border - green when processing */}
-                                                {(displayStatus === 'processing' || displayStatus === 'in_queue') && (
+                                      const step1Status =
+                                        (progress?.step_1a === 'done' &&
+                                          progress?.step_1b === 'done' &&
+                                          progress?.step_1c === 'done' &&
+                                          progress?.step_1d === 'done')
+                                          ? 'done'
+                                          : 'not_done';
+                                      return (
+                                        <>
+                                          <Step1ProgressCircle
+                                            step1a={progress?.step_1a || 'not_in_queue'}
+                                            step1b={progress?.step_1b || 'not_in_queue'}
+                                            step1c={progress?.step_1c || 'not_in_queue'}
+                                            step1d={progress?.step_1d || 'not_in_queue'}
+                                          />
+                                          <div
+                                            className={`w-3 h-1 ${hasError ? 'bg-red-500' : (progress?.step_1b === 'done' && progress?.step_1c === 'done' && progress?.step_1d === 'done') ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
+                                              }`}
+                                          />
+                                          {[2, 3, 4].map((stepNum, idx) => {
+                                            const stepKey = `${round.id}-${stepNum}`;
+                                            const isActiveInFrontend = activeSteps.has(stepKey);
+                                            const status =
+                                              stepNum === 2
+                                                ? progress?.step_2 || 'not_in_queue'
+                                                : stepNum === 3
+                                                  ? progress?.step_3 || 'not_in_queue'
+                                                  : progress?.step_4 || 'not_in_queue';
+                                            // Override status if frontend knows it's processing
+                                            const displayStatus = isActiveInFrontend ? 'processing' : status;
+                                            return (
+                                              <div key={stepNum} className="flex items-center">
+                                                {idx > 0 && (
                                                   <div
-                                                    className="absolute inset-0 rounded-full border-2 border-transparent animate-spin z-10"
-                                                    style={{
-                                                      borderTopColor: '#16a34a',
-                                                    }}
+                                                    className={`w-3 h-1 ${displayStatus === 'done'
+                                                      ? 'bg-green-500'
+                                                      : 'bg-gray-300 dark:bg-gray-700'
+                                                      }`}
                                                   />
                                                 )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </td>
-                              <td className="py-2 px-4">
-                                {(() => {
-                                  // Trigger re-renders when cancellationTargetsTrigger changes
-                                  void cancellationTargetsTrigger;
-                                  const cancellationTarget = cancellationTargetsRef.current.get(round.id);
-                                  const hasActiveJob = cancellationTarget !== null && cancellationTarget !== undefined;
-                                  const progress = jobProgress.get(round.id);
-                                  const isAllStepsCompleted = progress?.step_4 === 'done';
+                                                <div className="relative w-5 h-5">
+                                                  {/* Base circle */}
+                                                  <div className={`absolute inset-0 rounded-full ${displayStatus === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`} />
 
-                                  // Show stop button if has active cancellation target
-                                  if (hasActiveJob) {
+                                                  {/* Text/Status */}
+                                                  <div
+                                                    className={`absolute inset-0 rounded-full flex items-center justify-center text-xs font-bold text-white ${displayStatus === 'done'
+                                                      ? 'bg-green-500'
+                                                      : 'bg-gray-300 dark:bg-gray-700'
+                                                      }`}
+                                                    title={`Step ${stepNum}: ${displayStatus}`}
+                                                  >
+                                                    {displayStatus === 'done' ? '✓' : stepNum}
+                                                  </div>
+
+                                                  {/* Spinning border - green when processing */}
+                                                  {(displayStatus === 'processing' || displayStatus === 'in_queue') && (
+                                                    <div
+                                                      className="absolute inset-0 rounded-full border-2 border-transparent animate-spin z-10"
+                                                      style={{
+                                                        borderTopColor: '#16a34a',
+                                                      }}
+                                                    />
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-4">
+                                  {(() => {
+                                    // Trigger re-renders when cancellationTargetsTrigger changes
+                                    void cancellationTargetsTrigger;
+                                    const cancellationTarget = cancellationTargetsRef.current.get(round.id);
+                                    const hasActiveJob = cancellationTarget !== null && cancellationTarget !== undefined;
+                                    const progress = jobProgress.get(round.id);
+                                    const isAllStepsCompleted = progress?.step_4 === 'done';
+
+                                    // Show stop button if has active cancellation target
+                                    if (hasActiveJob) {
+                                      return (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCancelRound(round.id, cancellationTarget);
+                                          }}
+                                          className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                                          title="Stop Process"
+                                        >
+                                          <X className="w-3 h-3" />
+                                          Stop
+                                        </button>
+                                      );
+                                    }
+
+                                    // Show done button if all steps completed
+                                    if (isAllStepsCompleted) {
+                                      return (
+                                        <button
+                                          disabled
+                                          className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-300 dark:bg-gray-700 rounded transition-colors cursor-not-allowed opacity-60"
+                                          title="All Steps Completed"
+                                        >
+                                          Done
+                                        </button>
+                                      );
+                                    }
+
+                                    // Show execute button
                                     return (
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleCancelRound(round.id, cancellationTarget);
+                                          executeStep(round, executeMode);
                                         }}
-                                        className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-                                        title="Stop Process"
+                                        disabled={hasActiveJob}
+                                        className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 rounded transition-colors disabled:cursor-not-allowed"
+                                        title={executeMode === 'step1' ? 'Run Step 1 Only' : 'Run All Steps'}
                                       >
-                                        <X className="w-3 h-3" />
-                                        Stop
+                                        <Play className="w-3 h-3" />
+                                        {executeMode === 'step1' ? '1' : 'All'}
                                       </button>
                                     );
-                                  }
-
-                                  // Show done button if all steps completed
-                                  if (isAllStepsCompleted) {
-                                    return (
-                                      <button
-                                        disabled
-                                        className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-300 dark:bg-gray-700 rounded transition-colors cursor-not-allowed opacity-60"
-                                        title="All Steps Completed"
-                                      >
-                                        Done
-                                      </button>
-                                    );
-                                  }
-
-                                  // Show execute button
-                                  return (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        executeStep(round, executeMode);
-                                      }}
-                                      disabled={hasActiveJob}
-                                      className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 rounded transition-colors disabled:cursor-not-allowed"
-                                      title={executeMode === 'step1' ? 'Run Step 1 Only' : 'Run All Steps'}
-                                    >
-                                      <Play className="w-3 h-3" />
-                                      {executeMode === 'step1' ? '1' : 'All'}
-                                    </button>
-                                  );
-                                })()}
-                              </td>
-                            </tr>
-                          );
-                        });
-                      })()
-                    )}
-                  </tbody>
-                </table>
+                                  })()}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 

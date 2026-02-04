@@ -149,10 +149,6 @@ export default function ProcessingSteps({
 
     return (
         <div className="w-full space-y-4">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 px-1">
-                {t('dashboard.steps.title')}
-            </h3>
-
             {headerContent && (
                 <div className="mb-4">
                     {headerContent}

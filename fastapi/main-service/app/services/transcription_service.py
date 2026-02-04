@@ -654,3 +654,50 @@ async def cancel_transcription_batch_remote(video_ids: List[str]) -> Dict[str, A
             status_code=500,
             detail="Internal Service Error During Batch Cancellation"
         )
+
+async def get_thread_status_remote() -> Dict[str, Any]:
+    """
+    Get the status of active and zombie tasks from the external transcription service.
+
+    Returns:
+        Dictionary with active_tasks and zombie_tasks lists
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/threads/status"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                target_url,
+                timeout=10.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Thread status request failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Thread Status Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (thread status)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Thread Status General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Thread Status Request"
+        )

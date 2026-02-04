@@ -7,7 +7,8 @@ from services.transcription_service import (
     transcribe_audio_remote,
     get_cached_video_ids_remote,
     delete_audio_cache_remote,
-    cancel_transcription_batch_remote
+    cancel_transcription_batch_remote,
+    get_thread_status_remote
 )
 
 router = APIRouter()
@@ -95,5 +96,13 @@ async def proxy_cancel_transcription_batch(
     Proxy endpoint to cancel background transcription jobs via external service.
     """
     result = await cancel_transcription_batch_remote(request.video_ids)
+    return result
+
+@router.get("/thread/status")
+async def get_thread_status():
+    """
+    Proxy endpoint to get the status of active and zombie tasks from the external transcription service.
+    """
+    result = await get_thread_status_remote()
     return result
 

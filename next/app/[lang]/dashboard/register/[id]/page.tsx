@@ -43,6 +43,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [jobProgress, setJobProgress] = useState<any>(null);
     const [currentProcessingStep, setCurrentProcessingStep] = useState<string | null>(null); // Track current processing step: null or "1-c", "1-d", "2", "3", "4" (ぐるぐる表示用)
     const [currentJobCancellationTarget, setCurrentJobCancellationTarget] = useState<'external-bg-task' | 'sync-task' | null>(null); // For cancel logic: 'external-bg-task' for 1-A/1-B, 'sync-task' for 1-C/1-D/2-4
+    const [threadStatus, setThreadStatus] = useState<{ active_tasks: string[]; zombie_tasks: string[] } | null>(null);
 
     // Ref to track stepsStatus to avoid stale closures in async callbacks
     const stepsStatusRef = useRef(stepsStatus);
@@ -196,6 +197,23 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             fetchRoundData();
         }
     }, [roundId]);
+
+    // Fetch thread status on mount
+    useEffect(() => {
+        const fetchThreadStatus = async () => {
+            try {
+                const res = await fetch(getAPIRoot() + '/thread/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    setThreadStatus(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch thread status:', error);
+            }
+        };
+
+        fetchThreadStatus();
+    }, []);
 
     // Initial fetch of job progress
     useEffect(() => {
@@ -1002,6 +1020,22 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                             Save & Run
                                         </button>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Thread Status Info */}
+                            {threadStatus && (
+                                <div className="w-full mt-4">
+                                    <div className="text-sm mb-2">
+                                        <div className={`${threadStatus.zombie_tasks.length > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
+                                            アクティブなプロセス: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / キャンセル途中のプロセス: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
+                                        </div>
+                                    </div>
+                                    {threadStatus.zombie_tasks.length > 6 && (
+                                        <div className="text-red-600 dark:text-red-400 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                                            キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
