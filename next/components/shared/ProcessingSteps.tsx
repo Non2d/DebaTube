@@ -30,6 +30,7 @@ interface ProcessingStepsProps {
     renderStepContent?: (stepId: number) => React.ReactNode;
     jobProgress?: any;
     isProcessing?: Set<string>;
+    currentJobCancellationTarget?: 'external-bg-task' | 'sync-task' | null;
 }
 
 export default function ProcessingSteps({
@@ -42,7 +43,8 @@ export default function ProcessingSteps({
     jobProgress,
     headerContent,
     children,
-    isProcessing
+    isProcessing,
+    currentJobCancellationTarget
 }: ProcessingStepsProps & { headerContent?: React.ReactNode, children?: React.ReactNode }) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -104,11 +106,11 @@ export default function ProcessingSteps({
             setExpandedStep(currentStep);
         }
 
-        // Also auto-expand Step 1 if step1-all is processing
-        if (isRegistrationComplete && isProcessing?.has('step1-all')) {
+        // Also auto-expand Step 1 if cancellation target is set (processing)
+        if (isRegistrationComplete && currentJobCancellationTarget !== null) {
             setExpandedStep(1);
         }
-    }, [currentStep, isRegistrationComplete, isProcessing]);
+    }, [currentStep, isRegistrationComplete, currentJobCancellationTarget]);
 
     const steps: Step[] = [
         {
@@ -327,21 +329,19 @@ export default function ProcessingSteps({
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                const isStep1Processing = isProcessing?.has('step1-all');
-                                                                if (isStep1Processing || status === 'processing') {
+                                                                if (currentJobCancellationTarget !== null) {
                                                                     onStepAction(step.id, 'cancel');
                                                                 } else {
                                                                     onStepAction(step.id, 'run');
                                                                 }
                                                             }}
                                                             disabled={status === 'completed'}
-                                                            className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
-                                                                (isProcessing?.has('step1-all') || status === 'processing')
+                                                            className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${currentJobCancellationTarget !== null
                                                                     ? 'bg-red-600 hover:bg-red-700'
                                                                     : 'bg-indigo-600 hover:bg-indigo-700'
-                                                            }`}
+                                                                }`}
                                                         >
-                                                            {(isProcessing?.has('step1-all') || status === 'processing') ? (
+                                                            {currentJobCancellationTarget !== null ? (
                                                                 <>
                                                                     <X size={14} />
                                                                     Cancel

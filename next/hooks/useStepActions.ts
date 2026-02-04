@@ -7,6 +7,7 @@ interface UseStepActionsProps {
     t: (key: string) => string;
     is_background?: boolean;
     showRoundIdInToast?: boolean;
+    setCurrentJobCancellationTarget?: (target: 'external-bg-task' | 'sync-task' | null) => void;
 }
 
 export const useStepActions = ({ roundId, t, is_background = true, showRoundIdInToast = false }: UseStepActionsProps) => {
@@ -57,7 +58,9 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
         stepsStatus: ProcessingStepStatus[],
         onRefresh: () => Promise<void>,
         videoUrl?: string, // Optional override for missing video_id recovery
-        setIsProcessing?: (fn: (prev: Set<string>) => Set<string>) => void // For Step 1-C/1-D progress tracking
+        setIsProcessing?: (fn: (prev: Set<string>) => Set<string>) => void, // For Step 1-C/1-D progress tracking
+        setCancellationTarget?: (target: 'external-bg-task' | 'sync-task' | null) => void, // For cancel logic
+        keepCancellationTarget?: boolean // If true, don't reset cancellation target after completion (for auto-continue to Step 2-4)
     ) => {
         const toastPrefix = showRoundIdInToast ? `[Round ${roundData.id}] ` : '';
 
@@ -77,8 +80,7 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
         newStatus[0] = 'processing';
         setStepsStatus(newStatus);
 
-        // Mark Step 1 as processing
-        if (setIsProcessing) setIsProcessing(prev => new Set(prev).add('step1-all'));
+        // Step 1 processing is now tracked by currentJobCancellationTarget
 
         try {
             let progress = await getProgress(roundData.id);
@@ -90,6 +92,9 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
             // If Step 1-B is already done, skip Step 1-A regardless of cache status
             // (Step 1-A cache may be deleted but Step 1-B result is available)
             if (!audioDone && !transDone) {
+                // Set cancellation target to external background task before running 1-A
+                if (setCancellationTarget) setCancellationTarget('external-bg-task');
+
                 const res = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -134,6 +139,8 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                 }
 
                 toast.success(toastPrefix + (t('dashboard.steps.messages.resultSavedToDb') || 'Step 1-B: Result saved to DB'), { id: 'step1b-result' });
+                // 1-B completed, switch to sync-task for 1-C/1-D
+                if (setCancellationTarget) setCancellationTarget('sync-task');
                 await onRefresh();
                 progress = await getProgress(roundData.id);
             } else if (!transDone) {
@@ -154,6 +161,8 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
                     // If not done, start background transcription
                     if (status !== 'DONE' && status !== 'COMPLETED') {
+                        // Set cancellation target to external background task before running 1-B
+                        if (setCancellationTarget) setCancellationTarget('external-bg-task');
                         const startRes = await fetch(getAPIRoot() + `/start-background-transcription`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -184,6 +193,9 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                     // This case is now handled by needsResultRetrieval above
                 } else {
                     // Synchronous transcription (existing behavior)
+                    // NOTE: setCancellationTargetまわり間違ってそうなので注意
+                    // Set cancellation target to external background task before running 1-B
+                    if (setCancellationTarget) setCancellationTarget('external-bg-task');
                     toast.loading(toastPrefix + (t('dashboard.steps.messages.transcribing') || 'Step 1-B: Transcribing...'), { id: 'step1b' });
 
                     const res = await fetch(getAPIRoot() + `/transcribe-audio/${roundData.id}`, {
@@ -196,6 +208,8 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                         throw new Error(err.detail || t('dashboard.steps.messages.transcriptionFailed') || 'Transcription failed');
                     }
                     toast.success(toastPrefix + (t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Completed'), { id: 'step1b' });
+                    // 1-B completed, switch to sync-task for 1-C/1-D
+                    if (setCancellationTarget) setCancellationTarget('sync-task');
                     await onRefresh();
                     progress = await getProgress(roundData.id);
                 }
@@ -206,6 +220,8 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
             // Step 1-C: Words
             if (progress?.step_1c !== 'DONE') {
+                // Set cancellation target to sync-task before running 1-C
+                if (setCancellationTarget) setCancellationTarget('sync-task');
                 if (setIsProcessing) setIsProcessing(prev => new Set(prev).add('1-c'));
                 toast.loading(toastPrefix + (t('dashboard.steps.messages.extractingWords') || 'Step 1-C: Extracting words...'), { id: 'step1c' });
 
@@ -253,6 +269,7 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                     const data = await res1d.json();
                     toast.success(toastPrefix + ((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences)), { id: 'step1d' });
                     if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-d'); return newSet; });
+                    if (setCancellationTarget) setCancellationTarget(null);
                     await onRefresh();
                 }
             } else {
@@ -274,6 +291,7 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
                     const data = await res.json();
                     toast.success(toastPrefix + ((t('dashboard.steps.messages.sentenceGroupingCompleted') || `Step 1-D: ${data.total_sentences} sentences`).replace('${count}', data.total_sentences)), { id: 'step1d' });
                     if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('1-d'); return newSet; });
+                    if (!keepCancellationTarget && setCancellationTarget) setCancellationTarget(null);
                     await onRefresh();
                 } else {
                     // Silent skip - 1-D already done, no toast needed
@@ -282,8 +300,8 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
 
             toast.success(toastPrefix + (t('dashboard.steps.messages.step1Complete') || 'Step 1 All Complete!'));
 
-            // Remove Step 1 processing marker
-            if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('step1-all'); return newSet; });
+            // Clear cancellation target (step1-all tracking removed)
+            if (!keepCancellationTarget && setCancellationTarget) setCancellationTarget(null);
 
         } catch (error: any) {
             console.error(error);
@@ -293,8 +311,8 @@ export const useStepActions = ({ roundId, t, is_background = true, showRoundIdIn
             toast.dismiss('step1c');
             toast.dismiss('step1d');
 
-            // Remove Step 1 processing marker on error
-            if (setIsProcessing) setIsProcessing(prev => { const newSet = new Set(prev); newSet.delete('step1-all'); return newSet; });
+            // Clear cancellation target on error (step1-all tracking removed)
+            if (setCancellationTarget) setCancellationTarget(null);
 
             const errStatus = [...stepsStatus];
             errStatus[0] = 'error';

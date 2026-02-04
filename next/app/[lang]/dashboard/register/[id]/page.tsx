@@ -41,7 +41,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled']);
     const [currentStep, setCurrentStep] = useState(1);
     const [jobProgress, setJobProgress] = useState<any>(null);
-    const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set()); // Track which steps are processing: "1-c", "1-d", "2", "3", "4"
+    const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set()); // Track which steps are processing: "1-c", "1-d", "2", "3", "4" (ぐるぐる表示用のみ)
+    const [currentJobCancellationTarget, setCurrentJobCancellationTarget] = useState<'external-bg-task' | 'sync-task' | null>(null); // For cancel logic: 'external-bg-task' for 1-A/1-B, 'sync-task' for 1-C/1-D/2-4
 
     // Ref to track stepsStatus to avoid stale closures in async callbacks
     const stepsStatusRef = useRef(stepsStatus);
@@ -262,7 +263,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             // Step 1-A just completed, show toast and continue with 1-B via runStep1
             toast.success(t('dashboard.steps.messages.audioDownloadCompleted') || 'Step 1-A: Audio download completed', { duration: 3000 });
             // runStep1 will skip 1-A and start 1-B background task
-            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
+            // keepCancellationTarget: true to maintain cancellation target for auto-continue
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing, setCurrentJobCancellationTarget, true);
         }
 
         // Check if Step 1-B just completed
@@ -273,7 +275,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             // Step 1-B just completed, show toast and continue with 1-C and 1-D via runStep1
             toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Transcription completed', { duration: 3000 });
             // runStep1 handles: result retrieval, 1-C, 1-D with skip logic
-            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
+            // keepCancellationTarget: true to maintain cancellation target for auto-continue
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing, setCurrentJobCancellationTarget, true);
         }
 
         // Check if Step 1-D just completed AND we're in end-to-end mode
@@ -285,6 +288,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             console.log(`[Register] Step 1 fully completed, starting Steps 2-4`);
             toast.success(t('dashboard.steps.messages.step1Complete') || 'Step 1 fully completed!', { duration: 3000 });
             isRunAllStepsRef.current = false; // Reset flag
+
+            // Set cancellation target to sync-task for Steps 2-4
+            setCurrentJobCancellationTarget('sync-task');
 
             (async () => {
                 try {
@@ -341,11 +347,15 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     }
 
                     toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
+                    // Clear cancellation target after all steps complete
+                    setCurrentJobCancellationTarget(null);
                 } catch (e: any) {
                     console.error("[Register] Error in Steps 2-4:", e);
                     toast.error(e.message || "Error in auto-continue workflow");
                     // Clean up isProcessing state on error
                     setIsProcessing(new Set());
+                    // Clear cancellation target on error
+                    setCurrentJobCancellationTarget(null);
                 }
             })();
         }
@@ -436,13 +446,14 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
 
         if (stepIndex === 1) {
-            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing, setCurrentJobCancellationTarget);
             return;
         }
 
         if (workflowMode === 'end-to-end') {
             try {
                 if (stepIndex === 2) {
+                    setCurrentJobCancellationTarget('sync-task');
                     setIsProcessing(prev => new Set(prev).add('2'));
                     await runAutoDiarization();
                     setIsProcessing(prev => {
@@ -450,8 +461,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         newSet.delete('2');
                         return newSet;
                     });
+                    setCurrentJobCancellationTarget(null);
                 }
                 else if (stepIndex === 3) {
+                    setCurrentJobCancellationTarget('sync-task');
                     setIsProcessing(prev => new Set(prev).add('3'));
                     await runAutoAdu();
                     setIsProcessing(prev => {
@@ -459,8 +472,10 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         newSet.delete('3');
                         return newSet;
                     });
+                    setCurrentJobCancellationTarget(null);
                 }
                 else if (stepIndex === 4) {
+                    setCurrentJobCancellationTarget('sync-task');
                     setIsProcessing(prev => new Set(prev).add('4'));
                     await runAutoRebuttal();
                     setIsProcessing(prev => {
@@ -468,9 +483,12 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         newSet.delete('4');
                         return newSet;
                     });
+                    // Reset cancellation target after final step (Step 4) completes
+                    setCurrentJobCancellationTarget(null);
                 }
             } catch (e: any) {
                 setIsProcessing(new Set());
+                setCurrentJobCancellationTarget(null);
                 toast.error(e.message || 'Error executing step');
             }
             return;
@@ -560,7 +578,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 await fetchJobProgress();
                 await fetchRoundData();
             },
-            manualVideoUrl
+            manualVideoUrl,
+            setIsProcessing,
+            setCurrentJobCancellationTarget
         );
     };
 
@@ -592,27 +612,40 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const toastId = toast.loading('Cancelling process...');
 
         try {
-            // Check if Step 1-C, 1-D, or 2-4 is running (frontend-tracked or in progress)
-            if (isProcessing.has('1-c') || isProcessing.has('1-d') || isProcessing.has('2') || isProcessing.has('3') || isProcessing.has('4')) {
+            if (currentJobCancellationTarget === 'external-bg-task') {
+                // Cancel backend operations (1-A/1-B)
+                const result = await cancelTranscription(roundData.video_id, jobProgress);
+                toast.dismiss(toastId);
+
+                if (result.success) {
+                    toast.success(result.message);
+                    // Reset cancellation target after successful cancel
+                    setCurrentJobCancellationTarget(null);
+                    // Clear isProcessing state
+                    setIsProcessing(new Set());
+                    await fetchJobProgress();
+                } else {
+                    toast.error(result.message);
+                }
+            } else if (currentJobCancellationTarget === 'sync-task') {
+                // For frontend-only operations (1-C, 1-D, 2-4)
                 toast.dismiss(toastId);
                 toast.success('Cancel signal sent - page reload required');
-                return;
-            }
-
-            const result = await cancelTranscription(roundData.video_id, jobProgress);
-
-            toast.dismiss(toastId);
-
-            if (result.success) {
-                toast.success(result.message);
-                // Refresh job progress after cancel
-                await fetchJobProgress();
+                // Reset cancellation target
+                setCurrentJobCancellationTarget(null);
+                // Clear isProcessing state
+                setIsProcessing(new Set());
             } else {
-                toast.error(result.message);
+                toast.dismiss(toastId);
+                toast.error('No process running to cancel');
             }
         } catch (error: any) {
             toast.dismiss(toastId);
             toast.error(error.message || 'Failed to cancel process');
+            // Reset cancellation target on error
+            setCurrentJobCancellationTarget(null);
+            // Clear isProcessing state on error
+            setIsProcessing(new Set());
         }
     };
 
@@ -1003,6 +1036,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             renderStepContent={renderStepExtras}
                             jobProgress={jobProgress}
                             isProcessing={isProcessing}
+                            currentJobCancellationTarget={currentJobCancellationTarget}
                             headerContent={
                                 <div className="mb-6">
                                     <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-md mx-auto">
@@ -1167,14 +1201,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                         }
                                                     } else {
                                                         // Start Step 1, auto-continue will handle Steps 2-4
-                                                        runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
+                                                        runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing, setCurrentJobCancellationTarget);
                                                     }
                                                 }}
-                                                className={`w-full py-4 font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3 ${
-                                                    isAnyProcessRunning()
-                                                        ? 'bg-red-600 hover:bg-red-700 text-white'
-                                                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white'
-                                                }`}
+                                                className={`w-full py-4 font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3 ${isAnyProcessRunning()
+                                                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white'
+                                                    }`}
                                             >
                                                 {isAnyProcessRunning() ? (
                                                     <>
