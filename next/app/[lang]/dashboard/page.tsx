@@ -4,6 +4,7 @@ import { Plus, ChevronLeft, ChevronRight, Play, ChevronDown } from 'lucide-react
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
+import { useTheme } from 'next-themes';
 import toast from 'react-hot-toast';
 import Header from '../../../components/shared/Header';
 import { useRounds } from './hooks/useRoundsSummary';
@@ -17,6 +18,7 @@ import { TRANSCRIPTION_MODELS, NLP_LLMS, NLPLLMValue } from '../../../constants/
 export default function VideoDashboard() {
   const { rounds, loading, error, pagination, jobProgress, refetch } = useRounds('external_video');
   const { t, language } = useTranslation();
+  const { theme } = useTheme();
   const router = useRouter();
   const [processingRounds, setProcessingRounds] = useState<Set<number>>(new Set());
   const [activeSteps, setActiveSteps] = useState<Set<string>>(new Set()); // Track active steps: "roundId-stepNum"
@@ -724,25 +726,26 @@ export default function VideoDashboard() {
                                                 />
                                               )}
                                               <div className="relative w-5 h-5">
+                                                {/* Base circle */}
+                                                <div className={`absolute inset-0 rounded-full ${displayStatus === 'done' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`} />
+
+                                                {/* Text/Status */}
                                                 <div
                                                   className={`absolute inset-0 rounded-full flex items-center justify-center text-xs font-bold text-white ${displayStatus === 'done'
                                                     ? 'bg-green-500'
-                                                    : displayStatus === 'processing'
-                                                      ? 'bg-blue-500'
-                                                      : displayStatus === 'in_queue'
-                                                        ? 'bg-purple-500'
-                                                        : 'bg-gray-300 dark:bg-gray-700'
+                                                    : 'bg-gray-300 dark:bg-gray-700'
                                                     }`}
                                                   title={`Step ${stepNum}: ${displayStatus}`}
                                                 >
                                                   {displayStatus === 'done' ? '✓' : stepNum}
                                                 </div>
+
+                                                {/* Spinning border - green when processing */}
                                                 {(displayStatus === 'processing' || displayStatus === 'in_queue') && (
                                                   <div
-                                                    className="absolute inset-0 rounded-full border-[3px] border-transparent animate-spin pointer-events-none"
+                                                    className="absolute inset-0 rounded-full border-2 border-transparent animate-spin z-10"
                                                     style={{
-                                                      borderTopColor: displayStatus === 'processing' ? '#60a5fa' : '#c084fc',
-                                                      borderRightColor: displayStatus === 'processing' ? 'rgba(96, 165, 250, 0.3)' : 'rgba(192, 132, 252, 0.3)',
+                                                      borderTopColor: '#16a34a',
                                                     }}
                                                   />
                                                 )}
