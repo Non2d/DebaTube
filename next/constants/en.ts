@@ -266,6 +266,14 @@ export const en = {
             totalRebuttals: "Total Rebuttals",
             argumentUnits: "ADUs"
         },
+        settings: {
+            advancedSettings: "Advanced Settings",
+            executionStepLabel: "Execution Mode for Action Button",
+            step1Only: "Step 1 Only",
+            allSteps: "All Steps",
+            audioModel: "Transcription Model",
+            llmModel: "Rebuttal Identifier LLM"
+        },
         table: {
             title: "All Rounds",
             error: "Error loading rounds",
@@ -278,7 +286,9 @@ export const en = {
                 rebuttals: "Rebuttals",
                 speeches: "Speeches",
                 arguments: "ADUs",
-                tag: "Tag"
+                tag: "Tag",
+                progress: "Progress",
+                actions: "Action"
             }
         },
         modal: {
@@ -313,6 +323,10 @@ export const en = {
                 cancel: "Cancel",
                 change: "Change"
             }
+        },
+        thread: {
+            activeProcesses: "Active Processes",
+            zombieTasks: "Processes Awaiting Cancellation"
         },
         steps: {
             title: "Processing Workflow",

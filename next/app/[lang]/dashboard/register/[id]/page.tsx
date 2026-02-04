@@ -1026,9 +1026,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             {/* Thread Status Info */}
                             {threadStatus && (
                                 <div className="w-full mt-4">
-                                    <div className="text-sm mb-2">
+                                    <div className="text-sm mb-2 text-right">
                                         <div className={`${threadStatus.zombie_tasks.length > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
-                                            アクティブなプロセス: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / キャンセル途中のプロセス: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
+                                            {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
                                         </div>
                                     </div>
                                     {threadStatus.zombie_tasks.length > 6 && (

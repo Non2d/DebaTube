@@ -661,7 +661,7 @@ export default function VideoDashboard() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalPois')} <span className="text-xs text-gray-500 font-normal">(Page)</span></h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalPois')}</h3>
               <div className="text-3xl font-bold text-green-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -672,7 +672,7 @@ export default function VideoDashboard() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRebuttals')} <span className="text-xs text-gray-500 font-normal">(Page)</span></h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.totalRebuttals')}</h3>
               <div className="text-3xl font-bold text-purple-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -683,7 +683,7 @@ export default function VideoDashboard() {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.argumentUnits')} <span className="text-xs text-gray-500 font-normal">(Page)</span></h3>
+              <h3 className="text-lg font-semibold mb-4">{t('dashboard.stats.argumentUnits')}</h3>
               <div className="text-3xl font-bold text-orange-600">
                 {loading ? (
                   <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-9 w-16 rounded"></div>
@@ -702,13 +702,17 @@ export default function VideoDashboard() {
                 className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600"
               >
                 <span className={`transition-transform ${showSettings ? 'rotate-90' : ''}`}>▸</span>
-                <span>Advanced Settings</span>
+                <span>{t('dashboard.settings.advancedSettings')}</span>
               </button>
 
               {showSettings && (
                 <div className="mt-4 space-y-4">
                   {/* Execute Mode Selection */}
-                  <div className="flex gap-4 p-3 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {t('dashboard.settings.executionStepLabel')}
+                    </label>
+                    <div className="flex gap-4 p-3 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -717,7 +721,7 @@ export default function VideoDashboard() {
                         onChange={(e) => setExecuteMode(e.target.value as 'step1' | 'all')}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm font-medium">Step 1 Only</span>
+                      <span className="text-sm font-medium">{t('dashboard.settings.step1Only')}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -727,15 +731,16 @@ export default function VideoDashboard() {
                         onChange={(e) => setExecuteMode(e.target.value as 'step1' | 'all')}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm font-medium">All Steps</span>
+                      <span className="text-sm font-medium">{t('dashboard.settings.allSteps')}</span>
                     </label>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Transcription Model */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
-                        Audio Model
+                        {t('dashboard.settings.audioModel')}
                       </label>
                       <select
                         value={transcriptionModel}
@@ -758,7 +763,7 @@ export default function VideoDashboard() {
                     {/* LLM Model */}
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
-                        LLM Model (Gemini)
+                        {t('dashboard.settings.llmModel')}
                       </label>
                       <select
                         value={llmModel}
@@ -803,9 +808,9 @@ export default function VideoDashboard() {
                 {/* Thread Status Info */}
                 {threadStatus && (
                   <div className="mb-4">
-                    <div className="text-sm mb-2">
+                    <div className="text-sm mb-2 text-right">
                       <div className={`${threadStatus.zombie_tasks.length > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
-                        アクティブなプロセス: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / キャンセル途中のプロセス: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
+                        {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
                       </div>
                     </div>
                     {threadStatus.zombie_tasks.length > 6 && (
@@ -823,8 +828,8 @@ export default function VideoDashboard() {
                         <th className="text-left py-2 px-4 w-[280px]">{t('dashboard.table.headers.title')}</th>
                         <th className="text-left py-2 px-4 w-[60px]">{t('dashboard.table.headers.style')}</th>
                         <th className="text-left py-2 px-4">{t('dashboard.table.headers.motion')}</th>
-                        <th className="text-left py-2 px-4 w-[120px]">Progress</th>
-                        <th className="text-left py-2 px-4 w-[100px]">Actions</th>
+                        <th className="text-left py-2 px-4 w-[120px]">{t('dashboard.table.headers.progress')}</th>
+                        <th className="text-left py-2 px-4 w-[100px]">{t('dashboard.table.headers.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

@@ -268,6 +268,14 @@ export const ja: LocaleType = {
             totalRebuttals: "総反論数",
             argumentUnits: "ADU数"
         },
+        settings: {
+            advancedSettings: "詳細設定",
+            executionStepLabel: "アクションボタンの実行モード",
+            step1Only: "STEP 1のみ",
+            allSteps: "全ステップ",
+            audioModel: "文字起こしモデル",
+            llmModel: "反論判定用のLLM"
+        },
         table: {
             title: "全試合",
             error: "試合の読み込みエラー",
@@ -280,7 +288,9 @@ export const ja: LocaleType = {
                 rebuttals: "反論",
                 speeches: "スピーチ",
                 arguments: "ADU",
-                tag: "タグ"
+                tag: "タグ",
+                progress: "進捗",
+                actions: "アクション"
             }
         },
         modal: {
@@ -315,6 +325,10 @@ export const ja: LocaleType = {
                 cancel: "キャンセル",
                 change: "変更する"
             }
+        },
+        thread: {
+            activeProcesses: "アクティブなプロセス",
+            zombieTasks: "キャンセル途中のプロセス"
         },
         steps: {
             title: "ワークフロー",
