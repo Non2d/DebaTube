@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../context/LanguageContext';
-import { Check, Loader2, Download, FileText, Users, MessageSquare, AlertCircle, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Check, Loader2, Download, FileText, Users, MessageSquare, AlertCircle, RotateCcw, AlertTriangle, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 
@@ -172,10 +172,17 @@ export default function ProcessingSteps({
                                     onClick={() => isClickable && setExpandedStep(isActive ? null : step.id)}
                                 >
                                     <div className={`
-                                    w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0
+                                    w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0 relative
                                     ${status === 'completed' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
                                 `}>
                                         {getStatusIcon(status) || <span className="text-base font-bold leading-none">{step.id}</span>}
+                                        {/* Green spinning border for Steps 2-4 when processing */}
+                                        {status === 'processing' && step.id >= 2 && step.id <= 4 && (
+                                            <div
+                                                className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
+                                                style={{ borderTopColor: '#16a34a' }}
+                                            />
+                                        )}
                                     </div>
 
                                     <div className="flex-1 min-w-0">
@@ -313,13 +320,26 @@ export default function ProcessingSteps({
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                onStepAction(step.id, 'run');
+                                                                if (status === 'processing') {
+                                                                    onStepAction(step.id, 'cancel');
+                                                                } else {
+                                                                    onStepAction(step.id, 'run');
+                                                                }
                                                             }}
-                                                            disabled={status === 'processing' || status === 'completed'}
-                                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                            disabled={status === 'completed'}
+                                                            className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                                         >
-                                                            {status === 'processing' ? <Loader2 className="animate-spin" size={14} /> : <ZapIcon size={14} />}
-                                                            {status === 'processing' ? t('dashboard.steps.actions.running') : t('dashboard.steps.actions.runStep')}
+                                                            {status === 'processing' ? (
+                                                                <>
+                                                                    <X size={14} />
+                                                                    Cancel
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <ZapIcon size={14} />
+                                                                    {t('dashboard.steps.actions.runStep')}
+                                                                </>
+                                                            )}
                                                         </button>
                                                     )}
                                                 </div>

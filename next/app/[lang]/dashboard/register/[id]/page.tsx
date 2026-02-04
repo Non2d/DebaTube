@@ -41,6 +41,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [stepsStatus, setStepsStatus] = useState<ProcessingStepStatus[]>(['pending', 'disabled', 'disabled', 'disabled']);
     const [currentStep, setCurrentStep] = useState(1);
     const [jobProgress, setJobProgress] = useState<any>(null);
+    const [isProcessing, setIsProcessing] = useState<Set<string>>(new Set()); // Track which steps are processing: "1-c", "1-d", "2", "3", "4"
 
     // Ref to track stepsStatus to avoid stale closures in async callbacks
     const stepsStatusRef = useRef(stepsStatus);
@@ -285,10 +286,16 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                 try {
                     // Step 2
                     if (curr.step_2 !== 'DONE') {
+                        setIsProcessing(prev => new Set(prev).add('2'));
                         const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 2...");
                         await runAutoDiarization();
                         toast.dismiss(toastId);
                         await fetchJobProgress();
+                        setIsProcessing(prev => {
+                            const newSet = new Set(prev);
+                            newSet.delete('2');
+                            return newSet;
+                        });
                     }
 
                     // Step 3
@@ -298,10 +305,16 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     })();
 
                     if (updatedProgress.step_3 !== 'DONE') {
+                        setIsProcessing(prev => new Set(prev).add('3'));
                         const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 3...");
                         await runAutoAdu();
                         toast.dismiss(toastId);
                         await fetchJobProgress();
+                        setIsProcessing(prev => {
+                            const newSet = new Set(prev);
+                            newSet.delete('3');
+                            return newSet;
+                        });
                     }
 
                     // Step 4
@@ -311,16 +324,24 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     })();
 
                     if (updatedProgress2.step_4 !== 'DONE') {
+                        setIsProcessing(prev => new Set(prev).add('4'));
                         const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 4...");
                         await runAutoRebuttal();
                         toast.dismiss(toastId);
                         await fetchJobProgress();
+                        setIsProcessing(prev => {
+                            const newSet = new Set(prev);
+                            newSet.delete('4');
+                            return newSet;
+                        });
                     }
 
                     toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
                 } catch (e: any) {
                     console.error("[Register] Error in Steps 2-4:", e);
                     toast.error(e.message || "Error in auto-continue workflow");
+                    // Clean up isProcessing state on error
+                    setIsProcessing(new Set());
                 }
             })();
         }
@@ -405,15 +426,49 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             return;
         }
 
+        if (action === 'cancel') {
+            handleCancelProcess();
+            return;
+        }
+
         if (stepIndex === 1) {
             runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
             return;
         }
 
         if (workflowMode === 'end-to-end') {
-            if (stepIndex === 2) await runAutoDiarization();
-            else if (stepIndex === 3) await runAutoAdu();
-            else if (stepIndex === 4) await runAutoRebuttal();
+            try {
+                if (stepIndex === 2) {
+                    setIsProcessing(prev => new Set(prev).add('2'));
+                    await runAutoDiarization();
+                    setIsProcessing(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete('2');
+                        return newSet;
+                    });
+                }
+                else if (stepIndex === 3) {
+                    setIsProcessing(prev => new Set(prev).add('3'));
+                    await runAutoAdu();
+                    setIsProcessing(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete('3');
+                        return newSet;
+                    });
+                }
+                else if (stepIndex === 4) {
+                    setIsProcessing(prev => new Set(prev).add('4'));
+                    await runAutoRebuttal();
+                    setIsProcessing(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete('4');
+                        return newSet;
+                    });
+                }
+            } catch (e: any) {
+                setIsProcessing(new Set());
+                toast.error(e.message || 'Error executing step');
+            }
             return;
         }
     };
@@ -505,8 +560,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         );
     };
 
-    // Check if any process is running (not in NOT_IN_QUEUE state)
+    // Check if any process is running (not in NOT_IN_QUEUE state, or in isProcessing set)
     const isAnyProcessRunning = () => {
+        if (isProcessing.size > 0) return true;
         if (!jobProgress) return false;
         const steps = [
             jobProgress.step_1a,
@@ -550,33 +606,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     };
 
     const renderStepExtras = (stepId: number) => {
-        // Step 1: Show transcription model selection or cancel button in End-to-End mode
-        if (stepId === 1 && workflowMode === 'end-to-end') {
-            if (isAnyProcessRunning()) {
-                return (
-                    <div className="p-4">
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="font-semibold text-sm mb-1">Processing in Progress</h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Download and transcription are running. Click cancel to stop.
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={handleCancelProcess}
-                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
-                                >
-                                    <X size={16} />
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-            return null;
-        }
 
         // Step 2: Show ManualDiarizationWorkflow in manual mode
         if (stepId === 2 && workflowMode === 'manual') {
@@ -597,9 +626,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         // End-to-End Mode Action Buttons (Step 2, 3, 4)
         if (workflowMode === 'end-to-end' && (stepId === 2 || stepId === 3 || stepId === 4)) {
             const status = stepsStatus[stepId - 1]; // 0-based index maps to Step ID
+            const stepKey = String(stepId);
+            const isProcessingStep = isProcessing.has(stepKey);
 
             // Show cancel button if processing
-            if (status === 'processing') {
+            if (status === 'processing' || isProcessingStep) {
                 return (
                     <div className="p-4">
                         <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
@@ -614,7 +645,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                 </div>
                                 <button
                                     onClick={handleCancelProcess}
-                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
+                                    disabled={status === 'processing'}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <X size={16} />
                                     Cancel
@@ -706,6 +738,46 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
 
         if (stepId !== 1 || workflowMode === 'end-to-end') return null; // Model selection moved to Header for End-to-End
+
+        // Step 1-C～4: Show loading indicators if processing
+        if (stepId === 1 && (isProcessing.has('1-c') || isProcessing.has('1-d'))) {
+            return (
+                <div className="p-4">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex gap-2">
+                                {isProcessing.has('1-c') && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-white relative">
+                                            <span>C</span>
+                                            <div
+                                                className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
+                                                style={{ borderTopColor: '#16a34a' }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                {isProcessing.has('1-d') && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-white relative">
+                                            <span>D</span>
+                                            <div
+                                                className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
+                                                style={{ borderTopColor: '#16a34a' }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-sm text-slate-700 dark:text-slate-300">
+                                {isProcessing.has('1-c') && !isProcessing.has('1-d') && 'Extracting words...'}
+                                {isProcessing.has('1-d') && 'Grouping sentences...'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="mt-4 mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -954,7 +1026,14 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 mb-8 min-h-[400px]">
                         <ProcessingSteps
                             currentStep={currentStep}
-                            stepsStatus={stepsStatus}
+                            stepsStatus={(() => {
+                                // Override stepsStatus for Steps 2-4 when they're processing
+                                const displayStatus = [...stepsStatus];
+                                if (isProcessing.has('2') && displayStatus[1] !== 'completed') displayStatus[1] = 'processing';
+                                if (isProcessing.has('3') && displayStatus[2] !== 'completed') displayStatus[2] = 'processing';
+                                if (isProcessing.has('4') && displayStatus[3] !== 'completed') displayStatus[3] = 'processing';
+                                return displayStatus;
+                            })()}
                             onStepAction={handleStepAction}
                             isRegistrationComplete={true}
                             renderStepContent={renderStepExtras}
@@ -1066,32 +1145,57 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                     if (stepsStatus[0] === 'completed') {
                                                         try {
                                                             // Step 2
-                                                            if (stepsStatus[1] !== 'completed') {
+                                                            let updatedProgress = jobProgress;
+                                                            if (updatedProgress?.step_2 !== 'DONE') {
+                                                                setIsProcessing(prev => new Set(prev).add('2'));
                                                                 const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 2...");
                                                                 await runAutoDiarization();
                                                                 toast.dismiss(toastId);
                                                                 await fetchJobProgress();
+                                                                const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+                                                                updatedProgress = res.ok ? await res.json() : jobProgress;
+                                                                setIsProcessing(prev => {
+                                                                    const newSet = new Set(prev);
+                                                                    newSet.delete('2');
+                                                                    return newSet;
+                                                                });
                                                             }
 
                                                             // Step 3
-                                                            if (stepsStatus[2] !== 'completed') {
+                                                            if (updatedProgress?.step_3 !== 'DONE') {
+                                                                setIsProcessing(prev => new Set(prev).add('3'));
                                                                 const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 3...");
                                                                 await runAutoAdu();
                                                                 toast.dismiss(toastId);
                                                                 await fetchJobProgress();
+                                                                const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+                                                                updatedProgress = res.ok ? await res.json() : jobProgress;
+                                                                setIsProcessing(prev => {
+                                                                    const newSet = new Set(prev);
+                                                                    newSet.delete('3');
+                                                                    return newSet;
+                                                                });
                                                             }
 
                                                             // Step 4
-                                                            if (stepsStatus[3] !== 'completed') {
+                                                            if (updatedProgress?.step_4 !== 'DONE') {
+                                                                setIsProcessing(prev => new Set(prev).add('4'));
                                                                 const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 4...");
                                                                 await runAutoRebuttal();
                                                                 toast.dismiss(toastId);
                                                                 await fetchJobProgress();
+                                                                setIsProcessing(prev => {
+                                                                    const newSet = new Set(prev);
+                                                                    newSet.delete('4');
+                                                                    return newSet;
+                                                                });
                                                             }
 
                                                             toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
                                                         } catch (e: any) {
                                                             toast.error(e.message);
+                                                            // Clean up isProcessing state on error
+                                                            setIsProcessing(new Set());
                                                         }
                                                     } else {
                                                         // Start Step 1, auto-continue will handle Steps 2-4
