@@ -233,7 +233,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         return () => clearInterval(intervalId);
     }, [roundData, jobProgress]);
 
-    // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D
+    // Track if we're in end-to-end mode for auto-continue
+    const isEndToEndRef = useRef(false);
+    useEffect(() => {
+        isEndToEndRef.current = workflowMode === 'end-to-end';
+    }, [workflowMode]);
+
+    // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D, then Step 2-4
     const prevJobProgressRef = useRef<any>(null);
     useEffect(() => {
         if (!jobProgress || !prevJobProgressRef.current || !roundData) {
@@ -264,6 +270,59 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Transcription completed', { duration: 3000 });
             // runStep1 handles: result retrieval, 1-C, 1-D with skip logic
             runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+        }
+
+        // Check if Step 1-D just completed AND we're in end-to-end mode
+        const prevStep1dStatus = mapBackgroundStatus(prev.step_1d);
+        const currStep1dStatus = mapBackgroundStatus(curr.step_1d);
+
+        if (prevStep1dStatus !== 'done' && currStep1dStatus === 'done' && isEndToEndRef.current) {
+            // Step 1-D just completed and end-to-end mode is active, continue with Steps 2-4
+            console.log(`[Register] Step 1 fully completed, starting Steps 2-4`);
+            toast.success(t('dashboard.steps.messages.step1Complete') || 'Step 1 fully completed!', { duration: 3000 });
+
+            (async () => {
+                try {
+                    // Step 2
+                    if (curr.step_2 !== 'DONE') {
+                        const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 2...");
+                        await runAutoDiarization();
+                        toast.dismiss(toastId);
+                        await fetchJobProgress();
+                    }
+
+                    // Step 3
+                    const updatedProgress = await (async () => {
+                        const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+                        return res.ok ? await res.json() : jobProgress;
+                    })();
+
+                    if (updatedProgress.step_3 !== 'DONE') {
+                        const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 3...");
+                        await runAutoAdu();
+                        toast.dismiss(toastId);
+                        await fetchJobProgress();
+                    }
+
+                    // Step 4
+                    const updatedProgress2 = await (async () => {
+                        const res = await fetch(getAPIRoot() + `/job-progress-background/${roundId}`);
+                        return res.ok ? await res.json() : jobProgress;
+                    })();
+
+                    if (updatedProgress2.step_4 !== 'DONE') {
+                        const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 4...");
+                        await runAutoRebuttal();
+                        toast.dismiss(toastId);
+                        await fetchJobProgress();
+                    }
+
+                    toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
+                } catch (e: any) {
+                    console.error("[Register] Error in Steps 2-4:", e);
+                    toast.error(e.message || "Error in auto-continue workflow");
+                }
+            })();
         }
 
         prevJobProgressRef.current = jobProgress;
@@ -338,26 +397,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
-    const runEndToEndWorkflow = async () => {
-        try {
-            // Check which steps are already completed and skip them
-            if (stepsStatusRef.current[0] !== 'completed') {
-                await runStep1(roundData, setStepsStatus, stepsStatus, async () => await fetchJobProgress());
-            }
-            if (stepsStatusRef.current[1] !== 'completed') {
-                await runAutoDiarization();
-            }
-            if (stepsStatusRef.current[2] !== 'completed') {
-                await runAutoAdu();
-            }
-            if (stepsStatusRef.current[3] !== 'completed') {
-                await runAutoRebuttal();
-            }
-            toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
-        } catch (e: any) {
-            console.error("End-to-End Workflow Stopped:", e);
-        }
-    };
 
     const handleStepAction = async (stepIndex: number, action: string = 'run', data?: any) => {
         if (action === 'reset') {
@@ -1022,27 +1061,76 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                             </div>
 
                                             <button
-                                                onClick={runEndToEndWorkflow}
-                                                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3"
-                                            >
-                                                <span className="text-xl">✨</span>
-                                                <span className="text-lg">
-                                                    {(() => {
-                                                        // Check if at least Step 1-A is completed (audio downloaded)
-                                                        const hasAnyProgress = jobProgress && (
-                                                            jobProgress.external_has_audio ||
-                                                            jobProgress.local_has_audio ||
-                                                            stepsStatus[0] === 'completed' ||
-                                                            stepsStatus[1] === 'completed' ||
-                                                            stepsStatus[2] === 'completed' ||
-                                                            stepsStatus[3] === 'completed'
-                                                        );
+                                                onClick={isAnyProcessRunning() ? handleCancelProcess : async () => {
+                                                    // If Step 1 is already completed, start Steps 2-4
+                                                    if (stepsStatus[0] === 'completed') {
+                                                        try {
+                                                            // Step 2
+                                                            if (stepsStatus[1] !== 'completed') {
+                                                                const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 2...");
+                                                                await runAutoDiarization();
+                                                                toast.dismiss(toastId);
+                                                                await fetchJobProgress();
+                                                            }
 
-                                                        return hasAnyProgress
-                                                            ? t('dashboard.steps.actions.runAllRemainingSteps')
-                                                            : t('dashboard.steps.actions.runAllSteps');
-                                                    })()}
-                                                </span>
+                                                            // Step 3
+                                                            if (stepsStatus[2] !== 'completed') {
+                                                                const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 3...");
+                                                                await runAutoAdu();
+                                                                toast.dismiss(toastId);
+                                                                await fetchJobProgress();
+                                                            }
+
+                                                            // Step 4
+                                                            if (stepsStatus[3] !== 'completed') {
+                                                                const toastId = toast.loading(t('dashboard.steps.status.processing') || "Running Step 4...");
+                                                                await runAutoRebuttal();
+                                                                toast.dismiss(toastId);
+                                                                await fetchJobProgress();
+                                                            }
+
+                                                            toast.success(t('dashboard.steps.messages.allStepsCompleted') || "All Steps Completed Successfully!");
+                                                        } catch (e: any) {
+                                                            toast.error(e.message);
+                                                        }
+                                                    } else {
+                                                        // Start Step 1, auto-continue will handle Steps 2-4
+                                                        runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+                                                    }
+                                                }}
+                                                className={`w-full py-4 font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3 ${
+                                                    isAnyProcessRunning()
+                                                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white'
+                                                }`}
+                                            >
+                                                {isAnyProcessRunning() ? (
+                                                    <>
+                                                        <X size={20} />
+                                                        <span className="text-lg">Cancel</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="text-xl">✨</span>
+                                                        <span className="text-lg">
+                                                            {(() => {
+                                                                // Check if at least Step 1-A is completed (audio downloaded)
+                                                                const hasAnyProgress = jobProgress && (
+                                                                    jobProgress.external_has_audio ||
+                                                                    jobProgress.local_has_audio ||
+                                                                    stepsStatus[0] === 'completed' ||
+                                                                    stepsStatus[1] === 'completed' ||
+                                                                    stepsStatus[2] === 'completed' ||
+                                                                    stepsStatus[3] === 'completed'
+                                                                );
+
+                                                                return hasAnyProgress
+                                                                    ? t('dashboard.steps.actions.runAllRemainingSteps')
+                                                                    : t('dashboard.steps.actions.runAllSteps');
+                                                            })()}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </button>
                                         </div>
                                     )}
