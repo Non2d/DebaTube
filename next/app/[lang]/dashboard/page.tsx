@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, ChevronLeft, ChevronRight, Play, ChevronDown } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Play, ChevronDown, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
@@ -11,9 +11,9 @@ import { useRounds } from './hooks/useRoundsSummary';
 import { useTranslation } from '../../../context/LanguageContext';
 import { type BackgroundStepStatus, getAPIRoot, toInternalModelName } from '../../../components/lib/utils';
 import Step1ProgressCircle from './components/Step1ProgressCircle';
-import { useStepActions } from '../../../hooks/useStepActions';
 import type { ProcessingStepStatus } from '../../../components/shared/ProcessingSteps';
 import { TRANSCRIPTION_MODELS, NLP_LLMS, NLPLLMValue } from '../../../constants/models';
+import { useCancelTranscription } from './hooks/useCancelTranscription';
 
 export default function VideoDashboard() {
   const { rounds, loading, error, pagination, jobProgress, refetch } = useRounds('external_video');
@@ -22,7 +22,9 @@ export default function VideoDashboard() {
   const router = useRouter();
   const [processingRounds, setProcessingRounds] = useState<Set<number>>(new Set());
   const [activeSteps, setActiveSteps] = useState<Set<string>>(new Set()); // Track active steps: "roundId-stepNum"
-  const { runStep1 } = useStepActions({ roundId: 0, t, is_background: true, showRoundIdInToast: true });
+  const cancellationTargetsRef = useRef<Map<number, 'external-bg-task' | 'sync-task' | null>>(new Map());
+  const [cancellationTargetsTrigger, setCancellationTargetsTrigger] = useState(0); // Trigger for re-renders
+  const { cancelTranscription } = useCancelTranscription();
 
   // LLM Model (初期値関数で localStorage から読み込み)
   const [llmModel, setLlmModel] = useState<NLPLLMValue>(() => {
@@ -113,41 +115,35 @@ export default function VideoDashboard() {
 
       // Check if Step 1-A just completed
       if (prev.step_1a !== 'done' && curr.step_1a === 'done') {
-        // Step 1-A just completed, continue with 1-B via runStep1
+        // Step 1-A just completed, continue with 1-B via runStep1Dashboard
         console.log(`[Dashboard] Round ${roundId}: Step 1-A completed, starting 1-B`);
-        const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-        const dummySetStepsStatus = () => { };
-        runStep1(
+        // Auto-continue must preserve cancellation target
+        await runStep1Dashboard(
           round,
-          dummySetStepsStatus as any,
-          dummyStepsStatus,
-          async () => {
-            await refetch();
-          },
-          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined,
+          true // keepCancellationTarget = true
         );
       }
 
       // Check if Step 1-B just completed
       if (prev.step_1b !== 'done' && curr.step_1b === 'done') {
-        // Step 1-B just completed, continue with 1-C and 1-D via runStep1
+        // Step 1-B just completed, continue with 1-C and 1-D via runStep1Dashboard
         console.log(`[Dashboard] Round ${roundId}: Step 1-B completed, starting 1-C and 1-D`);
-        const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-        const dummySetStepsStatus = () => { };
-        runStep1(
+        // Auto-continue must preserve cancellation target
+        await runStep1Dashboard(
           round,
-          dummySetStepsStatus as any,
-          dummyStepsStatus,
-          async () => {
-            await refetch();
-          },
-          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+          round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined,
+          true // keepCancellationTarget = true
         );
       }
 
       // Check if Step 1-D just completed AND this round was started in 'all' mode
       if (prev.step_1d !== 'done' && curr.step_1d === 'done' && allModeRoundsRef.current.has(roundId)) {
         console.log(`[Dashboard] Round ${roundId}: Step 1 fully completed, starting Steps 2-4`);
+
+        // CRITICAL: Ensure cancellation target is set to sync-task immediately after Step 1-D completion
+        cancellationTargetsRef.current.set(roundId, 'sync-task');
+        setCancellationTargetsTrigger(t => t + 1);
 
         // Run Steps 2-4 sequentially
         try {
@@ -172,6 +168,8 @@ export default function VideoDashboard() {
 
           // Step 3
           if (progressAfterStep2?.step_3 !== 'done') {
+            cancellationTargetsRef.current.set(roundId, 'sync-task');
+            setCancellationTargetsTrigger(t => t + 1);
             const stepKey = `${roundId}-3`;
             setActiveSteps(prev => new Set(prev).add(stepKey));
             toast.loading(`[${roundId}] Running Step 3...`, { id: `step3-${roundId}` });
@@ -191,6 +189,8 @@ export default function VideoDashboard() {
 
           // Step 4
           if (progressAfterStep3?.step_4 !== 'done') {
+            cancellationTargetsRef.current.set(roundId, 'sync-task');
+            setCancellationTargetsTrigger(t => t + 1);
             const stepKey = `${roundId}-4`;
             setActiveSteps(prev => new Set(prev).add(stepKey));
             toast.loading(`[${roundId}] Running Step 4...`, { id: `step4-${roundId}` });
@@ -205,11 +205,17 @@ export default function VideoDashboard() {
           }
 
           toast.success(`[${roundId}] All Steps Completed!`);
+          // Clear cancellation target
+          cancellationTargetsRef.current.delete(roundId);
+          setCancellationTargetsTrigger(t => t + 1);
           // Remove from allModeRounds tracking
           allModeRoundsRef.current.delete(roundId);
         } catch (e: any) {
           console.error(`[Dashboard] Round ${roundId}: Error in Steps 2-4:`, e);
           toast.error(`[${roundId}] Error: ${e.message}`);
+          // Clear cancellation target on error
+          cancellationTargetsRef.current.delete(roundId);
+          setCancellationTargetsTrigger(t => t + 1);
           allModeRoundsRef.current.delete(roundId);
         }
       }
@@ -255,6 +261,221 @@ export default function VideoDashboard() {
     }
   };
 
+  // Dashboard-specific runStep1 with proper cancellation target handling for auto-continue
+  const runStep1Dashboard = async (
+    roundData: any,
+    videoUrl: string | undefined,
+    keepCancellationTarget: boolean = false
+  ) => {
+    const toastPrefix = `[Round ${roundData.id}] `;
+
+    if (!roundData?.video_id && !videoUrl) {
+      toast.error(toastPrefix + "Error: No video_id found");
+      return;
+    }
+
+    const effectiveVideoId = roundData?.video_id || (videoUrl ? (videoUrl.match(/(?:v=|youtu\.be\/)([^&]+)/)?.[1] || null) : null);
+    const targetUrl = videoUrl || `https://www.youtube.com/watch?v=${effectiveVideoId}`;
+
+    try {
+      let progress = await fetch(getAPIRoot() + `/job-progress-background/${roundData.id}`)
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null);
+
+      const audioDone = progress?.step_1a === 'DONE';
+      const transDone = progress?.step_1b === 'DONE';
+
+      // Step 1-A: Download Audio
+      if (!audioDone && !transDone) {
+        cancellationTargetsRef.current.set(roundData.id, 'external-bg-task');
+        setCancellationTargetsTrigger(t => t + 1);
+
+        const res = await fetch(getAPIRoot() + `/download-audio/${roundData.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: targetUrl }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Audio download failed');
+        }
+
+        toast.success(toastPrefix + 'Step 1-A: Background audio download registered', { id: `step1a-${roundData.id}` });
+        await refetch();
+        return;
+      }
+
+      // Step 1-B: Transcription
+      const needsResultRetrieval = transDone && progress?.step_1c !== 'DONE';
+
+      if (needsResultRetrieval) {
+        toast.loading(toastPrefix + 'Step 1-B: Retrieving result...', { id: `step1b-result-${roundData.id}` });
+
+        const resultRes = await fetch(getAPIRoot() + `/transcription-result?round_id=${roundData.id}`);
+        if (!resultRes.ok) {
+          const err = await resultRes.json();
+          throw new Error(err.detail || 'Failed to get transcription result');
+        }
+
+        toast.success(toastPrefix + 'Step 1-B: Result saved to DB', { id: `step1b-result-${roundData.id}` });
+        cancellationTargetsRef.current.set(roundData.id, 'sync-task');
+        setCancellationTargetsTrigger(t => t + 1);
+        await refetch();
+        progress = await fetch(getAPIRoot() + `/job-progress-background/${roundData.id}`)
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null);
+      } else if (!transDone) {
+        // Set cancellation target for 1-B operations
+        cancellationTargetsRef.current.set(roundData.id, 'external-bg-task');
+        setCancellationTargetsTrigger(t => t + 1);
+
+        toast.loading(toastPrefix + 'Step 1-B: Checking transcription status...', { id: `step1b-${roundData.id}` });
+
+        const statusRes = await fetch(getAPIRoot() + `/transcription-status?round_id=${roundData.id}`);
+        let status = 'NOT_IN_QUEUE';
+
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          status = statusData.status;
+        }
+
+        if (status !== 'DONE' && status !== 'COMPLETED') {
+          const startRes = await fetch(getAPIRoot() + `/start-background-transcription`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              round_id: roundData.id,
+              url: targetUrl,
+              num_chunks: 4,
+              max_workers: 2,
+              is_forced: true
+            }),
+          });
+
+          if (!startRes.ok) {
+            const err = await startRes.json();
+            if (startRes.status !== 409) {
+              throw new Error(err.detail || 'Background transcription start failed');
+            }
+          }
+
+          toast.success(toastPrefix + 'Step 1-B: Background transcription in progress', { id: `step1b-${roundData.id}`, duration: 3000 });
+          await refetch();
+          return;
+        }
+      }
+
+      // Step 1-C: Words
+      if (progress?.step_1c !== 'DONE') {
+        cancellationTargetsRef.current.set(roundData.id, 'sync-task');
+        setCancellationTargetsTrigger(t => t + 1);
+
+        toast.loading(toastPrefix + 'Step 1-C: Extracting words...', { id: `step1c-${roundData.id}` });
+
+        const res = await fetch(getAPIRoot() + `/extract-words-from-transcript/${roundData.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Word extraction failed');
+        }
+
+        toast.success(toastPrefix + 'Step 1-C: Completed', { id: `step1c-${roundData.id}` });
+        await refetch();
+        progress = await fetch(getAPIRoot() + `/job-progress-background/${roundData.id}`)
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null);
+
+        // Step 1-D: Group Sentences
+        if (progress?.step_1d !== 'DONE') {
+          toast.loading(toastPrefix + 'Step 1-D: Grouping sentences...', { id: `step1d-${roundData.id}` });
+
+          const res1d = await fetch(getAPIRoot() + `/group-sentences-from-words/${roundData.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          if (!res1d.ok) {
+            const err = await res1d.json();
+            throw new Error(err.detail || 'Sentence grouping failed');
+          }
+
+          const data = await res1d.json();
+          toast.success(toastPrefix + `Step 1-D: ${data.total_sentences} sentences`, { id: `step1d-${roundData.id}` });
+
+          await refetch();
+        }
+      }
+    } catch (error: any) {
+      console.error(`[Dashboard] runStep1Dashboard error:`, error);
+      toast.dismiss(`step1a-${roundData.id}`);
+      toast.dismiss(`step1b-${roundData.id}`);
+      toast.dismiss(`step1c-${roundData.id}`);
+      toast.dismiss(`step1d-${roundData.id}`);
+
+      cancellationTargetsRef.current.delete(roundData.id);
+      setCancellationTargetsTrigger(t => t + 1);
+
+      toast.error(toastPrefix + error.message);
+    }
+  };
+
+  const handleCancelRound = async (roundId: number, cancellationTarget?: 'external-bg-task' | 'sync-task' | null) => {
+    const round = rounds.find(r => r.id === roundId);
+    if (!round?.video_id) {
+      toast.error(`[${roundId}] Video ID not available`);
+      return;
+    }
+
+    // Use passed cancellationTarget if available, otherwise get from ref
+    const target = cancellationTarget ?? cancellationTargetsRef.current.get(roundId);
+    if (!target) {
+      toast.error(`[${roundId}] No process running to cancel`);
+      return;
+    }
+
+    const toastId = toast.loading(`[${roundId}] Cancelling process...`);
+
+    try {
+      if (target === 'external-bg-task') {
+        // Cancel backend operations (Step 1-A/1-B)
+        const result = await cancelTranscription(round.video_id);
+        toast.dismiss(toastId);
+
+        if (result.success) {
+          toast.success(`[${roundId}] ${result.message}`);
+          cancellationTargetsRef.current.delete(roundId);
+          setCancellationTargetsTrigger(t => t + 1);
+          allModeRoundsRef.current.delete(roundId);
+          setActiveSteps(prev => {
+            const next = new Set(prev);
+            [2, 3, 4].forEach(stepNum => next.delete(`${roundId}-${stepNum}`));
+            return next;
+          });
+          await refetch();
+        } else {
+          toast.error(`[${roundId}] ${result.message}`);
+        }
+      } else if (target === 'sync-task') {
+        // For frontend-only operations (Steps 2-4)
+        toast.dismiss(toastId);
+        toast.success(`[${roundId}] Process cancelled - reloading page...`);
+        cancellationTargetsRef.current.delete(roundId);
+        setCancellationTargetsTrigger(t => t + 1);
+        allModeRoundsRef.current.delete(roundId);
+        window.location.reload(); // Force stop frontend processing
+      }
+    } catch (error: any) {
+      toast.dismiss(toastId);
+      toast.error(`[${roundId}] ${error.message || 'Failed to cancel process'}`);
+      cancellationTargetsRef.current.delete(roundId);
+      setCancellationTargetsTrigger(t => t + 1);
+    }
+  };
+
   const executeStep = async (round: any, mode: 'step1' | 'all') => {
     setProcessingRounds(prev => new Set(prev).add(round.id));
 
@@ -265,18 +486,15 @@ export default function VideoDashboard() {
         // Step 1 Only
         if (progress?.step_1 !== 'done') {
           toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
-          const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-          const dummySetStepsStatus = () => { };
-          await runStep1(
+          await runStep1Dashboard(
             round,
-            dummySetStepsStatus as any,
-            dummyStepsStatus,
-            async () => {
-              await refetch();
-            },
-            round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+            round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined,
+            false // keepCancellationTarget = false (no auto-continue to Step 2-4)
           );
           toast.success(`[${round.id}] Step 1 Complete`, { id: `step1-${round.id}` });
+          // Clear cancellation target for step1-only mode
+          cancellationTargetsRef.current.delete(round.id);
+          setCancellationTargetsTrigger(t => t + 1);
         }
       } else if (mode === 'all') {
         // Steps 1-4: Start from the first incomplete step
@@ -289,16 +507,10 @@ export default function VideoDashboard() {
           // Step 1 not complete - start it and let auto-transition handle the rest
           allModeRoundsRef.current.add(round.id);
           toast.loading(`[${round.id}] Running Step 1...`, { id: `step1-${round.id}` });
-          const dummyStepsStatus: ProcessingStepStatus[] = ['pending', 'pending', 'pending', 'pending'];
-          const dummySetStepsStatus = () => { };
-          await runStep1(
+          await runStep1Dashboard(
             round,
-            dummySetStepsStatus as any,
-            dummyStepsStatus,
-            async () => {
-              await refetch();
-            },
-            round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined
+            round.video_id ? `https://www.youtube.com/watch?v=${round.video_id}` : undefined,
+            true // keepCancellationTarget = true (for auto-continue to Step 2-4)
           );
           toast.success(`[${round.id}] Step 1 processing started. Steps 2-4 will run automatically after completion.`, { id: `step1-${round.id}`, duration: 5000 });
           return;
@@ -309,6 +521,8 @@ export default function VideoDashboard() {
 
         // Step 2
         if (progress?.step_2 !== 'done') {
+          cancellationTargetsRef.current.set(round.id, 'sync-task');
+          setCancellationTargetsTrigger(t => t + 1);
           const stepKey = `${round.id}-2`;
           setActiveSteps(prev => new Set(prev).add(stepKey));
           toast.loading(`[${round.id}] Running Step 2...`, { id: `step2-${round.id}` });
@@ -325,6 +539,8 @@ export default function VideoDashboard() {
         // Step 3
         const refreshedProgress2 = jobProgress.get(round.id);
         if (refreshedProgress2?.step_3 !== 'done') {
+          cancellationTargetsRef.current.set(round.id, 'sync-task');
+          setCancellationTargetsTrigger(t => t + 1);
           const stepKey = `${round.id}-3`;
           setActiveSteps(prev => new Set(prev).add(stepKey));
           toast.loading(`[${round.id}] Running Step 3...`, { id: `step3-${round.id}` });
@@ -341,6 +557,8 @@ export default function VideoDashboard() {
         // Step 4
         const refreshedProgress3 = jobProgress.get(round.id);
         if (refreshedProgress3?.step_4 !== 'done') {
+          cancellationTargetsRef.current.set(round.id, 'sync-task');
+          setCancellationTargetsTrigger(t => t + 1);
           const stepKey = `${round.id}-4`;
           setActiveSteps(prev => new Set(prev).add(stepKey));
           toast.loading(`[${round.id}] Running Step 4...`, { id: `step4-${round.id}` });
@@ -355,11 +573,18 @@ export default function VideoDashboard() {
         }
 
         toast.success(`[${round.id}] All Steps Completed!`);
+        // Clear cancellation target
+        cancellationTargetsRef.current.delete(round.id);
+        setCancellationTargetsTrigger(t => t + 1);
       }
 
     } catch (e: any) {
       console.error("Workflow Stopped:", e);
       toast.error(`[${round.id}] Error: ${e.message}`);
+      // Clear cancellation target on error
+      cancellationTargetsRef.current.delete(round.id);
+      setCancellationTargetsTrigger(t => t + 1);
+      allModeRoundsRef.current.delete(round.id);
     } finally {
       setProcessingRounds(prev => {
         const next = new Set(prev);
@@ -759,21 +984,45 @@ export default function VideoDashboard() {
                                 </div>
                               </td>
                               <td className="py-2 px-4">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    executeStep(round, executeMode);
-                                  }}
-                                  disabled={processingRounds.has(round.id)}
-                                  className={`flex items-center gap-1 px-3 py-1 text-xs font-medium text-white rounded transition-colors ${executeMode === 'step1'
-                                    ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400'
-                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500'
-                                    } disabled:cursor-not-allowed`}
-                                  title={executeMode === 'step1' ? 'Run Step 1 Only' : 'Run All Steps'}
-                                >
-                                  <Play className="w-3 h-3" />
-                                  {executeMode === 'step1' ? '1' : 'All'}
-                                </button>
+                                {(() => {
+                                  // Trigger re-renders when cancellationTargetsTrigger changes
+                                  void cancellationTargetsTrigger;
+                                  const cancellationTarget = cancellationTargetsRef.current.get(round.id);
+                                  const hasActiveJob = cancellationTarget !== null && cancellationTarget !== undefined;
+
+                                  // Show stop button if has active cancellation target
+                                  if (hasActiveJob) {
+                                    return (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCancelRound(round.id, cancellationTarget);
+                                        }}
+                                        className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                                        title="Stop Process"
+                                      >
+                                        <X className="w-3 h-3" />
+                                        Stop
+                                      </button>
+                                    );
+                                  }
+
+                                  // Show execute button
+                                  return (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        executeStep(round, executeMode);
+                                      }}
+                                      disabled={hasActiveJob}
+                                      className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 rounded transition-colors disabled:cursor-not-allowed"
+                                      title={executeMode === 'step1' ? 'Run Step 1 Only' : 'Run All Steps'}
+                                    >
+                                      <Play className="w-3 h-3" />
+                                      {executeMode === 'step1' ? '1' : 'All'}
+                                    </button>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           );

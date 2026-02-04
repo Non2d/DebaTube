@@ -597,7 +597,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         try {
             if (currentJobCancellationTarget === 'external-bg-task') {
                 // Cancel backend operations (1-A/1-B)
-                const result = await cancelTranscription(roundData.video_id, jobProgress);
+                const result = await cancelTranscription(roundData.video_id);
                 toast.dismiss(toastId);
 
                 if (result.success) {
