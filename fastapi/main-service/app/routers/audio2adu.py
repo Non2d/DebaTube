@@ -5,6 +5,7 @@ from log_config import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 import os, json, tempfile, re, csv
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import asyncio
 import time
 import shutil
@@ -40,33 +41,68 @@ class GeminiModel(Enum):
     GEMINI_2_5_FLASH_LITE_STUDIO = ("gemini-2.5-flash-lite", "studio")
     GEMINI_2_5_FLASH_LITE_VERTEX = ("gemini-2.5-flash-lite", "vertex")
     GEMINI_3_FLASH_STUDIO = ("gemini-3-flash", "studio")
-    GEMINI_3_FLASH_VERTEX = ("gemini-3-flash", "vertex")
 
+def _save_gemini_log_complete(step: int, input_data: dict, response: any, round_id: Optional[int] = None):
+    """
+    Save complete Gemini API call log with input, raw response, and response.text
 
-def _save_gemini_log_complete(step: int, input_data: dict, response: any):
-    """Save complete Gemini API call log with input, raw response, and response.text"""
+    Args:
+        step: Step number (2, 3, 4)
+        input_data: Input data for the Gemini call
+        response: Gemini API response object
+        round_id: Optional round ID. If provided, logs are saved to round_{round_id}_logs.json
+    """
     try:
         log_dir = "gemini-logs"
         os.makedirs(log_dir, exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{log_dir}/step{step}_log_{timestamp}.json"
+        # Get timestamp in Japan timezone (YYYY/MM/DD H:M:S format)
+        jst = ZoneInfo("Asia/Tokyo")
+        timestamp = datetime.now(jst).strftime("%Y/%m/%d %H:%M:%S")
 
         # Extract response text
         response_text = response.text if hasattr(response, "text") else str(response)
 
-        # Build log data
-        log_data = {
+        # Build log entry
+        log_entry = {
             "step": step,
             "timestamp": timestamp,
             "input": input_data,
-            "response_raw": str(response),  # Full response object as string
+            "response_raw": str(response),
             "response_text": response_text
         }
 
-        with open(filename, "w", encoding="utf-8") as f:
-            json.dump(log_data, f, indent=2, ensure_ascii=False)
-        logger.info(f"Saved Gemini log to {filename}")
+        if round_id is not None:
+            # New format: round_{round_id}_logs.json with list of logs
+            filename = f"{log_dir}/round_{round_id}_logs.json"
+
+            # Load existing logs if file exists
+            existing_logs = []
+            if os.path.exists(filename):
+                try:
+                    with open(filename, "r", encoding="utf-8") as f:
+                        existing_logs = json.load(f)
+                        if not isinstance(existing_logs, list):
+                            existing_logs = [existing_logs]  # Convert old format to list
+                except Exception as e:
+                    logger.warning(f"Failed to load existing logs from {filename}: {e}")
+                    existing_logs = []
+
+            # Append new log entry
+            existing_logs.append(log_entry)
+
+            # Save updated logs
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(existing_logs, f, indent=2, ensure_ascii=False)
+            logger.info(f"Saved Gemini log to {filename} (total logs: {len(existing_logs)})")
+        else:
+            # Old format for backward compatibility: step{step}_log_{timestamp}.json
+            timestamp_old = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{log_dir}/step{step}_log_{timestamp_old}.json"
+
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(log_entry, f, indent=2, ensure_ascii=False)
+            logger.info(f"Saved Gemini log to {filename}")
     except Exception as e:
         logger.error(f"Failed to save Gemini log: {e}")
 
@@ -187,6 +223,7 @@ async def regroup_single_speech_sentences_to_adus(
     timestamp: str,
     match_name: str = "",
     model_name: str = GEMINI_MODEL_NAME,
+    round_id: Optional[int] = None,
 ) -> tuple[
     str,
     Optional[str],
@@ -280,7 +317,8 @@ IMPORTANT: All sentence indices must be between 0 and {total_sentences - 1}. The
         _save_gemini_log_complete(
             step=2,
             input_data={"model": api_model_name, "prompt": prompt_content},
-            response=response
+            response=response,
+            round_id=round_id
         )
 
         try:
@@ -361,6 +399,7 @@ async def regroup_all_speech_sentences_to_adus_at_once(
     debate_format: str = "NA",
     match_name: str = "",
     model_name: str = GEMINI_MODEL_NAME,
+    round_id: Optional[int] = None,
 ) -> tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]]]:
     """
     Process all speeches in a single Gemini Prompt but using the exact same logic flow as 
@@ -480,7 +519,8 @@ Format:
         _save_gemini_log_complete(
             step=2,
             input_data={"model": api_model_name, "prompt": prompt_content},
-            response=response
+            response=response,
+            round_id=round_id
         )
 
         response_text = response.text if hasattr(response, "text") else str(response)
@@ -1542,6 +1582,10 @@ async def identify_rebuttal_structure(
         try_count = request.try_count
         model_name = request.model or GEMINI_MODEL_NAME
 
+        # Get round_id for logging
+        round_obj = await round_crud.get_round_by_name(db, round_name, try_count)
+        round_id = round_obj.id if round_obj else None
+
         # Create Prompt and Get Mapping
         prompt, local_id_to_db_id, global_adu_index, speeches_data = await create_rebuttal_prompt_data(db, round_name, try_count)
 
@@ -1559,7 +1603,8 @@ async def identify_rebuttal_structure(
         _save_gemini_log_complete(
             step=4,
             input_data={"model": api_model_name, "prompt": prompt},
-            response=response
+            response=response,
+            round_id=round_id
         )
 
         # Extract response text
@@ -1922,14 +1967,15 @@ async def audio_to_debate_graph_batch(
         # Step 1: ラウンドを作成
         print("[Step 1/5] ラウンドを作成...")
         round_obj = await round_crud.create_round(
-            db, 
+            db,
             name=round_name,
             style=db_style,
             motion=motion
         )
         logger.info(f"Created round with name '{round_name}'")
-        
-        # Capture try_count immediately to prevent MissingGreenlet error after commits
+
+        # Capture round_id and try_count immediately to prevent MissingGreenlet error after commits
+        round_id_value = round_obj.id
         current_try_count = round_obj.try_count
 
         # Step 1.5: 前回の文字起こしデータを取得（use_latest_transcription=Trueの場合）
@@ -2043,13 +2089,13 @@ async def audio_to_debate_graph_batch(
         elif call_llm_all_at_once:
              print(f">> Using Call LLM All At Once Mode with {adu_model}")
              adus_by_speech, _, _ = await regroup_all_speech_sentences_to_adus_at_once(
-                 batch_results, debate_format, round_name, model_name=adu_model
+                 batch_results, debate_format, round_name, model_name=adu_model, round_id=round_id_value
              )
         else:
             print(f">> Using Parallel Individual Call Mode with {adu_model}")
             # 各スピーチのADUを生成（並列処理）
             tasks = [
-                regroup_single_speech_sentences_to_adus(k, v, timestamp, round_name, model_name=adu_model)
+                regroup_single_speech_sentences_to_adus(k, v, timestamp, round_name, model_name=adu_model, round_id=round_id_value)
                 for idx, (k, v) in enumerate(batch_results.items())
             ]
             
@@ -2362,7 +2408,8 @@ Example response format:
         _save_gemini_log_complete(
             step=2,
             input_data={"model": api_model_name, "prompt": prompt},
-            response=response
+            response=response,
+            round_id=round_id
         )
 
         response_text = response.text if hasattr(response, "text") else str(response)
@@ -2567,7 +2614,8 @@ Format:
         _save_gemini_log_complete(
             step=3,
             input_data={"model": api_model_name, "prompt": prompt},
-            response=response
+            response=response,
+            round_id=round_id
         )
 
         response_text = response.text if hasattr(response, "text") else str(response)
