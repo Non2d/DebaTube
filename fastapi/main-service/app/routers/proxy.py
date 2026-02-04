@@ -6,7 +6,8 @@ from services.transcription_service import (
     download_audio_remote,
     transcribe_audio_remote,
     get_cached_video_ids_remote,
-    delete_audio_cache_remote
+    delete_audio_cache_remote,
+    cancel_transcription_batch_remote
 )
 
 router = APIRouter()
@@ -31,6 +32,9 @@ class DownloadAudioRequest(BaseModel):
 class TranscribeRequest(BaseModel):
     video_id: str
     max_workers: int = 2
+
+class CancelTranscriptionRequest(BaseModel):
+    video_ids: list[str]
 
 @router.post("/transcription-service/download-audio")
 async def proxy_download_audio(
@@ -83,4 +87,13 @@ async def proxy_delete_audio_cache(video_id: str):
 async def delete_audio_cache_internal(video_id: str):
     await delete_audio_cache_remote(video_id)
 
+@router.post("/transcribe-background/cancel/batch")
+async def proxy_cancel_transcription_batch(
+    request: CancelTranscriptionRequest
+):
+    """
+    Proxy endpoint to cancel background transcription jobs via external service.
+    """
+    result = await cancel_transcription_batch_remote(request.video_ids)
+    return result
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader2, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Header from '../../../../../components/shared/Header';
@@ -11,6 +11,7 @@ import { useTranslation } from '../../../../../context/LanguageContext';
 
 import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components/shared/ProcessingSteps';
 import { testColabConnection } from './actions';
+import { useCancelTranscription } from '../../hooks/useCancelTranscription';
 import { useStepActions } from '../../../../../hooks/useStepActions';
 import { ManualDiarizationWorkflow } from './components/ManualDiarizationWorkflow';
 import { ManualAduWorkflow } from './components/ManualAduWorkflow';
@@ -26,6 +27,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const roundId = params.id;
 
     const { resetProgress, runStep1 } = useStepActions({ roundId, t });
+    const { cancelTranscription } = useCancelTranscription();
     // ... existing states ...
 
     // (Initialize hook later in the component body)
@@ -464,7 +466,79 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         );
     };
 
+    // Check if any process is running (not in NOT_IN_QUEUE state)
+    const isAnyProcessRunning = () => {
+        if (!jobProgress) return false;
+        const steps = [
+            jobProgress.step_1a,
+            jobProgress.step_1b,
+            jobProgress.step_1c,
+            jobProgress.step_1d,
+            jobProgress.step_2,
+            jobProgress.step_3,
+            jobProgress.step_4
+        ];
+        return steps.some((status: string) => {
+            const mapped = mapBackgroundStatus(status);
+            return mapped !== 'done' && mapped !== 'not_in_queue';
+        });
+    };
+
+    const handleCancelProcess = async () => {
+        if (!roundData?.video_id) {
+            toast.error('Video ID not available');
+            return;
+        }
+
+        const toastId = toast.loading('Cancelling process...');
+
+        try {
+            const result = await cancelTranscription(roundData.video_id, jobProgress);
+
+            toast.dismiss(toastId);
+
+            if (result.success) {
+                toast.success(result.message);
+                // Refresh job progress after cancel
+                await fetchJobProgress();
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error: any) {
+            toast.dismiss(toastId);
+            toast.error(error.message || 'Failed to cancel process');
+        }
+    };
+
     const renderStepExtras = (stepId: number) => {
+        // Step 1: Show transcription model selection or cancel button in End-to-End mode
+        if (stepId === 1 && workflowMode === 'end-to-end') {
+            if (isAnyProcessRunning()) {
+                return (
+                    <div className="p-4">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-1">Processing in Progress</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        Download and transcription are running. Click cancel to stop.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleCancelProcess}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
+                                >
+                                    <X size={16} />
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            return null;
+        }
+
         // Step 2: Show ManualDiarizationWorkflow in manual mode
         if (stepId === 2 && workflowMode === 'manual') {
             return (
@@ -484,6 +558,33 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         // End-to-End Mode Action Buttons (Step 2, 3, 4)
         if (workflowMode === 'end-to-end' && (stepId === 2 || stepId === 3 || stepId === 4)) {
             const status = stepsStatus[stepId - 1]; // 0-based index maps to Step ID
+
+            // Show cancel button if processing
+            if (status === 'processing') {
+                return (
+                    <div className="p-4">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-1">{t('dashboard.steps.autoMode') || "LLM Auto Mode"}</h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {stepId === 2 && (t('dashboard.steps.descriptions.autoDiarization') || "Automatically detect speakers using Gemini.")}
+                                        {stepId === 3 && (t('dashboard.steps.descriptions.autoAdu') || "Automatically segment speech into arguments.")}
+                                        {stepId === 4 && (t('dashboard.steps.descriptions.autoRebuttal') || "Automatically identify rebuttal structure.")}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleCancelProcess}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
+                                >
+                                    <X size={16} />
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
             if (status === 'pending' || status === 'error') {
                 return (
@@ -537,6 +638,31 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         fetchJobProgress();
                     }}
                 />
+            );
+        }
+
+        // Step 1: Manual mode - show cancel button if processing
+        if (stepId === 1 && workflowMode === 'manual' && isAnyProcessRunning()) {
+            return (
+                <div className="p-4">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h4 className="font-semibold text-sm mb-1">Processing in Progress</h4>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    Download and transcription are running. Click cancel to stop.
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleCancelProcess}
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
+                            >
+                                <X size={16} />
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             );
         }
 

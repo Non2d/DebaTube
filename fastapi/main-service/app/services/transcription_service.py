@@ -603,3 +603,54 @@ async def get_download_audio_status_remote_batch(
             status_code=500,
             detail="Internal Service Error During Batch Audio Download Status Check"
         )
+
+async def cancel_transcription_batch_remote(video_ids: List[str]) -> Dict[str, Any]:
+    """
+    Cancel background transcription jobs in batch via external service.
+
+    Args:
+        video_ids: List of video IDs to cancel
+
+    Returns:
+        Dictionary with cancellation results
+    """
+    if not TRANSCRIPTION_API_URL:
+        raise HTTPException(status_code=500, detail="TRANSCRIPTION_API_URL not configured")
+
+    target_url = f"{TRANSCRIPTION_API_URL}/transcribe-background/cancel/batch"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                target_url,
+                json={"video_ids": video_ids},
+                timeout=10.0
+            )
+
+            if resp.status_code != 200:
+                error_detail = resp.text
+                try:
+                    error_detail = resp.json().get("detail", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=f"Batch cancellation failed: {error_detail}"
+                )
+
+            return resp.json()
+
+    except httpx.RequestError as e:
+        print(f"Batch Cancellation Request Error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription Service Unreachable (batch cancellation)"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Batch Cancellation General Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Service Error During Batch Cancellation"
+        )

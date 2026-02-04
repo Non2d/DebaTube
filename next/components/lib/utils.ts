@@ -36,12 +36,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getAPIRoot(): string {
-    const host = typeof window !== "undefined" ? window.location.host : "";
-    return host.endsWith(".ts.net")
-        ? `https://${host}/v1`
-        : process.env.NODE_ENV === "production"
-        ? "https://vps4.nkmr.io/debates/v1"
-        : "http://localhost:8080";
+    return process.env.NEXT_PUBLIC_API_ROOT || "http://localhost:8080";
 }
 
 export function calculateMode(numbers: number[]): number | null {
