@@ -989,6 +989,8 @@ export default function VideoDashboard() {
                                   void cancellationTargetsTrigger;
                                   const cancellationTarget = cancellationTargetsRef.current.get(round.id);
                                   const hasActiveJob = cancellationTarget !== null && cancellationTarget !== undefined;
+                                  const progress = jobProgress.get(round.id);
+                                  const isAllStepsCompleted = progress?.step_4 === 'done';
 
                                   // Show stop button if has active cancellation target
                                   if (hasActiveJob) {
@@ -1003,6 +1005,19 @@ export default function VideoDashboard() {
                                       >
                                         <X className="w-3 h-3" />
                                         Stop
+                                      </button>
+                                    );
+                                  }
+
+                                  // Show done button if all steps completed
+                                  if (isAllStepsCompleted) {
+                                    return (
+                                      <button
+                                        disabled
+                                        className="flex items-center justify-center gap-1 w-16 px-3 py-1 text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-300 dark:bg-gray-700 rounded transition-colors cursor-not-allowed opacity-60"
+                                        title="All Steps Completed"
+                                      >
+                                        Done
                                       </button>
                                     );
                                   }
