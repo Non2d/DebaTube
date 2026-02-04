@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Header from '../../../../../components/shared/Header';
-import { getAPIRoot, mapBackgroundStatus, formatModelName, toInternalModelName, type BackgroundStepStatus } from '../../../../../components/lib/utils';
+import { getAPIRoot, mapBackgroundStatus, toInternalModelName, type BackgroundStepStatus } from '../../../../../components/lib/utils';
 import { useTranslation } from '../../../../../context/LanguageContext';
 
 import ProcessingSteps, { ProcessingStepStatus } from '../../../../../components/shared/ProcessingSteps';
@@ -16,7 +16,7 @@ import { ManualDiarizationWorkflow } from './components/ManualDiarizationWorkflo
 import { ManualAduWorkflow } from './components/ManualAduWorkflow';
 import { ManualRebuttalWorkflow } from './components/ManualRebuttalWorkflow';
 import { StyleChangeDialog } from './components/StyleChangeDialog';
-import { TRANSCRIPTION_MODELS } from '../../../../../constants/models';
+import { TRANSCRIPTION_MODELS, NLP_LLMS, NLPLLMValue } from '../../../../../constants/models';
 
 
 
@@ -66,49 +66,19 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [isEditingMotion, setIsEditingMotion] = useState(false); // For recovery
 
     // LLM Model State - Initialize from localStorage
-    const [geminiModels, setGeminiModels] = useState<string[]>(() => {
+    const [llmModel, setLlmModel] = useState<NLPLLMValue>(() => {
         if (typeof window !== 'undefined') {
-            const cached = localStorage.getItem('geminiModels');
-            if (cached) {
-                return JSON.parse(cached);
+            const stored = localStorage.getItem('llmModel');
+            if (stored) {
+                // 表示形式の場合は内部形式に変換
+                const converted = toInternalModelName(stored);
+                // 現在の環境で有効か確認
+                const isValid = NLP_LLMS.available().some(m => m.value === converted);
+                return isValid ? (converted as NLPLLMValue) : NLP_LLMS.default();
             }
         }
-        return ["gemini-2.5-flash (google ai studio)", "gemini-3-flash (google ai studio)"];
+        return NLP_LLMS.default();
     });
-
-    const [llmModel, setLlmModel] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('llmModel') || "gemini-2.5-flash (google ai studio)";
-        }
-        return "gemini-2.5-flash (google ai studio)";
-    });
-
-    useEffect(() => {
-        const fetchModels = async () => {
-            try {
-                const res = await fetch(getAPIRoot() + '/audio2adu/gemini-models');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.models) {
-                        let formattedModels = data.models.map((m: string) => formatModelName(m));
-                        // 本番環境では Vertex AI モデルを除外
-                        if (process.env.NODE_ENV === 'production') {
-                            formattedModels = formattedModels.filter((m: string) => !m.includes('vertex ai'));
-                        }
-                        setGeminiModels(formattedModels);
-                        localStorage.setItem('geminiModels', JSON.stringify(formattedModels));
-                        // Only set default if localStorage doesn't have a value
-                        if (!localStorage.getItem('llmModel') && formattedModels.length > 0) {
-                            setLlmModel(formattedModels[0]);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to fetch Gemini models", e);
-            }
-        };
-        fetchModels();
-    }, []);
 
     // Save llmModel to localStorage
     useEffect(() => {
@@ -585,7 +555,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             onChange={(e) => setTranscriptionModel(e.target.value)}
                             className="h-9 px-3 bg-white dark:bg-slate-900 border-0 ring-1 ring-slate-200/80 dark:ring-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200"
                         >
-                            {TRANSCRIPTION_MODELS.map((model) => (
+                            {TRANSCRIPTION_MODELS.list.map((model) => (
                                 <option
                                     key={model.value}
                                     value={model.value}
@@ -864,7 +834,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                         onChange={(e) => setTranscriptionModel(e.target.value)}
                                                         className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/50"
                                                     >
-                                                        {TRANSCRIPTION_MODELS.map((model) => (
+                                                        {TRANSCRIPTION_MODELS.list.map((model) => (
                                                             <option
                                                                 key={model.value}
                                                                 value={model.value}
@@ -915,11 +885,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                     </label>
                                                     <select
                                                         value={llmModel}
-                                                        onChange={(e) => setLlmModel(e.target.value)}
+                                                        onChange={(e) => setLlmModel(e.target.value as NLPLLMValue)}
                                                         className="h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/50"
                                                     >
-                                                        {geminiModels.map((m) => (
-                                                            <option key={m} value={m}>{m}</option>
+                                                        {NLP_LLMS.available().map((model) => (
+                                                            <option key={model.value} value={model.value}>{model.label}</option>
                                                         ))}
                                                     </select>
                                                 </div>

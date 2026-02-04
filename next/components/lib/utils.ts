@@ -62,27 +62,18 @@ export function calculateMode(numbers: number[]): number | null {
 }
 
 /**
- * Convert internal model format to display format
- * "gemini_2_5_flash_studio" → "gemini-2.5-flash (google ai studio)"
- * "gemini_2_5_flash_vertex" → "gemini-2.5-flash (vertex ai)"
- */
-export function formatModelName(internalName: string): string {
-    const modelMap: { [key: string]: string } = {
-        "gemini_2_5_flash_studio": "gemini-2.5-flash (google ai studio)",
-        "gemini_2_5_flash_vertex": "gemini-2.5-flash (vertex ai)",
-        "gemini_2_5_flash_lite_studio": "gemini-2.5-flash-lite (google ai studio)",
-        "gemini_2_5_flash_lite_vertex": "gemini-2.5-flash-lite (vertex ai)",
-        "gemini_3_flash_studio": "gemini-3-flash (google ai studio)",
-    };
-    return modelMap[internalName] || internalName;
-}
-
-/**
- * Convert display format back to internal model format
+ * Convert display format to internal model format (backward compatibility)
  * "gemini-2.5-flash (google ai studio)" → "gemini_2_5_flash_studio"
- * "gemini-2.5-flash (vertex ai)" → "gemini_2_5_flash_vertex"
+ * If already in internal format, returns as-is
  */
 export function toInternalModelName(displayName: string): string {
+    // Check if already in internal format
+    const internalPattern = /^gemini_\d+_\d+_flash(_lite)?_(studio|vertex)$/;
+    if (internalPattern.test(displayName)) {
+        return displayName;
+    }
+
+    // Otherwise convert from display format (for localStorage backward compatibility)
     const reverseMap: { [key: string]: string } = {
         "gemini-2.5-flash (google ai studio)": "gemini_2_5_flash_studio",
         "gemini-2.5-flash (vertex ai)": "gemini_2_5_flash_vertex",
