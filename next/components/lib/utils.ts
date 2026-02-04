@@ -73,7 +73,6 @@ export function formatModelName(internalName: string): string {
         "gemini_2_5_flash_lite_studio": "gemini-2.5-flash-lite (google ai studio)",
         "gemini_2_5_flash_lite_vertex": "gemini-2.5-flash-lite (vertex ai)",
         "gemini_3_flash_studio": "gemini-3-flash (google ai studio)",
-        "gemini_3_flash_vertex": "gemini-3-flash (vertex ai)",
     };
     return modelMap[internalName] || internalName;
 }
@@ -90,7 +89,6 @@ export function toInternalModelName(displayName: string): string {
         "gemini-2.5-flash-lite (google ai studio)": "gemini_2_5_flash_lite_studio",
         "gemini-2.5-flash-lite (vertex ai)": "gemini_2_5_flash_lite_vertex",
         "gemini-3-flash (google ai studio)": "gemini_3_flash_studio",
-        "gemini-3-flash (vertex ai)": "gemini_3_flash_vertex",
     };
     return reverseMap[displayName] || displayName;
 }
