@@ -29,6 +29,7 @@ interface ProcessingStepsProps {
     downloadProgress?: number;
     renderStepContent?: (stepId: number) => React.ReactNode;
     jobProgress?: any;
+    isProcessing?: Set<string>;
 }
 
 export default function ProcessingSteps({
@@ -40,7 +41,8 @@ export default function ProcessingSteps({
     renderStepContent,
     jobProgress,
     headerContent,
-    children
+    children,
+    isProcessing
 }: ProcessingStepsProps & { headerContent?: React.ReactNode, children?: React.ReactNode }) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -101,7 +103,12 @@ export default function ProcessingSteps({
         if (isRegistrationComplete && currentStep > 0 && currentStep <= 5) {
             setExpandedStep(currentStep);
         }
-    }, [currentStep, isRegistrationComplete]);
+
+        // Also auto-expand Step 1 if step1-all is processing
+        if (isRegistrationComplete && isProcessing?.has('step1-all')) {
+            setExpandedStep(1);
+        }
+    }, [currentStep, isRegistrationComplete, isProcessing]);
 
     const steps: Step[] = [
         {
@@ -225,16 +232,16 @@ export default function ProcessingSteps({
                                                             // Use jobProgress data for Step 1 sub-steps
                                                             if (subIndex === 0) {
                                                                 subStatus = isStep1aDone ? 'completed' :
-                                                                    (status === 'processing' ? 'processing' : 'pending');
+                                                                    (status === 'processing' || isProcessing?.has('1-a') ? 'processing' : 'pending');
                                                             } else if (subIndex === 1) {
                                                                 subStatus = isStep1bDone ? 'completed' :
-                                                                    (status === 'processing' && isStep1aDone) ? 'processing' : 'pending';
+                                                                    (status === 'processing' && isStep1aDone || isProcessing?.has('1-b')) ? 'processing' : 'pending';
                                                             } else if (subIndex === 2) {
                                                                 subStatus = isStep1cDone ? 'completed' :
-                                                                    (status === 'processing' && isStep1bDone) ? 'processing' : 'pending';
+                                                                    ((status === 'processing' && isStep1bDone) || isProcessing?.has('1-c')) ? 'processing' : 'pending';
                                                             } else if (subIndex === 3) {
                                                                 subStatus = isStep1dDone ? 'completed' :
-                                                                    (status === 'processing' && isStep1cDone) ? 'processing' : 'pending';
+                                                                    ((status === 'processing' && isStep1cDone) || isProcessing?.has('1-d')) ? 'processing' : 'pending';
                                                             }
                                                         } else if (status === 'processing') {
                                                             // Fallback: show all as processing if no jobProgress data
@@ -320,16 +327,21 @@ export default function ProcessingSteps({
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                if (status === 'processing') {
+                                                                const isStep1Processing = isProcessing?.has('step1-all');
+                                                                if (isStep1Processing || status === 'processing') {
                                                                     onStepAction(step.id, 'cancel');
                                                                 } else {
                                                                     onStepAction(step.id, 'run');
                                                                 }
                                                             }}
                                                             disabled={status === 'completed'}
-                                                            className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                            className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                                                                (isProcessing?.has('step1-all') || status === 'processing')
+                                                                    ? 'bg-red-600 hover:bg-red-700'
+                                                                    : 'bg-indigo-600 hover:bg-indigo-700'
+                                                            }`}
                                                         >
-                                                            {status === 'processing' ? (
+                                                            {(isProcessing?.has('step1-all') || status === 'processing') ? (
                                                                 <>
                                                                     <X size={14} />
                                                                     Cancel

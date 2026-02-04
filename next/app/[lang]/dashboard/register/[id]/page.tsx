@@ -240,6 +240,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         isEndToEndRef.current = workflowMode === 'end-to-end';
     }, [workflowMode]);
 
+    // Track if "Run All Steps" button was used (for auto-continuation)
+    const isRunAllStepsRef = useRef(false);
+
     // Auto-continue: Step 1-A → 1-B, Step 1-B → 1-C, 1-D, then Step 2-4
     const prevJobProgressRef = useRef<any>(null);
     useEffect(() => {
@@ -259,7 +262,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             // Step 1-A just completed, show toast and continue with 1-B via runStep1
             toast.success(t('dashboard.steps.messages.audioDownloadCompleted') || 'Step 1-A: Audio download completed', { duration: 3000 });
             // runStep1 will skip 1-A and start 1-B background task
-            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
         }
 
         // Check if Step 1-B just completed
@@ -270,17 +273,18 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
             // Step 1-B just completed, show toast and continue with 1-C and 1-D via runStep1
             toast.success(t('dashboard.steps.messages.transcriptionCompleted') || 'Step 1-B: Transcription completed', { duration: 3000 });
             // runStep1 handles: result retrieval, 1-C, 1-D with skip logic
-            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
         }
 
         // Check if Step 1-D just completed AND we're in end-to-end mode
         const prevStep1dStatus = mapBackgroundStatus(prev.step_1d);
         const currStep1dStatus = mapBackgroundStatus(curr.step_1d);
 
-        if (prevStep1dStatus !== 'done' && currStep1dStatus === 'done' && isEndToEndRef.current) {
-            // Step 1-D just completed and end-to-end mode is active, continue with Steps 2-4
+        if (prevStep1dStatus !== 'done' && currStep1dStatus === 'done' && isEndToEndRef.current && isRunAllStepsRef.current) {
+            // Step 1-D just completed and end-to-end mode is active AND "Run All Steps" was used, continue with Steps 2-4
             console.log(`[Register] Step 1 fully completed, starting Steps 2-4`);
             toast.success(t('dashboard.steps.messages.step1Complete') || 'Step 1 fully completed!', { duration: 3000 });
+            isRunAllStepsRef.current = false; // Reset flag
 
             (async () => {
                 try {
@@ -432,7 +436,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
 
         if (stepIndex === 1) {
-            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+            runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
             return;
         }
 
@@ -588,6 +592,13 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         const toastId = toast.loading('Cancelling process...');
 
         try {
+            // Check if Step 1-C, 1-D, or 2-4 is running (frontend-tracked or in progress)
+            if (isProcessing.has('1-c') || isProcessing.has('1-d') || isProcessing.has('2') || isProcessing.has('3') || isProcessing.has('4')) {
+                toast.dismiss(toastId);
+                toast.success('Cancel signal sent - page reload required');
+                return;
+            }
+
             const result = await cancelTranscription(roundData.video_id, jobProgress);
 
             toast.dismiss(toastId);
@@ -738,46 +749,6 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
 
         if (stepId !== 1 || workflowMode === 'end-to-end') return null; // Model selection moved to Header for End-to-End
-
-        // Step 1-C～4: Show loading indicators if processing
-        if (stepId === 1 && (isProcessing.has('1-c') || isProcessing.has('1-d'))) {
-            return (
-                <div className="p-4">
-                    <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="flex gap-2">
-                                {isProcessing.has('1-c') && (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-white relative">
-                                            <span>C</span>
-                                            <div
-                                                className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
-                                                style={{ borderTopColor: '#16a34a' }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                                {isProcessing.has('1-d') && (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-white relative">
-                                            <span>D</span>
-                                            <div
-                                                className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
-                                                style={{ borderTopColor: '#16a34a' }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <p className="text-sm text-slate-700 dark:text-slate-300">
-                                {isProcessing.has('1-c') && !isProcessing.has('1-d') && 'Extracting words...'}
-                                {isProcessing.has('1-d') && 'Grouping sentences...'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
 
         return (
             <div className="mt-4 mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -1026,18 +997,12 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 mb-8 min-h-[400px]">
                         <ProcessingSteps
                             currentStep={currentStep}
-                            stepsStatus={(() => {
-                                // Override stepsStatus for Steps 2-4 when they're processing
-                                const displayStatus = [...stepsStatus];
-                                if (isProcessing.has('2') && displayStatus[1] !== 'completed') displayStatus[1] = 'processing';
-                                if (isProcessing.has('3') && displayStatus[2] !== 'completed') displayStatus[2] = 'processing';
-                                if (isProcessing.has('4') && displayStatus[3] !== 'completed') displayStatus[3] = 'processing';
-                                return displayStatus;
-                            })()}
+                            stepsStatus={stepsStatus}
                             onStepAction={handleStepAction}
                             isRegistrationComplete={true}
                             renderStepContent={renderStepExtras}
                             jobProgress={jobProgress}
+                            isProcessing={isProcessing}
                             headerContent={
                                 <div className="mb-6">
                                     <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-md mx-auto">
@@ -1141,6 +1106,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
 
                                             <button
                                                 onClick={isAnyProcessRunning() ? handleCancelProcess : async () => {
+                                                    // Mark that "Run All Steps" was used for auto-continuation
+                                                    isRunAllStepsRef.current = true;
+
                                                     // If Step 1 is already completed, start Steps 2-4
                                                     if (stepsStatus[0] === 'completed') {
                                                         try {
@@ -1199,7 +1167,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                         }
                                                     } else {
                                                         // Start Step 1, auto-continue will handle Steps 2-4
-                                                        runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress);
+                                                        runStep1(roundData, setStepsStatus, stepsStatus, fetchJobProgress, undefined, setIsProcessing);
                                                     }
                                                 }}
                                                 className={`w-full py-4 font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3 ${
