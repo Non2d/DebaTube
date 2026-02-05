@@ -62,7 +62,10 @@ export function useDebateGraph(roundName: string) {
 
             if (!response.ok) {
                 if (response.status === 404 && targetTryCount !== undefined && targetTryCount !== null) {
-                    alert(t('recordPage.messages.matchNotFound', { count: targetTryCount }));
+                    toast.error(t('recordPage.messages.matchNotFound', { count: targetTryCount }), {
+                        position: 'top-center',
+                        duration: 4000,
+                    });
                 } else {
                     console.warn(`[autoLoadGraphData] Graph not found for round: ${roundNameToLoad}`);
                 }
@@ -98,10 +101,16 @@ export function useDebateGraph(roundName: string) {
                     setGraphData(json);
                     setAutoLoadedGraphData(json);
                 } else {
-                    alert(t('recordPage.messages.invalidJson'));
+                    toast.error(t('recordPage.messages.invalidJson'), {
+                        position: 'top-center',
+                        duration: 4000,
+                    });
                 }
             } catch (error) {
-                alert(t('recordPage.messages.failedJson', { error: error instanceof Error ? error.message : String(error) }));
+                toast.error(t('recordPage.messages.failedJson', { error: error instanceof Error ? error.message : String(error) }), {
+                    position: 'top-center',
+                    duration: 4000,
+                });
             }
         };
         reader.readAsText(file);

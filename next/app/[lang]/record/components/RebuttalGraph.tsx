@@ -27,10 +27,9 @@ interface RebuttalGraphProps {
   onNodeClick?: (nodeId: number, startTime: number) => void;
   debateFormat?: string;
   showNodeIds?: boolean;
-  showPoiColors?: boolean;
 }
 
-const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debateFormat, showNodeIds = true, showPoiColors = true }) => {
+const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debateFormat, showNodeIds = true }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -176,7 +175,6 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
               isBackground: false,
               isPoi: isPoi,
               showNodeIds: showNodeIds,
-              showPoiColors: showPoiColors,
             },
           });
           // ノードの start_time をリファレンスに保存
@@ -287,7 +285,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
       console.error("Error converting graph data:", error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, debateFormat, showNodeIds, showPoiColors]);
+  }, [data, debateFormat, showNodeIds]);
 
   const proOptions = { hideAttribution: true };
 

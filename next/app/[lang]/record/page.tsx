@@ -37,19 +37,15 @@ export default function RecordPage() {
   const [isUnifiedPlaying, setIsUnifiedPlaying] = useState(false);
 
   const [roundCandidates, setRoundCandidates] = useState<string[]>([]);
-  const [showNodeIds, setShowNodeIds] = useState(true);
-  const [showPoiColors, setShowPoiColors] = useState(true);
+  const [showNodeIds, setShowNodeIds] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedNodeIds = localStorage.getItem('graph_show_node_ids');
       if (savedNodeIds !== null) {
         setShowNodeIds(savedNodeIds === 'true');
-      }
-
-      const savedPoiColors = localStorage.getItem('graph_show_poi_colors');
-      if (savedPoiColors !== null) {
-        setShowPoiColors(savedPoiColors === 'true');
+      } else {
+        setShowNodeIds(true); // Default to true if not in localStorage
       }
     }
   }, []);
@@ -155,12 +151,13 @@ export default function RecordPage() {
       setDebateFormat(savedFormat as DebateFormatType);
     }
 
-    // Fetch round candidates
+    // Fetch round candidates (type=record only)
     fetch('http://localhost:8080/rounds')
       .then(res => res.json())
       .then(data => {
-        // Unique names
-        const names = Array.from(new Set(data.map((r: any) => r.name))).sort() as string[];
+        // Filter by type=record and get unique names
+        const recordRounds = data.filter((r: any) => r.type === 'record');
+        const names = Array.from(new Set(recordRounds.map((r: any) => r.name))).sort() as string[];
         setRoundCandidates(names);
       })
       .catch(err => console.error('Failed to fetch rounds:', err));
@@ -181,6 +178,20 @@ export default function RecordPage() {
       localStorage.setItem('debate_round_name', defaultName);
     }
   }, []);
+
+  // Auto-load latest version when round name changes
+  useEffect(() => {
+    if (roundName) {
+      fetch(`http://localhost:8080/rounds/${roundName}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.try_count) {
+            setTryCount(data.try_count);
+          }
+        })
+        .catch(err => console.error('Failed to fetch latest version:', err));
+    }
+  }, [roundName]);
 
   // Restore active tab from LocalStorage
   useEffect(() => {
@@ -229,12 +240,10 @@ export default function RecordPage() {
   }, [debateFormat]);
 
   useEffect(() => {
-    localStorage.setItem('graph_show_node_ids', showNodeIds.toString());
+    if (showNodeIds !== null) {
+      localStorage.setItem('graph_show_node_ids', showNodeIds.toString());
+    }
   }, [showNodeIds]);
-
-  useEffect(() => {
-    localStorage.setItem('graph_show_poi_colors', showPoiColors.toString());
-  }, [showPoiColors]);
 
 
   // --- Handlers ---
@@ -428,8 +437,7 @@ export default function RecordPage() {
                     data={autoLoadedGraphData}
                     onNodeClick={handleGraphNodeClickUnified}
                     debateFormat={debateFormat}
-                    showNodeIds={showNodeIds}
-                    showPoiColors={showPoiColors}
+                    showNodeIds={showNodeIds ?? true}
                   />
                 </div>
               )}
@@ -450,17 +458,17 @@ export default function RecordPage() {
               </div>
 
               <div className="mt-2 mb-2">
-                <VisualizationControlBar
-                  roundName={roundName}
-                  setRoundName={setRoundName}
-                  tryCount={tryCount}
-                  setTryCount={setTryCount}
-                  roundCandidates={roundCandidates}
-                  showPoiColors={showPoiColors}
-                  setShowPoiColors={setShowPoiColors}
-                  showNodeIds={showNodeIds}
-                  setShowNodeIds={setShowNodeIds}
-                />
+                {showNodeIds !== null && (
+                  <VisualizationControlBar
+                    roundName={roundName}
+                    setRoundName={setRoundName}
+                    tryCount={tryCount}
+                    setTryCount={setTryCount}
+                    roundCandidates={roundCandidates}
+                    showNodeIds={showNodeIds}
+                    setShowNodeIds={setShowNodeIds}
+                  />
+                )}
               </div>
             </div>
           )}

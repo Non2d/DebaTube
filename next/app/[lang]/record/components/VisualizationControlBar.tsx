@@ -9,8 +9,6 @@ interface VisualizationControlBarProps {
     tryCount: number | null;
     setTryCount: (count: number | null) => void;
     roundCandidates: string[];
-    showPoiColors: boolean;
-    setShowPoiColors: (show: boolean) => void;
     showNodeIds: boolean;
     setShowNodeIds: (show: boolean) => void;
 }
@@ -21,8 +19,6 @@ export default function VisualizationControlBar({
     tryCount,
     setTryCount,
     roundCandidates,
-    showPoiColors,
-    setShowPoiColors,
     showNodeIds,
     setShowNodeIds
 }: VisualizationControlBarProps) {
@@ -64,23 +60,6 @@ export default function VisualizationControlBar({
 
                 {/* Display Options Toggles */}
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 dark:bg-slate-800 px-6 py-3 rounded-xl ring-1 ring-slate-200/80 dark:ring-slate-700">
-                    {/* POI Toggle */}
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{t('recordPage.toggles.poiColor')}</span>
-                        <button
-                            onClick={() => setShowPoiColors(!showPoiColors)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showPoiColors ? 'bg-indigo-600' : 'bg-slate-300'
-                                }`}
-                        >
-                            <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out shadow-sm ${showPoiColors ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
-                            />
-                        </button>
-                    </div>
-
-                    <div className="w-px h-6 bg-slate-300 mx-2"></div>
-
                     {/* Node ID Toggle */}
                     <div className="flex items-center gap-3">
                         <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{t('recordPage.toggles.nodeId')}</span>

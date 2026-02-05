@@ -3,9 +3,11 @@ import { Handle, Position } from "reactflow";
 import { BaseEdge, getStraightPath } from 'reactflow';
 
 export const govNode = ({ data }: { data: any }) => {
-  // POI色分けが無効でPOIノードの場合は青色（元のチーム色）、それ以外は赤色
-  const isBlue = (!data.showPoiColors && data.isPoi);
-  const bgClass = isBlue ? "bg-[#0065bd] dark:bg-blue-400" : "bg-red-600 dark:bg-red-400";
+  // POI色分けは常にON：赤色
+  const bgClass = "bg-red-600 dark:bg-red-400";
+  // POI時は右、通常時は左
+  const nodeIdPosition = data.isPoi ? 'right' : 'left';
+  const nodeIdStyle = data.isPoi ? { right: '-25px' } : { left: '-25px' };
 
   return (
     <div style={{ position: 'relative', height: '8px', display: 'flex', alignItems: 'center' }}>
@@ -25,7 +27,7 @@ export const govNode = ({ data }: { data: any }) => {
           className="text-[#333] dark:text-gray-200"
           style={{
             position: 'absolute',
-            left: '-25px',
+            ...nodeIdStyle,
             top: '50%',
             transform: 'translateY(-50%)',
             fontSize: '10px',
@@ -39,9 +41,10 @@ export const govNode = ({ data }: { data: any }) => {
 };
 
 export const oppNode = ({ data }: { data: any }) => {
-  // POI色分けが無効でPOIノードの場合は赤色（元のチーム色）、それ以外は青色
-  const isRed = (!data.showPoiColors && data.isPoi);
-  const bgClass = isRed ? "bg-red-600 dark:bg-red-400" : "bg-[#0065bd] dark:bg-blue-400";
+  // POI色分けは常にON：青色
+  const bgClass = "bg-[#0065bd] dark:bg-blue-400";
+  // POI時は左、通常時は右
+  const nodeIdStyle = data.isPoi ? { left: '-25px' } : { right: '-25px' };
 
   return (
     <div style={{ position: 'relative', height: '8px', display: 'flex', alignItems: 'center' }}>
@@ -61,7 +64,7 @@ export const oppNode = ({ data }: { data: any }) => {
           className="text-[#333] dark:text-gray-200"
           style={{
             position: 'absolute',
-            right: '-25px',
+            ...nodeIdStyle,
             top: '50%',
             transform: 'translateY(-50%)',
             fontSize: '10px',
