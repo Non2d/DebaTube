@@ -77,11 +77,14 @@ const DebateGraphs = () => {
   // 各MacroStructureコンポーネントへのrefを格納する配列
   const macroStructureRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
 
   // debateItemsから動的にタブを生成
-  const [tabValues, setTabValues] = useState<Array<{ value: string; label: string }>>([
-    { value: "All", label: "All" },
+  const [tabValues, setTabValues] = useState<Array<{ value: string; label: string; count: number }>>([
+    { value: "All", label: "All", count: 0 },
   ]);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const sortOptions = [
     { value: "Date", labelKey: "explore.sort.date", descriptionKey: "explore.sort.dateDesc" },
@@ -107,8 +110,8 @@ const DebateGraphs = () => {
       }
     })
       .then(response => response.json())
-      .then((data: Round[]) => {
-        const debateItems = data
+      .then((data: { rounds: Round[]; tags: Array<{ value: string; label: string; count: number }> }) => {
+        const debateItems = data.rounds
           .filter(round => {
             // Only show rounds where STEP 4 (Rebuttal Identification) is completed.
             // We assume completion if there is at least some rebuttal data and speech data.
@@ -137,31 +140,8 @@ const DebateGraphs = () => {
           }));
 
         setDebateItems(debateItems);
-
-        // round.tagsからタブを動的に生成（カンマ区切り）
-        const uniqueTags = new Set<string>();
-        debateItems.forEach(item => {
-          if (item.tags) {
-            // カンマ区切りで複数のタグが含まれる場合に対応
-            const tags = item.tags.split(',').map(t => t.trim());
-            tags.forEach(tag => {
-              if (tag) {
-                uniqueTags.add(tag);
-              }
-            });
-          }
-        });
-
-        // ソート済みの新しいタブ配列を作成
-        const newTabValues = [
-          { value: "All", label: "All" },
-          ...Array.from(uniqueTags).sort().map(tag => ({
-            value: tag,
-            label: tag,
-          })),
-        ];
-
-        setTabValues(newTabValues);
+        setTabValues(data.tags);
+        setCanScrollRight(true);
         setIsLoading(false);
       })
       .catch(error => {
@@ -217,6 +197,41 @@ const DebateGraphs = () => {
 
     setDisplayDebateItems([...sortedPinnedItems, ...unpinnedItems]);
   }, [pinnedItems, selectedDebateItems, sortOption, sortOrder]);
+
+  // タブスクロール関数
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsScrollRef.current) {
+      const scrollAmount = 200;
+      if (direction === 'left') {
+        tabsScrollRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        tabsScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+    }
+  };
+
+  // タブスクロール状態の更新
+  const updateScrollButtons = () => {
+    if (tabsScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsScrollRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  // タブコンテナのスクロール時に呼び出す
+  useEffect(() => {
+    updateScrollButtons();
+    const container = tabsScrollRef.current;
+    if (container) {
+      container.addEventListener('scroll', updateScrollButtons);
+      window.addEventListener('resize', updateScrollButtons);
+      return () => {
+        container.removeEventListener('scroll', updateScrollButtons);
+        window.removeEventListener('resize', updateScrollButtons);
+      };
+    }
+  }, [tabValues]);
 
   const onMovieItemClicked = (id: number) => async () => {
     setPinnedItems((prev) => {
@@ -291,7 +306,7 @@ const DebateGraphs = () => {
       <div className="bg-background text-foreground flex flex-col w-full mx-auto p-4 gap-2 min-h-screen pt-20">
         {/* --- コンテンツヘッダー --- */}
         <header className="flex items-center justify-between bg-background border-b border-gray-100 dark:border-gray-700 pb-4">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
             {isLoading ? (
               <div className="flex gap-2">
                 {[...Array(4)].map((_, i) => (
@@ -299,15 +314,39 @@ const DebateGraphs = () => {
                 ))}
               </div>
             ) : (
-              <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
-                <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9">
-                  {tabValues.map((tab) => (
-                    <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm">
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
+              <>
+                <button
+                  onClick={() => scrollTabs('left')}
+                  disabled={!canScrollLeft}
+                  className="flex-shrink-0 p-1 rounded-md transition-colors disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:hover:bg-transparent dark:disabled:hover:bg-transparent"
+                  aria-label="Scroll tabs left"
+                >
+                  &lt;
+                </button>
+                <div
+                  ref={tabsScrollRef}
+                  className="overflow-x-auto scrollbar-hide"
+                  style={{ scrollBehavior: 'smooth' }}
+                >
+                  <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
+                    <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9 inline-flex">
+                      {tabValues.map((tab) => (
+                        <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm flex-shrink-0 text-white">
+                          {tab.label} <span className="ml-1 text-xs">({tab.count})</span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                </div>
+                <button
+                  onClick={() => scrollTabs('right')}
+                  disabled={!canScrollRight}
+                  className="flex-shrink-0 p-1 rounded-md transition-colors disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:hover:bg-transparent dark:disabled:hover:bg-transparent"
+                  aria-label="Scroll tabs right"
+                >
+                  &gt;
+                </button>
+              </>
             )}
           </div>
 

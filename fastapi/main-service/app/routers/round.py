@@ -745,7 +745,7 @@ async def get_round_graph(round_id: int, db: AsyncSession = Depends(get_db)):
 
 from models.external_video import ExternalVideo # Ensure this import exists at top level if not already
 
-@router.get("/batch-rounds-with-features", response_model=List[Dict[str, Any]])
+@router.get("/batch-rounds-with-features", response_model=Dict[str, Any])
 async def batch_rounds_with_features(db: AsyncSession = Depends(get_db)):
     """
     Fetch all rounds with complete graph features (Speeches, ADUs, Rebuttals).
@@ -880,5 +880,29 @@ async def batch_rounds_with_features(db: AsyncSession = Depends(get_db)):
                 "speeches": formatted_speeches, # Ordered list
                 "rebuttals": rebuttals_data # List of objects
             })
-            
-    return response_list
+
+    # タグの頻度をカウント
+    tag_frequency: dict = {}
+    for item in response_list:
+        if item.get("tags"):
+            # カンマ区切りで複数のタグが含まれる場合に対応
+            tags = [t.strip() for t in item["tags"].split(",") if t.strip()]
+            for tag in tags:
+                tag_frequency[tag] = tag_frequency.get(tag, 0) + 1
+
+    # 出現頻度でソート（多い順）、同じ頻度ならアルファベット順
+    sorted_tags = sorted(
+        tag_frequency.items(),
+        key=lambda x: (-x[1], x[0])
+    )
+
+    # タグリストを生成
+    tags_list = [
+        {"value": "All", "label": "All", "count": len(response_list)},
+        *[{"value": tag, "label": tag, "count": count} for tag, count in sorted_tags]
+    ]
+
+    return {
+        "rounds": response_list,
+        "tags": tags_list
+    }

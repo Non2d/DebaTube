@@ -178,4 +178,14 @@ body {
     @apply w-4 h-4 rounded-full bg-red-500 border-none cursor-pointer;
     box-shadow: 0 0 2px 0 rgba(0, 0, 0, 0.2);
   }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
