@@ -865,8 +865,8 @@ async def batch_rounds_with_features(db: AsyncSession = Depends(get_db)):
                 "description": r.note or "",
                 "motion": r.motion or "",
                 "date_uploaded": published_date,
-                "channel_id": "", 
-                "tag": r.type,
+                "channel_id": "",
+                "tags": r.tags or "",
                 "style": r.style,
                 "try_count": r.try_count,
                  # Dummy features for legacy compatibility

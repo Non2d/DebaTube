@@ -23,7 +23,7 @@ interface DebateItem { //UI表示用にデータ生成する際のバリデー�
   title: string
   motion: string
   publishedAt: string
-  tag: string
+  tags: string
   description: string
   features: MacroStructuralFeatures
   tryCount: number
@@ -45,7 +45,7 @@ interface Round { //取得時のバリデーション
   motion: string;
   date_uploaded: string;
   channel_id: string;
-  tag: string;
+  tags: string;
   features: MacroStructuralFeatures;
   try_count: number;
   style: string;
@@ -78,18 +78,10 @@ const DebateGraphs = () => {
   const macroStructureRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  /* 
-   * タブとソートオプションの定義をuseTranslationフック内に移動するか、
-   * レンダリング時に翻訳関数を使用するように変更する必要があります。
-   * ここでは単純にレンダリング部分で翻訳キーを使用するように変更します。
-   */
-  const tabValues = [
-    { value: "All", labelKey: "explore.tabs.all" },
-    { value: "CriminalJustice", labelKey: "explore.tabs.criminalJustice" },
-    { value: "Gender", labelKey: "explore.tabs.gender" },
-    { value: "Economy", labelKey: "explore.tabs.economy" },
-    { value: "Politics", labelKey: "explore.tabs.politics" },
-  ];
+  // debateItemsから動的にタブを生成
+  const [tabValues, setTabValues] = useState<Array<{ value: string; label: string }>>([
+    { value: "All", label: "All" },
+  ]);
 
   const sortOptions = [
     { value: "Date", labelKey: "explore.sort.date", descriptionKey: "explore.sort.dateDesc" },
@@ -132,7 +124,7 @@ const DebateGraphs = () => {
             motion: round.motion,
             description: round.description,
             publishedAt: round.date_uploaded,
-            tag: round.tag,
+            tags: round.tags,
             features: round.features,
             tryCount: round.try_count || 1,
             style: round.style,
@@ -145,6 +137,31 @@ const DebateGraphs = () => {
           }));
 
         setDebateItems(debateItems);
+
+        // round.tagsからタブを動的に生成（カンマ区切り）
+        const uniqueTags = new Set<string>();
+        debateItems.forEach(item => {
+          if (item.tags) {
+            // カンマ区切りで複数のタグが含まれる場合に対応
+            const tags = item.tags.split(',').map(t => t.trim());
+            tags.forEach(tag => {
+              if (tag) {
+                uniqueTags.add(tag);
+              }
+            });
+          }
+        });
+
+        // ソート済みの新しいタブ配列を作成
+        const newTabValues = [
+          { value: "All", label: "All" },
+          ...Array.from(uniqueTags).sort().map(tag => ({
+            value: tag,
+            label: tag,
+          })),
+        ];
+
+        setTabValues(newTabValues);
         setIsLoading(false);
       })
       .catch(error => {
@@ -160,7 +177,12 @@ const DebateGraphs = () => {
 
     const filteredItems = selectedTab === 'All'
       ? debateItems
-      : debateItems.filter(item => item.tag && item.tag.toLowerCase().includes(selectedTab.toLowerCase()));
+      : debateItems.filter(item => {
+        if (!item.tags) return false;
+        // round.tagsはカンマ区切りの複数のタグを含む可能性がある
+        const itemTags = item.tags.split(',').map(t => t.trim());
+        return itemTags.includes(selectedTab);
+      });
 
     setSelectedDebateItems(filteredItems);
   }, [selectedTab, debateItems]);
@@ -270,15 +292,23 @@ const DebateGraphs = () => {
         {/* --- コンテンツヘッダー --- */}
         <header className="flex items-center justify-between bg-background border-b border-gray-100 dark:border-gray-700 pb-4">
           <div className="flex items-center gap-6">
-            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
-              <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9">
-                {tabValues.map((tab) => (
-                  <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm">
-                    {t(tab.labelKey)}
-                  </TabsTrigger>
+            {isLoading ? (
+              <div className="flex gap-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-9 w-20 bg-gray-300 dark:bg-gray-700 rounded-md animate-pulse"></div>
                 ))}
-              </TabsList>
-            </Tabs>
+              </div>
+            ) : (
+              <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
+                <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9">
+                  {tabValues.map((tab) => (
+                    <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm">
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
