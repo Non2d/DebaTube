@@ -22,6 +22,7 @@ class Round(Base):
     note = Column(Text, nullable=True)
     style = Column(String(50), default="british_parliamentary", nullable=False) # british_parliamentary, north_american, etc.
     motion = Column(Text, nullable=True)
+    tags = Column(String(255), nullable=True)  # タグ（最大100文字程度）
     video_id = Column(String(255), nullable=True)  # 外部キー制約を削除
     owner_id = Column(String(255), nullable=True)
     raw_transcription = Column(JSON, nullable=True)  # Full transcription before diarization
