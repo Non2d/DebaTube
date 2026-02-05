@@ -930,6 +930,20 @@ export default function VideoDashboard() {
                                     {(() => {
                                       const progress = jobProgress.get(round.id);
 
+                                      // Loading skeleton when progress data is not yet loaded
+                                      if (progress === undefined) {
+                                        return (
+                                          <div className="flex items-center gap-1">
+                                            {Array.from({ length: 5 }).map((_, i) => (
+                                              <div
+                                                key={i}
+                                                className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse"
+                                              />
+                                            ))}
+                                          </div>
+                                        );
+                                      }
+
                                       // 1-B以降の依存関係エラー（1-Aを無視）
                                       const laterStepsError = progress ? (
                                         (progress.step_1c !== 'not_in_queue' && progress.step_1b !== 'done') ||

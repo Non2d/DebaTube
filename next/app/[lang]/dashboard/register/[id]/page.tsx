@@ -1051,6 +1051,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             jobProgress={jobProgress}
                             currentProcessingStep={currentProcessingStep}
                             currentJobCancellationTarget={currentJobCancellationTarget}
+                            isLoadingProgress={!jobProgress}
                             headerContent={
                                 <div className="mb-6">
                                     <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-md mx-auto">

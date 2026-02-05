@@ -31,6 +31,7 @@ interface ProcessingStepsProps {
     jobProgress?: any;
     currentProcessingStep?: string | null;
     currentJobCancellationTarget?: 'external-bg-task' | 'sync-task' | null;
+    isLoadingProgress?: boolean;
 }
 
 export default function ProcessingSteps({
@@ -44,7 +45,8 @@ export default function ProcessingSteps({
     headerContent,
     children,
     currentProcessingStep,
-    currentJobCancellationTarget
+    currentJobCancellationTarget,
+    isLoadingProgress = false
 }: ProcessingStepsProps & { headerContent?: React.ReactNode, children?: React.ReactNode }) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -157,7 +159,28 @@ export default function ProcessingSteps({
 
             {children ? children : (
                 <div className="space-y-3">
-                    {steps.map((step, index) => {
+                    {/* Loading Skeleton for Progress */}
+                    {isLoadingProgress && (
+                        <>
+                            {steps.map((step) => (
+                                <div
+                                    key={`skeleton-${step.id}`}
+                                    className="relative rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 animate-pulse"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-4 bg-slate-300 dark:bg-slate-600 rounded w-40" />
+                                            <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-64" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    )}
+
+                    {/* Actual Steps */}
+                    {!isLoadingProgress && steps.map((step, index) => {
                         const status = isRegistrationComplete ? stepsStatus[index] : 'disabled';
                         const isActive = expandedStep === step.id;
                         const isClickable = isRegistrationComplete && status !== 'disabled';
@@ -214,7 +237,22 @@ export default function ProcessingSteps({
                                             {/* Sub-steps Visualization */}
                                             {step.subSteps && (
                                                 <div className="mb-6 flex flex-col gap-2">
-                                                    {step.subSteps.map((subStep, subIndex) => {
+                                                    {/* Loading Skeleton */}
+                                                    {!jobProgress && step.id === 1 && (
+                                                        <>
+                                                            {step.subSteps.map((_, skeletonIndex) => (
+                                                                <div key={`skeleton-${skeletonIndex}`} className="flex items-center gap-3 p-2 rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse">
+                                                                    <div className="w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                                                                    <div className="flex-1 space-y-2">
+                                                                        <div className="h-4 bg-slate-300 dark:bg-slate-600 rounded w-32" />
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </>
+                                                    )}
+
+                                                    {/* Actual Content */}
+                                                    {jobProgress && step.subSteps.map((subStep, subIndex) => {
                                                         // Determine status based on jobProgress data
                                                         let subStatus: 'pending' | 'processing' | 'completed' = 'pending';
 
@@ -226,7 +264,7 @@ export default function ProcessingSteps({
 
                                                         if (status === 'completed') {
                                                             subStatus = 'completed';
-                                                        } else if (jobProgress && step.id === 1) {
+                                                        } else if (step.id === 1) {
                                                             // Use jobProgress data for Step 1 sub-steps
                                                             if (subIndex === 0) {
                                                                 subStatus = isStep1aDone ? 'completed' :
@@ -265,7 +303,7 @@ export default function ProcessingSteps({
                                                                         {subStep.title}
                                                                     </p>
                                                                     {/* Warning for 1-A: Cache deleted */}
-                                                                    {step.id === 1 && subIndex === 0 && jobProgress && (
+                                                                    {step.id === 1 && subIndex === 0 && (
                                                                         (() => {
                                                                             const cacheDeleted = !isStep1aDone && isStep1bDone;
 
@@ -281,7 +319,7 @@ export default function ProcessingSteps({
                                                                     )}
                                                                 </div>
                                                                 {/* Reset Button for SubSteps */}
-                                                                {subStatus === 'completed' && jobProgress && (
+                                                                {subStatus === 'completed' && (
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -358,7 +396,6 @@ export default function ProcessingSteps({
                             </div>
                         );
                     })}
-
                 </div>
             )}
 
