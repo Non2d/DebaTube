@@ -27,6 +27,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [motion, setMotion] = useState('');
     const [style, setStyle] = useState<string>('british_parliamentary');
+    const [tags, setTags] = useState('');
     const [videoInfo, setVideoInfo] = useState<{
         id: string;
         title: string;
@@ -147,6 +148,7 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                     type: 'external_video',
                     style: style,
                     motion: motion || null,
+                    tags: tags || null,
                     video_id: videoInfo.id,
                     owner_id: 'public',
                 }),
@@ -300,6 +302,21 @@ export default function RegisterPage({ params }: { params: { lang: string } }) {
                                     value={motion}
                                     onChange={(e) => setMotion(e.target.value)}
                                     placeholder={t('dashboard.modal.placeholders.motion')}
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    disabled={isSubmitting}
+                                />
+                            </div>
+
+                            {/* Tags */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Tags
+                                </label>
+                                <input
+                                    type="text"
+                                    value={tags}
+                                    onChange={(e) => setTags(e.target.value)}
+                                    placeholder="Enter tags (optional)"
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     disabled={isSubmitting}
                                 />

@@ -11,12 +11,13 @@ from sqlalchemy import func
 # ==================== Round CRUD ====================
 
 async def create_round(
-    db: AsyncSession, 
-    name: str, 
-    type: str = "record", 
+    db: AsyncSession,
+    name: str,
+    type: str = "record",
     note: str = None,
     style: str = None,
     motion: str = None,
+    tags: str = None,
     video_id: str = None,
     video_title: str = None,
     video_description: str = None,
@@ -52,12 +53,13 @@ async def create_round(
         
     # Roundを作成
     round_obj = Round(
-        name=name, 
+        name=name,
         try_count=new_try_count,
         type=type,
         note=note,
         style=style,
         motion=motion,
+        tags=tags,
         video_id=video_id,
         owner_id=owner_id
     )

@@ -43,7 +43,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [jobProgress, setJobProgress] = useState<any>(null);
     const [currentProcessingStep, setCurrentProcessingStep] = useState<string | null>(null); // Track current processing step: null or "1-c", "1-d", "2", "3", "4" (ぐるぐる表示用)
     const [currentJobCancellationTarget, setCurrentJobCancellationTarget] = useState<'external-bg-task' | 'sync-task' | null>(null); // For cancel logic: 'external-bg-task' for 1-A/1-B, 'sync-task' for 1-C/1-D/2-4
-    const [threadStatus, setThreadStatus] = useState<{ active_tasks: string[]; zombie_tasks: string[] } | null>(null);
+    const [threadStatus, setThreadStatus] = useState<{ active_tasks: string[]; zombie_tasks: string[]; total_active_tasks: number; total_zombie_tasks: number } | null>(null);
 
     // Ref to track stepsStatus to avoid stale closures in async callbacks
     const stepsStatusRef = useRef(stepsStatus);
@@ -69,6 +69,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [styleChangeDialog, setStyleChangeDialog] = useState<{ open: boolean, newStyle: string }>({ open: false, newStyle: '' });
     const [editedMotion, setEditedMotion] = useState("");
     const [isEditingMotion, setIsEditingMotion] = useState(false); // For recovery
+    const [editedTags, setEditedTags] = useState("");
+    const [isEditingTags, setIsEditingTags] = useState(false);
 
     // LLM Model State - Initialize from localStorage
     const [llmModel, setLlmModel] = useState<NLPLLMValue>(() => {
@@ -560,6 +562,25 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
+    const handleTagsSave = async () => {
+        try {
+            const res = await fetch(getAPIRoot() + `/rounds/${roundId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tags: editedTags })
+            });
+            if (res.ok) {
+                setRoundData({ ...roundData, tags: editedTags });
+                setIsEditingTags(false);
+                toast.success('Tags updated successfully');
+            } else {
+                toast.error('Failed to update tags');
+            }
+        } catch (error) {
+            toast.error('Error updating tags');
+        }
+    };
+
     const handleRecoverVideoId = async () => {
         if (!manualVideoUrl) {
             toast.error(t('dashboard.modal.messages.urlRequired'));
@@ -1008,6 +1029,61 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             </div>
                         </div>
 
+                        {/* Tags - Editable */}
+                        <div className="mt-4 w-full">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-gray-500 dark:text-gray-400 text-sm font-medium">Tags</span>
+                                    {!isEditingTags && (
+                                        <button
+                                            onClick={() => {
+                                                setEditedTags(roundData.tags || '');
+                                                setIsEditingTags(true);
+                                            }}
+                                            className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium transition-colors"
+                                            title="Edit Tags"
+                                        >
+                                            <Pencil size={12} />
+                                            <span className="hidden sm:inline">Edit</span>
+                                        </button>
+                                    )}
+                                </div>
+                                {isEditingTags ? (
+                                    <div className="flex flex-col gap-2">
+                                        <input
+                                            type="text"
+                                            value={editedTags}
+                                            onChange={(e) => setEditedTags(e.target.value)}
+                                            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="Enter tags..."
+                                            autoFocus
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleTagsSave}
+                                                className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
+                                            >
+                                                Save
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditingTags(false);
+                                                    setEditedTags(roundData.tags || '');
+                                                }}
+                                                className="flex-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-sm font-medium transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="px-3 py-2 bg-gray-50 dark:bg-slate-800/30 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium">
+                                        {roundData.tags || <span className="italic opacity-60">(No tags set)</span>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Recovery UI for missing video_id */}
                             {!roundData.video_id && (
                                 <div className="w-full mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
@@ -1041,11 +1117,11 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             {threadStatus && (
                                 <div className="w-full mt-4">
                                     <div className="text-sm mb-2 text-right">
-                                        <div className={`${threadStatus.zombie_tasks.length > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
-                                            {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
+                                        <div className={`${threadStatus.total_zombie_tasks > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
+                                            {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.total_active_tasks}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.total_zombie_tasks}</span>
                                         </div>
                                     </div>
-                                    {threadStatus.zombie_tasks.length > 6 && (
+                                    {threadStatus.total_zombie_tasks > 6 && (
                                         <div className="text-red-600 dark:text-red-400 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
                                             キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
                                         </div>

@@ -57,6 +57,7 @@ class RoundCreate(BaseModel):
     type: RoundType = RoundType.RECORD
     style: RoundStyle = RoundStyle.BRITISH_PARLIAMENTARY
     motion: Optional[str] = None
+    tags: Optional[str] = None
     video_id: Optional[str] = None
     video_title: Optional[str] = None
     video_description: Optional[str] = None
@@ -73,6 +74,7 @@ class RoundUpdate(BaseModel):
     """ラウンド更新リクエスト（部分更新）- 全フィールドOptional"""
     style: Optional[RoundStyle] = None
     motion: Optional[str] = None
+    tags: Optional[str] = None
 
 
 class RoundResponse(BaseModel):
@@ -83,6 +85,7 @@ class RoundResponse(BaseModel):
     note: Optional[str] = None
     style: Optional[RoundStyle] = None
     motion: Optional[str] = None
+    tags: Optional[str] = None
     video_id: Optional[str] = None
     created_at: str
 
@@ -181,11 +184,12 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
     """
     try:
         round_obj = await round_crud.create_round(
-            db, 
+            db,
             name=round_data.name,
             type=round_data.type.value,
             style=round_data.style.value if round_data.style else None,
             motion=round_data.motion,
+            tags=round_data.tags,
             video_id=round_data.video_id,
             video_title=round_data.video_title,
             video_description=round_data.video_description,
@@ -199,7 +203,7 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-        
+
     return RoundResponse(
         id=round_obj.id,
         name=round_obj.name,
@@ -208,6 +212,7 @@ async def create_round(round_data: RoundCreate, db: AsyncSession = Depends(get_d
         note=round_obj.note,
         style=round_obj.style,
         motion=round_obj.motion,
+        tags=round_obj.tags,
         video_id=round_obj.video_id,
         created_at=round_obj.created_at.isoformat()
     )
@@ -227,6 +232,7 @@ async def get_all_rounds(db: AsyncSession = Depends(get_db)):
             note=r.note,
             style=r.style,
             motion=r.motion,
+            tags=r.tags,
             video_id=r.video_id,
             created_at=r.created_at.isoformat()
         )
@@ -250,6 +256,7 @@ async def get_round_by_id(round_id: int, db: AsyncSession = Depends(get_db)):
         note=round_obj.note,
         style=round_obj.style,
         motion=round_obj.motion,
+        tags=round_obj.tags,
         video_id=round_obj.video_id,
         created_at=round_obj.created_at.isoformat()
     )
@@ -273,6 +280,7 @@ async def get_round(round_name: str, try_count: Optional[int] = None, db: AsyncS
         note=round_obj.note,
         style=round_obj.style,
         motion=round_obj.motion,
+        tags=round_obj.tags,
         video_id=round_obj.video_id,
         created_at=round_obj.created_at.isoformat()
     )

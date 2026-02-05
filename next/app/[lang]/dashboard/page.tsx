@@ -24,7 +24,7 @@ export default function VideoDashboard() {
   const [activeSteps, setActiveSteps] = useState<Set<string>>(new Set()); // Track active steps: "roundId-stepNum"
   const cancellationTargetsRef = useRef<Map<number, 'external-bg-task' | 'sync-task' | null>>(new Map());
   const [cancellationTargetsTrigger, setCancellationTargetsTrigger] = useState(0); // Trigger for re-renders
-  const [threadStatus, setThreadStatus] = useState<{ active_tasks: string[]; zombie_tasks: string[] } | null>(null);
+  const [threadStatus, setThreadStatus] = useState<{ active_tasks: string[]; zombie_tasks: string[]; total_active_tasks: number; total_zombie_tasks: number } | null>(null);
   const { cancelTranscription } = useCancelTranscription();
 
   // LLM Model (初期値関数で localStorage から読み込み)
@@ -809,11 +809,11 @@ export default function VideoDashboard() {
                 {threadStatus && (
                   <div className="mb-4">
                     <div className="text-sm mb-2 text-right">
-                      <div className={`${threadStatus.zombie_tasks.length > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
-                        {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.active_tasks.length}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.zombie_tasks.length}</span>
+                      <div className={`${threadStatus.total_zombie_tasks > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
+                        {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.total_active_tasks}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.total_zombie_tasks}</span>
                       </div>
                     </div>
-                    {threadStatus.zombie_tasks.length > 6 && (
+                    {threadStatus.total_zombie_tasks > 6 && (
                       <div className="text-red-600 dark:text-red-400 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
                         キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
                       </div>
