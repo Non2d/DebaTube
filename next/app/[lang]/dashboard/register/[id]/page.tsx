@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, ExternalLink, X } from 'lucide-react';
+import { ArrowLeft, Loader2, ExternalLink, X, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import Header from '../../../../../components/shared/Header';
@@ -907,63 +907,85 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             {roundData.name}
                         </h2>
 
-                        <div className="flex flex-wrap gap-6 text-sm">
-                            <div>
+                        <div className="flex flex-wrap gap-3 text-sm">
+                            {/* Style */}
+                            <div className="flex-shrink-0">
                                 <span className="block text-gray-500 dark:text-gray-400 mb-1">Style</span>
-                                <div className="flex gap-2 items-center">
-                                    <select
-                                        value={roundData.style || 'british_parliamentary'}
-                                        onChange={(e) => {
-                                            const newStyle = e.target.value;
-                                            const isStep2OrLaterCompleted = stepsStatus[1] === 'completed' ||
-                                                stepsStatus[2] === 'completed' ||
-                                                stepsStatus[3] === 'completed';
+                                <select
+                                    value={roundData.style || 'british_parliamentary'}
+                                    onChange={(e) => {
+                                        const newStyle = e.target.value;
+                                        const isStep2OrLaterCompleted = stepsStatus[1] === 'completed' ||
+                                            stepsStatus[2] === 'completed' ||
+                                            stepsStatus[3] === 'completed';
 
-                                            if (isStep2OrLaterCompleted) {
-                                                setStyleChangeDialog({ open: true, newStyle });
-                                            } else {
-                                                handleStyleChange(newStyle);
-                                            }
-                                        }}
-                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    >
-                                        <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
-                                        <option value="north_american">{t('recordPage.formatOptions.na')}</option>
-                                        <option value="asian">{t('recordPage.formatOptions.asian')}</option>
-                                        <option value="wsdc">{t('recordPage.formatOptions.wsdc')}</option>
-                                        <option value="hpdu">{t('recordPage.formatOptions.hpdu')}</option>
-                                        <option value="bp_opening_half">{t('recordPage.formatOptions.openingHalfBp')}</option>
-                                    </select>
-                                </div>
+                                        if (isStep2OrLaterCompleted) {
+                                            setStyleChangeDialog({ open: true, newStyle });
+                                        } else {
+                                            handleStyleChange(newStyle);
+                                        }
+                                    }}
+                                    className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                                >
+                                    <option value="british_parliamentary">{t('recordPage.formatOptions.bp')}</option>
+                                    <option value="north_american">{t('recordPage.formatOptions.na')}</option>
+                                    <option value="asian">{t('recordPage.formatOptions.asian')}</option>
+                                    <option value="wsdc">{t('recordPage.formatOptions.wsdc')}</option>
+                                    <option value="hpdu">{t('recordPage.formatOptions.hpdu')}</option>
+                                    <option value="bp_opening_half">{t('recordPage.formatOptions.openingHalfBp')}</option>
+                                </select>
                             </div>
+
+                            {/* YouTube URL */}
                             {roundData.video_id && (
-                                <div>
+                                <div className="flex-shrink-0">
                                     <span className="block text-gray-500 dark:text-gray-400 mb-1">YouTube URL</span>
-                                    <a
-                                        href={`https://www.youtube.com/watch?v=${roundData.video_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
-                                    >
-                                        {`https://www.youtube.com/watch?v=${roundData.video_id}`} <ExternalLink size={14} />
-                                    </a>
+                                    <div className="px-3 py-2 bg-gray-50 dark:bg-slate-800/30 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1">
+                                        {`https://www.youtube.com/watch?v=${roundData.video_id}`}
+                                        <a
+                                            href={`https://www.youtube.com/watch?v=${roundData.video_id}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-shrink-0 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        >
+                                            <ExternalLink size={14} />
+                                        </a>
+                                    </div>
                                 </div>
                             )}
-                            <div className="w-full">
-                                <span className="block text-gray-500 dark:text-gray-400 mb-1">Motion</span>
+
+                            {/* Motion - Editable */}
+                            <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-gray-500 dark:text-gray-400 text-sm font-medium">Motion</span>
+                                    {!isEditingMotion && (
+                                        <button
+                                            onClick={() => {
+                                                setEditedMotion(roundData.motion || '');
+                                                setIsEditingMotion(true);
+                                            }}
+                                            className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium transition-colors"
+                                            title="Edit Motion"
+                                        >
+                                            <Pencil size={12} />
+                                            <span className="hidden sm:inline">Edit</span>
+                                        </button>
+                                    )}
+                                </div>
                                 {isEditingMotion ? (
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col gap-2">
                                         <textarea
                                             value={editedMotion}
                                             onChange={(e) => setEditedMotion(e.target.value)}
                                             className="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                                             rows={2}
                                             placeholder="Enter motion..."
+                                            autoFocus
                                         />
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex gap-2">
                                             <button
                                                 onClick={handleMotionSave}
-                                                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
+                                                className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium transition-colors"
                                             >
                                                 Save
                                             </button>
@@ -972,29 +994,21 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                                     setIsEditingMotion(false);
                                                     setEditedMotion(roundData.motion || '');
                                                 }}
-                                                className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-sm font-medium transition-colors"
+                                                className="flex-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-sm font-medium transition-colors"
                                             >
                                                 Cancel
                                             </button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex items-start gap-2">
-                                        <span className="flex-1 font-medium">{roundData.motion || '(No motion set)'}</span>
-                                        <button
-                                            onClick={() => {
-                                                setEditedMotion(roundData.motion || '');
-                                                setIsEditingMotion(true);
-                                            }}
-                                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded text-sm font-medium transition-colors"
-                                        >
-                                            Edit
-                                        </button>
+                                    <div className="px-3 py-2 bg-gray-50 dark:bg-slate-800/30 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium flex items-center">
+                                        {roundData.motion || <span className="italic opacity-60">(No motion set)</span>}
                                     </div>
                                 )}
                             </div>
+                        </div>
 
-                            {/* Recovery UI for missing video_id */}
+                        {/* Recovery UI for missing video_id */}
                             {!roundData.video_id && (
                                 <div className="w-full mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                                     <h4 className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200 font-bold mb-2">
@@ -1021,9 +1035,9 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                         </button>
                                     </div>
                                 </div>
-                            )}
+                        )}
 
-                            {/* Thread Status Info */}
+                        {/* Thread Status Info */}
                             {threadStatus && (
                                 <div className="w-full mt-4">
                                     <div className="text-sm mb-2 text-right">
@@ -1036,9 +1050,8 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                                             キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
                                         </div>
                                     )}
-                                </div>
-                            )}
                         </div>
+                        )}
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8 mb-8 min-h-[400px]">
