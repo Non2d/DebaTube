@@ -331,7 +331,7 @@ const DebateGraphs = () => {
                   <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-auto">
                     <TabsList className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 h-9 inline-flex">
                       {tabValues.map((tab) => (
-                        <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm flex-shrink-0 text-white">
+                        <TabsTrigger key={tab.value} value={tab.value} className="px-3 py-1 text-sm flex-shrink-0 text-black dark:text-white">
                           {tab.label} <span className="ml-1 text-xs">({tab.count})</span>
                         </TabsTrigger>
                       ))}
