@@ -469,24 +469,20 @@ async def regroup_all_speech_sentences_to_adus_at_once(
         # but adapted to output multiple speeches
         prompt_content = f"""
 Please segment the following debate speeches into Argument Discourse Units (ADUs).
-Each ADU represents a single argument or discourse unit with a specific role below:
+Each ADU is specified by a range of sentence IDs.
+If the ADU is a POI (Point of Information: an interjection question from the opposing team), set is_poi to true.
+Output first_5_words and last_5_words for hallucination verification only.
 
-ADU Role Definitions:
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+A debate speech typically consists of an introduction/definition section, rebuttals against the opponent's points (each rebuttal = one ADU regardless of length), and several main arguments or comparison points (each typically 3-5 sentences per ADU). Segment accordingly.
+POI (Point of Information) is a brief interjection question from the opposing team, typically right after the speaker says "Yes". Treat each POI as a single independent ADU and set is_poi to true.
 
 Segmentation Guidelines:
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-5. Treat any POI as a single independent ADU.
-6. Treat a response to a POI as a single ADU.
-7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+2. Rebuttals are always independent ADUs regardless of length
+3. Group sentences discussing the same specific argumentative point into one ADU
+4. Treat any POI as a single independent ADU.
+5. Treat a response to a POI as a single ADU.
+6. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
 
 Transcript Data:
 {full_transcript_text}
@@ -500,8 +496,9 @@ Format:
     {{
       "start_sentence_index": 0,
       "end_sentence_index": 2,
-      "text": "The actual ADU text...",
-      "role": "point_of_main_argument"
+      "first_5_words": "First we would like to",
+      "last_5_words": "support the main argument",
+      "is_poi": false
     }}
   ],
   "Opposition_1st": [...]
@@ -565,12 +562,12 @@ Format:
                      text = " ".join(sentences_data[i]["text"] for i in range(start_id, end_id + 1))
                      
                      adus_with_timestamps.append({
-                         **adu,
                          "start_sentence_index": start_id,
                          "end_sentence_index": end_id,
                          "start_time": start_time,
                          "end_time": end_time,
-                         "text": text
+                         "text": text,
+                         "role": "poi" if adu.get("is_poi") else "other"
                      })
                  except Exception as e:
                      logger.warning(f"Error processing ADU in {speech_key}: {e}")
@@ -1797,24 +1794,20 @@ def create_adu_prompt_all_at_once(
 
     prompt_content = f"""
 Please segment the following debate speeches into Argument Discourse Units (ADUs).
-Each ADU represents a single argument or discourse unit with a specific role below:
+Each ADU is specified by a range of sentence IDs.
+If the ADU is a POI (Point of Information: an interjection question from the opposing team), set is_poi to true.
+Output first_5_words and last_5_words for hallucination verification only.
 
-ADU Role Definitions:
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+A debate speech typically consists of an introduction/definition section, rebuttals against the opponent's points (each rebuttal = one ADU regardless of length), and several main arguments or comparison points (each typically 3-5 sentences per ADU). Segment accordingly.
+POI (Point of Information) is a brief interjection question from the opposing team, typically right after the speaker says "Yes". Treat each POI as a single independent ADU and set is_poi to true.
 
 Segmentation Guidelines:
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-5. Treat any POI as a single independent ADU.
-6. Treat a response to a POI as a single ADU.
-7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+2. Rebuttals are always independent ADUs regardless of length
+3. Group sentences discussing the same specific argumentative point into one ADU
+4. Treat any POI as a single independent ADU.
+5. Treat a response to a POI as a single ADU.
+6. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
 
 Transcript Data:
 {full_transcript_text}
@@ -1828,8 +1821,9 @@ Format:
     {{
       "start_sentence_index": 0,
       "end_sentence_index": 2,
-      "text": "The actual ADU text...",
-      "role": "point_of_main_argument"
+      "first_5_words": "First we would like to",
+      "last_5_words": "support the main argument",
+      "is_poi": false
     }}
   ],
   "Opposition_1st": [...]
@@ -2562,24 +2556,20 @@ async def auto_adu_generation_from_db(round_id: int, req: AutoProcessRequest = B
         prompt = f"""
 # Introduction
 Please segment the following debate speeches into Argument Discourse Units (ADUs).
-Each ADU represents a single argument or discourse unit with a specific role below:
+Each ADU is specified by a range of sentence IDs.
+If the ADU is a POI (Point of Information: an interjection question from the opposing team), set is_poi to true.
+Output first_5_words and last_5_words for hallucination verification only.
 
-# ADU Role Definitions
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+A debate speech typically consists of an introduction/definition section, rebuttals against the opponent's points (each rebuttal = one ADU regardless of length), and several main arguments or comparison points (each typically 3-5 sentences per ADU). Segment accordingly.
+POI (Point of Information) is a brief interjection question from the opposing team, typically right after the speaker says "Yes". Treat each POI as a single independent ADU and set is_poi to true.
 
 # Segmentation Guidelines
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-5. Treat any POI as a single independent ADU.
-6. Treat a response to a POI as a single ADU.
-7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+2. Rebuttals are always independent ADUs regardless of length
+3. Group sentences discussing the same specific argumentative point into one ADU
+4. Treat any POI as a single independent ADU.
+5. Treat a response to a POI as a single ADU.
+6. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
 
 # Output Format
 Return the result as a JSON object where keys are "Speech Name" (e.g. Proposition_1st) and values are lists of ADUs.
@@ -2591,8 +2581,9 @@ Format:
     {{
       "start_sentence_index": 0,
       "end_sentence_index": 2,
-      "text": "The actual ADU text...",
-      "role": "point_of_main_argument"
+      "first_5_words": "First we would like to",
+      "last_5_words": "support the main argument",
+      "is_poi": false
     }}
   ]
 }}
@@ -2670,22 +2661,25 @@ Format:
                 if start_sent.first_word_id in words_map: start_time = words_map[start_sent.first_word_id].start_time
                 if end_sent.last_word_id in words_map: end_time = words_map[end_sent.last_word_id].end_time
                 
+                # Reconstruct text from sentences
+                text = " ".join(s.text for s in all_sentences[start_global:end_global + 1])
+
                 adus_to_create.append({
                     "speech_id": speech.id,
                     "first_sentence_id": start_sent.id,
                     "last_sentence_id": end_sent.id,
-                    "text": adu.get("text", ""),
-                    "role": adu.get("role", "claim"),
+                    "text": text,
+                    "role": "poi" if adu.get("is_poi") else "other",
                     "start_time": start_time,
                     "end_time": end_time
                 })
-        
+
         if adus_to_create:
             await round_crud.create_adus_batch(db, adus_to_create)
             await db.commit()
-            
+
         return {
-            "status": "success", 
+            "status": "success",
             "message": "Auto ADU Generation Completed",
             "adus_created": len(adus_to_create)
         }
@@ -2826,7 +2820,7 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
                     "first_sentence_id": start_sent.id,
                     "last_sentence_id": end_sent.id,
                     "text": adu.get("text", ""),
-                    "role": adu.get("role", "claim"),
+                    "role": adu.get("role", "other"),
                     "start_time": start_time,
                     "end_time": end_time
                 })
@@ -3141,24 +3135,20 @@ async def manual_resume(request: ManualResumeRequest, db: AsyncSession = Depends
         prompt_content = f"""
 # Introduction
 Please segment the following debate speeches into Argument Discourse Units (ADUs).
-Each ADU represents a single argument or discourse unit with a specific role below:
+Each ADU is specified by a range of sentence IDs.
+If the ADU is a POI (Point of Information: an interjection question from the opposing team), set is_poi to true.
+Output first_5_words and last_5_words for hallucination verification only.
 
-# ADU Role Definitions
-- introduction: Opening statement that typically explains the team's stance and framework
-- definition: Definitions or models to clarify key terms (e.g., policy, values) that support the main arguments
-- independent_rebuttal: A direct counter-argument to the opponent's point, typically presented before moving on to main arguments (one rebuttal = one ADU, regardless of length)
-- point_of_main_argument: A cohesive set of claim and supporting reasoning focused on one specific argumentative point (typically 3-5 sentences per ADU)
-- point_of_comparison: A cohesive set of comparative analysis explaining why one side's arguments outweigh the opponent's on a specific issue (typically 3-5 sentences per ADU)
-- poi: During the speech, opponents can interject brief questions (called "point of information") or statements typically right after the speaker says "Yes". Please treat any such questions from opponents as a single ADU.
+A debate speech typically consists of an introduction/definition section, rebuttals against the opponent's points (each rebuttal = one ADU regardless of length), and several main arguments or comparison points (each typically 3-5 sentences per ADU). Segment accordingly.
+POI (Point of Information) is a brief interjection question from the opposing team, typically right after the speaker says "Yes". Treat each POI as a single independent ADU and set is_poi to true.
 
 # Segmentation Guidelines
 1. Each speaker typically has 2-3 main arguments or comparison issues, and each main argument or comparison issue contains 3-5 points
-2. Main arguments and comparison issues are equally valid argumentative structures and can coexist in the same speech (e.g., a speaker might present 2 main arguments and 1 comparison issue)
-3. Rebuttals are always independent ADUs regardless of length
-4. Group sentences discussing the same specific argumentative point into one ADU
-5. Treat any POI as a single independent ADU.
-6. Treat a response to a POI as a single ADU.
-7. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
+2. Rebuttals are always independent ADUs regardless of length
+3. Group sentences discussing the same specific argumentative point into one ADU
+4. Treat any POI as a single independent ADU.
+5. Treat a response to a POI as a single ADU.
+6. Each ADU **MUST NOT** exceed 150 words. If a passage exceeds this limit, split it into multiple ADUs at logical break points.
 
 # Output Format
 Return the result as a JSON object where keys are "Speech Name" (e.g. Proposition_1st) and values are lists of ADUs.
@@ -3169,16 +3159,18 @@ Format:
     {{
       "start_sentence_index": 0,
       "end_sentence_index": 2,
-      "text": "The actual ADU text...",
-      "role": "point_of_main_argument"
+      "first_5_words": "First we would like to",
+      "last_5_words": "support the main argument",
+      "is_poi": false
     }}
   ],
   "Opposition_1st": [
      {{
        "start_sentence_index": 50,
        "end_sentence_index": 52,
-       "text": "...",
-       "role": "introduction"
+       "first_5_words": "We would like to",
+       "last_5_words": "deny the proposition's claim",
+       "is_poi": false
      }}
   ]
 }}
