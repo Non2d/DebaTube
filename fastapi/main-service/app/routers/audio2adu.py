@@ -1908,6 +1908,8 @@ The following text is a transcript from a parliamentary competitive debate. From
 - A rebuttal must reference the content of an argument made by the opposing team. Expressions like "They said …" are commonly used but not strictly required. The link can also be clear from context or topic.
 - A rebuttal must negate, weaken, or challenge the opposing argument. Statements that are too vague or generic can neither serve as rebuttals nor be treated as valid rebuttal targets.
 - A rebuttal can only target a statement made previously by the opposing team, and thus Proposition 1st must not rebut at all.
+- Do NOT treat abstract or overly broad claims (e.g., "We believe freedom is important") as valid rebuttal targets. Only concrete, specific arguments should be linked.
+- Each speech typically contains 2-5 explicit rebuttals at most. If you find significantly more, re-evaluate whether each pair is truly a direct rebuttal.
 
 # Output Format
 Return ONLY a JSON array of pairs in this exact format.
