@@ -17,6 +17,9 @@ export const en = {
         overTime: "Over Time",
         recording: "Recording",
     },
+    recordButton: {
+        warning: "Warning: This service is currently under development. Anyone who knows the match ID may be able to listen to your recordings. Please be aware of this.",
+    },
     recordingCard: {
         recordings: "recordings",
         play: "Play",

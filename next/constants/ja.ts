@@ -19,6 +19,9 @@ export const ja: LocaleType = {
         overTime: "時間超過中",
         recording: "録音中",
     },
+    recordButton: {
+        warning: "警告！現在開発中のため，試合IDを知っている第三者にも録音を聞かれる可能性があります．ご了承ください．",
+    },
     recordingCard: {
         recordings: "録音",
         play: "再生",

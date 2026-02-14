@@ -366,7 +366,7 @@ export default function RecordPage() {
                 />
               </div>
 
-              <div className="mt-8">
+              <div className="mt-2">
                 <div className="grid grid-cols-4 gap-4">
                   {DEBATE_SPEECHES.map((speech: SpeechFormat, index: number) => {
                     const recordings = speechRecordings[index];
