@@ -2817,11 +2817,14 @@ async def manual_submit_adu(request: ManualADUSubmitRequest, db: AsyncSession = 
                 if end_sent.last_word_id in words_map:
                     end_time = words_map[end_sent.last_word_id].end_time
                 
+                # Reconstruct text from sentences (LLM output does not include text field)
+                text = " ".join(s.text for s in all_sentences[start_global_idx:end_global_idx + 1])
+
                 adus_to_create.append({
                     "speech_id": speech_id,
                     "first_sentence_id": start_sent.id,
                     "last_sentence_id": end_sent.id,
-                    "text": adu.get("text", ""),
+                    "text": text,
                     "role": adu.get("role", "other"),
                     "start_time": start_time,
                     "end_time": end_time
