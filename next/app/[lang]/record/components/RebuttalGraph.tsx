@@ -299,7 +299,7 @@ const RebuttalGraph: React.FC<RebuttalGraphProps> = ({ data, onNodeClick, debate
   };
 
   return (
-    <div style={{ cursor: "default", width: "100%", height: "100%" }} className="relative bg-gray-50 dark:bg-slate-800">
+    <div style={{ cursor: "default", width: "100%", height: "100%" }} className="relative bg-white dark:bg-slate-800">
       <ReactFlow
         nodes={nodes}
         edges={edges}
