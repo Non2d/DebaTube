@@ -172,6 +172,10 @@ class SpeechDiarizationEntry(BaseModel):
 class DiarizationUpdateRequest(BaseModel):
     entries: List[SpeechDiarizationEntry]
 
+class DiarizationUpdateResponse(BaseModel):
+    speeches: List[SpeechResponse]
+    warnings: List[str] = []
+
 class SentenceWithTime(BaseModel):
     id: int
     text: str
@@ -614,30 +618,46 @@ async def get_sentences_with_time(round_id: int, db: AsyncSession = Depends(get_
     ]
 
 
-@router.post("/rounds/{round_id}/diarization", response_model=List[SpeechResponse])
+STYLE_TO_FORMAT_KEY = {
+    "british_parliamentary": "BP",
+    "north_american": "NA",
+    "asian": "ASIAN",
+    "wsdc": "WSDC",
+    "hpdu": "HPDU",
+    "bp_opening_half": "OPENING_HALF_BP_ORDER",
+}
+
+@router.post("/rounds/{round_id}/diarization", response_model=DiarizationUpdateResponse)
 async def update_diarization(
-    round_id: int, 
-    request: DiarizationUpdateRequest, 
+    round_id: int,
+    request: DiarizationUpdateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     話者分離結果（各スピーチの開始・終了文ID）を一括更新する。
+    entries に含まれないポジションは、直前スピーチの直後に0秒スピーチとして自動生成する。
     """
-    # 既存のスピーチを取得（なければ作成する必要があるが、通常Step 1か初期化で作られているはず）
-    # もし無ければ作成するロジックを入れるか？ 
-    # いったん既存のスピーチを探し、無ければ round_id と position で作成する。
-    
+    # ラウンド情報を取得して debate format を特定
+    round_obj = await round_crud.get_round_by_id(db, round_id)
+    if not round_obj:
+        raise HTTPException(status_code=404, detail=f"Round {round_id} not found")
+
+    style = round_obj.style or "british_parliamentary"
+    format_key = STYLE_TO_FORMAT_KEY.get(style, "BP")
+    expected_positions = DEBATE_FORMATS.get(format_key, BP_ORDER)
+
     updated_speeches = []
-    
-    # トランザクション内で処理
+    warnings = []
+
+    # entries に含まれるポジションを処理
+    entry_positions = set()
     for entry in request.entries:
-        # スピーチ検索
+        entry_positions.add(entry.position)
         stmt = select(Speech).where(Speech.round_id == round_id, Speech.position == entry.position)
         result = await db.execute(stmt)
         speech = result.scalar_one_or_none()
-        
+
         if not speech:
-            # Create new speech if not exists
             speech = Speech(
                 round_id=round_id,
                 position=entry.position,
@@ -649,28 +669,93 @@ async def update_diarization(
             speech.first_sentence_id = entry.first_sentence_id
             speech.last_sentence_id = entry.last_sentence_id
             db.add(speech)
-            
+
         updated_speeches.append(speech)
-    
+
     await db.commit()
-    
-    # Refresh all speeches to get database-generated IDs
     for speech in updated_speeches:
         await db.refresh(speech)
-    
-    # Return updated speeches as SpeechResponse objects
-    return [
-        SpeechResponse(
-            id=speech.id,
-            round_id=speech.round_id,
-            position=speech.position,
-            audio_path=speech.audio_path,
-            duration=speech.duration,
-            first_sentence_id=speech.first_sentence_id,
-            last_sentence_id=speech.last_sentence_id
+
+    # entries に含まれなかったポジションを自動生成
+    # updated_speeches を position でルックアップできるようにする
+    speech_by_position = {s.position: s for s in updated_speeches}
+
+    # DB に既存のスピーチも取得
+    existing_stmt = select(Speech).where(Speech.round_id == round_id)
+    existing_result = await db.execute(existing_stmt)
+    for s in existing_result.scalars().all():
+        if s.position not in speech_by_position:
+            speech_by_position[s.position] = s
+
+    auto_created = []
+    for i, pos in enumerate(expected_positions):
+        if pos in speech_by_position:
+            continue
+
+        # 直前のスピーチ（expected_positions の順序で）の last_sentence_id を使う
+        fallback_sentence_id = None
+        for prev_idx in range(i - 1, -1, -1):
+            prev_pos = expected_positions[prev_idx]
+            prev_speech = speech_by_position.get(prev_pos)
+            if prev_speech and prev_speech.last_sentence_id:
+                fallback_sentence_id = prev_speech.last_sentence_id
+                break
+
+        if fallback_sentence_id is None:
+            # 直前スピーチが無い場合、直後のスピーチの first_sentence_id を使う
+            for next_idx in range(i + 1, len(expected_positions)):
+                next_pos = expected_positions[next_idx]
+                next_speech = speech_by_position.get(next_pos)
+                if next_speech and next_speech.first_sentence_id:
+                    fallback_sentence_id = next_speech.first_sentence_id
+                    break
+
+        if fallback_sentence_id is None:
+            warnings.append(f"{pos}: スピーチレコードを作成できませんでした（参照可能な文が見つかりません）")
+            continue
+
+        speech = Speech(
+            round_id=round_id,
+            position=pos,
+            first_sentence_id=fallback_sentence_id,
+            last_sentence_id=fallback_sentence_id
         )
-        for speech in updated_speeches
-    ]
+        db.add(speech)
+        speech_by_position[pos] = speech
+        auto_created.append(pos)
+
+    if auto_created:
+        await db.commit()
+        for pos in auto_created:
+            await db.refresh(speech_by_position[pos])
+
+    # expected_positions の順序で全スピーチを返す
+    all_speeches = []
+    for pos in expected_positions:
+        s = speech_by_position.get(pos)
+        if s:
+            all_speeches.append(s)
+
+    # 0秒スピーチ（first_sentence_id == last_sentence_id）を警告
+    for s in all_speeches:
+        if s.first_sentence_id is not None and s.first_sentence_id == s.last_sentence_id:
+            warnings.append(f"{s.position}: 0秒スピーチです（開始文と終了文が同一）")
+
+    return DiarizationUpdateResponse(
+        speeches=[
+            SpeechResponse(
+                id=s.id,
+                round_id=s.round_id,
+                position=s.position,
+                audio_path=s.audio_path,
+                duration=s.duration,
+                first_sentence_id=s.first_sentence_id,
+                last_sentence_id=s.last_sentence_id
+            )
+            for s in all_speeches
+        ],
+        warnings=warnings
+    )
 
 
 @router.get("/rounds/{round_id}/graph", response_model=Dict[str, Any])

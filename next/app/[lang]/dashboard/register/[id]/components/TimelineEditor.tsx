@@ -241,8 +241,12 @@ export function TimelineEditor({
 
             if (!res.ok) throw new Error("Failed to save");
 
-            const updated = await res.json();
+            const data = await res.json();
+            const updated = data.speeches ?? data;
             setSpeeches(updated);
+            if (data.warnings && data.warnings.length > 0) {
+                data.warnings.forEach((w: string) => toast(w, { icon: '⚠️', duration: 6000 }));
+            }
             toast.success("Diarization saved!");
         } catch (e: any) {
             toast.error(e.message);
@@ -269,6 +273,21 @@ export function TimelineEditor({
                     <p className="text-sm text-slate-500">{t('dashboard.steps.subStep2B.description') || "Drag the colored bars to adjust speaker ranges"}</p>
                 </div>
             </div>
+
+            {/* 0秒スピーチ警告 */}
+            {localSpeeches.some(s => s.first_sentence_id != null && s.first_sentence_id === s.last_sentence_id) && (
+                <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg px-4 py-3">
+                    <p className="text-amber-800 dark:text-amber-300 font-semibold text-sm mb-1">⚠ 話者分離が失敗したスピーチが検出されています</p>
+                    <ul className="text-amber-700 dark:text-amber-400 text-xs space-y-0.5">
+                        {localSpeeches
+                            .filter(s => s.first_sentence_id != null && s.first_sentence_id === s.last_sentence_id)
+                            .map(s => (
+                                <li key={s.position}>・{s.position}（開始文と終了文が同一: #{getSentenceLocalIndex(s.first_sentence_id)}）</li>
+                            ))
+                        }
+                    </ul>
+                </div>
+            )}
 
             {/* Video Player */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-lg">

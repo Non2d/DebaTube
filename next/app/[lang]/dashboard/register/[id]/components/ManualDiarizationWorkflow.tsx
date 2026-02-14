@@ -29,6 +29,7 @@ interface ManualDiarizationWorkflowProps {
     t: (key: string) => string;
     onComplete: () => void;
     debateFormat?: string;
+    onZeroSecondSpeeches?: (positions: string[]) => void;
 }
 
 const BP_POSITIONS = [
@@ -58,7 +59,8 @@ export function ManualDiarizationWorkflow({
     roundName,
     t,
     onComplete,
-    debateFormat = "british_parliamentary"
+    debateFormat = "british_parliamentary",
+    onZeroSecondSpeeches
 }: ManualDiarizationWorkflowProps) {
     const [sentences, setSentences] = useState<Sentence[]>([]);
     const [speeches, setSpeeches] = useState<Speech[]>([]);
@@ -78,6 +80,16 @@ export function ManualDiarizationWorkflow({
         initializeData();
         fetchRoundInfo();
     }, [roundId]);
+
+    // speeches が変わるたびに0秒スピーチをチェックして親に通知
+    useEffect(() => {
+        if (onZeroSecondSpeeches) {
+            const zeros = speeches
+                .filter(s => s.first_sentence_id != null && s.first_sentence_id === s.last_sentence_id)
+                .map(s => s.position);
+            onZeroSecondSpeeches(zeros);
+        }
+    }, [speeches]);
 
     const fetchRoundInfo = async () => {
         try {
@@ -232,8 +244,12 @@ ${transcriptPreview}`;
 
             if (!res.ok) throw new Error("Failed to register diarization");
 
-            const updatedSpeeches = await res.json();
+            const data = await res.json();
+            const updatedSpeeches = data.speeches ?? data;
             setSpeeches(updatedSpeeches);
+            if (data.warnings && data.warnings.length > 0) {
+                data.warnings.forEach((w: string) => toast(w, { icon: '⚠️', duration: 6000 }));
+            }
             toast.success("Diarization Saved!");
         } catch (e: any) {
             toast.error("Error: " + e.message);

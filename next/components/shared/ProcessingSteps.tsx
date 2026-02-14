@@ -32,6 +32,7 @@ interface ProcessingStepsProps {
     currentProcessingStep?: string | null;
     currentJobCancellationTarget?: 'external-bg-task' | 'sync-task' | null;
     isLoadingProgress?: boolean;
+    warningSteps?: number[];
 }
 
 export default function ProcessingSteps({
@@ -46,7 +47,8 @@ export default function ProcessingSteps({
     children,
     currentProcessingStep,
     currentJobCancellationTarget,
-    isLoadingProgress = false
+    isLoadingProgress = false,
+    warningSteps = []
 }: ProcessingStepsProps & { headerContent?: React.ReactNode, children?: React.ReactNode }) {
     const { t } = useTranslation();
     const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -184,14 +186,15 @@ export default function ProcessingSteps({
                         const status = isRegistrationComplete ? stepsStatus[index] : 'disabled';
                         const isActive = expandedStep === step.id;
                         const isClickable = isRegistrationComplete && status !== 'disabled';
+                        const hasWarning = warningSteps.includes(step.id);
 
                         return (
                             <div
                                 key={step.id}
                                 className={`
                                 relative rounded-xl border transition-all duration-300 overflow-hidden
-                                ${getStatusColor(status)}
-                                ${isActive ? 'ring-2 ring-indigo-500/50 dark:ring-indigo-400/50 shadow-md' : ''}
+                                ${hasWarning ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-300 dark:border-red-800' : getStatusColor(status)}
+                                ${isActive ? (hasWarning ? 'ring-2 ring-red-500/50 dark:ring-red-400/50 shadow-md' : 'ring-2 ring-indigo-500/50 dark:ring-indigo-400/50 shadow-md') : ''}
                             `}
                             >
                                 {/* Header / Summary */}
@@ -201,7 +204,7 @@ export default function ProcessingSteps({
                                 >
                                     <div className={`
                                     w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0 relative
-                                    ${status === 'completed' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
+                                    ${hasWarning ? 'bg-red-500 text-white' : status === 'completed' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
                                 `}>
                                         {getStatusIcon(status) || <span className="text-base font-bold leading-none">{step.id}</span>}
                                         {/* Green spinning border for Steps 2-4 when processing */}

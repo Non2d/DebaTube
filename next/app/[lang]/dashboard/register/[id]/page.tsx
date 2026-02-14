@@ -71,6 +71,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     const [isEditingMotion, setIsEditingMotion] = useState(false); // For recovery
     const [editedTags, setEditedTags] = useState("");
     const [isEditingTags, setIsEditingTags] = useState(false);
+    const [zeroSecondSpeeches, setZeroSecondSpeeches] = useState<string[]>([]);
 
     // LLM Model State - Initialize from localStorage
     const [llmModel, setLlmModel] = useState<NLPLLMValue>(() => {
@@ -682,6 +683,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                         fetchJobProgress();
                     }}
                     debateFormat={roundData?.debate_format || 'british_parliamentary'}
+                    onZeroSecondSpeeches={setZeroSecondSpeeches}
                 />
             );
         }
@@ -908,7 +910,18 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     return (
         <>
             <Header />
-            <div className="min-h-screen bg-background pt-24 pb-12 px-4">
+            {zeroSecondSpeeches.length > 0 && (
+                <div className="fixed top-16 left-0 right-0 z-50 bg-red-600 text-white px-4 py-3 shadow-lg">
+                    <div className="max-w-7xl mx-auto flex items-center gap-3">
+                        <span className="font-bold text-lg">⚠</span>
+                        <div>
+                            <p className="font-bold text-sm">話者分離が失敗したスピーチが検出されています</p>
+                            <p className="text-xs opacity-90">{zeroSecondSpeeches.join('、')}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <div className={`min-h-screen bg-background ${zeroSecondSpeeches.length > 0 ? 'pt-36' : 'pt-24'} pb-12 px-4`}>
                 <div className="max-w-7xl mx-auto">
                     <div className="mb-8">
                         <Link
@@ -1141,6 +1154,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
                             currentProcessingStep={currentProcessingStep}
                             currentJobCancellationTarget={currentJobCancellationTarget}
                             isLoadingProgress={!jobProgress}
+                            warningSteps={zeroSecondSpeeches.length > 0 ? [2] : []}
                             headerContent={
                                 <div className="mb-6">
                                     <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-md mx-auto">
