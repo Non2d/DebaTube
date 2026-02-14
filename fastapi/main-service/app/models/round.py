@@ -26,6 +26,7 @@ class Round(Base):
     video_id = Column(String(255), nullable=True)  # 外部キー制約を削除
     owner_id = Column(String(255), nullable=True)
     raw_transcription = Column(JSON, nullable=True)  # Full transcription before diarization
+    info_slide = Column(String(512), nullable=True)
 
     speeches = relationship("Speech", back_populates="round", cascade="all, delete-orphan")
     sentences = relationship("Sentence", back_populates="round", cascade="all, delete-orphan")
