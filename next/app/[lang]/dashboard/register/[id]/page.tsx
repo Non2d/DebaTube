@@ -137,6 +137,20 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
         }
     };
 
+    const checkZeroSecondSpeeches = async () => {
+        try {
+            const res = await fetch(getAPIRoot() + `/rounds/id/${roundId}/speeches`);
+            if (!res.ok) return;
+            const speeches = await res.json();
+            const zeros = speeches
+                .filter((s: any) => s.first_sentence_id != null && s.first_sentence_id === s.last_sentence_id)
+                .map((s: any) => s.position);
+            setZeroSecondSpeeches(zeros);
+        } catch (e) {
+            // ignore
+        }
+    };
+
     const fetchJobProgress = async () => {
         if (!roundData) return;
         try {
@@ -198,6 +212,7 @@ export default function VideoDetailPage({ params }: { params: { lang: string, id
     useEffect(() => {
         if (roundId) {
             fetchRoundData();
+            checkZeroSecondSpeeches();
         }
     }, [roundId]);
 
