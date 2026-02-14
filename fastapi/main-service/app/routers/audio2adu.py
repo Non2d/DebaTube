@@ -42,6 +42,10 @@ class GeminiModel(Enum):
     GEMINI_2_5_FLASH_LITE_VERTEX = ("gemini-2.5-flash-lite", "vertex")
     GEMINI_3_FLASH_STUDIO = ("gemini-3-flash", "studio")
 
+def _save_gemini_log(*args, **kwargs):
+    pass
+
+
 def _save_gemini_log_complete(step: int, input_data: dict, response: any, round_id: Optional[int] = None):
     """
     Save complete Gemini API call log with input, raw response, and response.text

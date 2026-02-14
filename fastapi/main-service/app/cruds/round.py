@@ -169,6 +169,19 @@ async def delete_round(db: AsyncSession, round_name: str) -> bool:
     return result.rowcount > 0
 
 
+async def delete_round_by_id(db: AsyncSession, round_id: int) -> Optional[Round]:
+    """
+    ラウンドをIDで取得して削除（カスケード）。削除前のRoundオブジェクトを返す。
+    """
+    result = await db.execute(select(Round).where(Round.id == round_id))
+    round_obj = result.scalar_one_or_none()
+    if not round_obj:
+        return None
+    await db.execute(delete(Round).where(Round.id == round_id))
+    await db.commit()
+    return round_obj
+
+
 # ==================== Speech CRUD ====================
 
 async def create_speech(
@@ -271,6 +284,8 @@ async def create_words_batch(
     ]
     db.add_all(words)
     await db.commit()
+    for w in words:
+        await db.refresh(w)
     return words
 
 

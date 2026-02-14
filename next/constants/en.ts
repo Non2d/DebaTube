@@ -18,7 +18,7 @@ export const en = {
         recording: "Recording",
     },
     recordButton: {
-        warning: "Warning: This service is currently under development. Anyone who knows the match ID may be able to listen to your recordings. Please be aware of this.",
+        warning: "Warning: This service is currently under development. Anyone can listen to your recordings. Please be aware of this.",
     },
     recordingCard: {
         recordings: "recordings",
@@ -161,6 +161,15 @@ export const en = {
             resumeFailed: "Could not find data to resume for the specified Version count.",
             submitAdu: "Submit ADU JSON",
             submitRebuttal: "Submit Rebuttal JSON",
+        },
+        deleteRound: {
+            button: "Delete this round's data",
+            dialogTitle: "Delete Round Data",
+            dialogDescription: "Are you sure you want to delete all data for round \"{roundName}\"? This includes database records, audio files, and transcription results. This action cannot be undone.",
+            cancel: "Cancel",
+            confirm: "Delete",
+            success: "Round \"{roundName}\" has been deleted.",
+            error: "Failed to delete round: {error}",
         }
     },
     landingPage: {

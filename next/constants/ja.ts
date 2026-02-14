@@ -20,7 +20,7 @@ export const ja: LocaleType = {
         recording: "録音中",
     },
     recordButton: {
-        warning: "警告！現在開発中のため，試合IDを知っている第三者にも録音を聞かれる可能性があります．ご了承ください．",
+        warning: "警告！現在開発中のため，第三者にも録音を聞かれる可能性があります．ご了承ください．",
     },
     recordingCard: {
         recordings: "録音",
@@ -163,6 +163,15 @@ export const ja: LocaleType = {
             resumeFailed: "指定されたバージョン番号での再開データが見つかりませんでした。",
             submitAdu: "ADUデータを送信",
             submitRebuttal: "反論データを送信",
+        },
+        deleteRound: {
+            button: "この試合のデータを削除",
+            dialogTitle: "試合データの削除",
+            dialogDescription: "試合「{roundName}」のすべてのデータを削除しますか？データベースのレコード、音声ファイル、文字起こし結果がすべて削除されます。この操作は取り消せません。",
+            cancel: "キャンセル",
+            confirm: "削除する",
+            success: "試合「{roundName}」のデータを削除しました。",
+            error: "削除に失敗しました: {error}",
         }
     },
     landingPage: {

@@ -11,6 +11,9 @@ import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../../constan
 import { logTabSwitch } from '../../../utils/userLogger';
 import { useTranslation } from '../../../context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog';
+import { Button } from '../../../components/ui/button';
+import { Trash2 } from 'lucide-react';
 
 // Extracted Components
 import TabNavigation, { TabType } from './components/TabNavigation';
@@ -36,8 +39,12 @@ export default function RecordPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUnifiedPlaying, setIsUnifiedPlaying] = useState(false);
 
+  const [roundId, setRoundId] = useState<number | null>(null);
   const [roundCandidates, setRoundCandidates] = useState<string[]>([]);
   const [showNodeIds, setShowNodeIds] = useState<boolean | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -73,6 +80,7 @@ export default function RecordPage() {
     recordingDuration,
     setRecordingDuration,
     speechRecordings,
+    setSpeechRecordings,
     startRecording,
     stopRecording
   } = useRecordings(roundName, currentSpeechIndex, currentSpeech.name);
@@ -179,19 +187,32 @@ export default function RecordPage() {
     }
   }, []);
 
-  // Auto-load latest version when round name changes
+  // Auto-load latest version when round name changes (or tryCount changes)
   useEffect(() => {
     if (roundName) {
-      fetch(`http://localhost:8080/rounds/${roundName}`)
-        .then(res => res.json())
+      const url = tryCount
+        ? `http://localhost:8080/rounds/${roundName}?try_count=${tryCount}`
+        : `http://localhost:8080/rounds/${roundName}`;
+      fetch(url)
+        .then(res => {
+          if (!res.ok) { setRoundId(null); return null; }
+          return res.json();
+        })
         .then(data => {
-          if (data && data.try_count) {
+          if (!data) return;
+          if (data.try_count && !tryCount) {
             setTryCount(data.try_count);
           }
+          setRoundId(data.id ?? null);
         })
-        .catch(err => console.error('Failed to fetch latest version:', err));
+        .catch(err => {
+          console.error('Failed to fetch round:', err);
+          setRoundId(null);
+        });
+    } else {
+      setRoundId(null);
     }
-  }, [roundName]);
+  }, [roundName, tryCount]);
 
   // Restore active tab from LocalStorage
   useEffect(() => {
@@ -320,6 +341,39 @@ export default function RecordPage() {
 
   const handleUnifiedPlayPause = () => {
     setIsUnifiedPlaying(prev => !prev);
+  };
+
+  const handleDeleteRound = async () => {
+    if (!roundName || !roundId) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`http://localhost:8080/rounds/${roundId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || res.statusText);
+      }
+      const deletedName = roundName;
+      // Reset state
+      setSpeechRecordings({});
+      setAutoLoadedGraphData(null);
+      setTryCount(null);
+      setRoundId(null);
+      setRoundCandidates(prev => prev.filter(name => name !== deletedName));
+      localStorage.removeItem('debate_round_name');
+      // Generate new default round name
+      const now = new Date();
+      const date = now.toISOString().split('T')[0];
+      const time = now.toTimeString().split(' ')[0].replace(/:/g, '');
+      const defaultName = `${date}-session_${time}`;
+      setRoundName(defaultName);
+      setShowDeleteDialog(false);
+      setDeleteResult({ type: 'success', message: t('recordPage.deleteRound.success').replace('{roundName}', deletedName) });
+    } catch (err: any) {
+      setShowDeleteDialog(false);
+      setDeleteResult({ type: 'error', message: t('recordPage.deleteRound.error').replace('{error}', err.message || String(err)) });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -472,8 +526,71 @@ export default function RecordPage() {
               </div>
             </div>
           )}
+          {/* Delete Round Button */}
+          {activeTab !== 'dashboard' && roundName && roundId && (
+            <div className="mt-8 mb-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 size={16} />
+                {t('recordPage.deleteRound.button')}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="mx-auto bg-red-100 dark:bg-red-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+              <Trash2 size={24} />
+            </div>
+            <DialogTitle className="text-center">{t('recordPage.deleteRound.dialogTitle')}</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              {t('recordPage.deleteRound.dialogDescription').replace('{roundName}', roundName)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
+              {t('recordPage.deleteRound.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteRound}
+              disabled={isDeleting}
+            >
+              {isDeleting ? '...' : t('recordPage.deleteRound.confirm')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Result Dialog */}
+      <Dialog open={deleteResult !== null} onOpenChange={() => setDeleteResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+              deleteResult?.type === 'success'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+            }`}>
+              {deleteResult?.type === 'success' ? '✓' : '!'}
+            </div>
+            <DialogTitle className="text-center">
+              {deleteResult?.type === 'success' ? t('recordPage.deleteRound.dialogTitle') : 'Error'}
+            </DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              {deleteResult?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteResult(null)}>OK</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -3,7 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy import select, func
+from pathlib import Path
 import math
+import shutil
+import logging
+
+logger = logging.getLogger(__name__)
+
+AUDIO_SAVE_DIR = Path("/app/audio-save")
+TRANSCRIPTION_DIR = Path("/app/transcriptions")
 
 from db import get_db
 from cruds import round as round_crud
@@ -311,15 +319,37 @@ async def update_round(round_id: int, update_data: RoundUpdate, db: AsyncSession
     return {"status": "success", "message": "Round updated", "updated_fields": list(update_dict.keys())}
 
 
-@router.delete("/rounds/{round_name}")
-async def delete_round(round_name: str, db: AsyncSession = Depends(get_db)):
+@router.delete("/rounds/{round_id}")
+async def delete_round(round_id: int, db: AsyncSession = Depends(get_db)):
     """
-    ラウンドを削除
+    ラウンドをIDで削除（DB + 音声ファイル + 文字起こしファイル）
     """
-    success = await round_crud.delete_round(db, round_name)
-    if not success:
+    round_obj = await round_crud.delete_round_by_id(db, round_id)
+    if not round_obj:
         raise HTTPException(status_code=404, detail="Round not found")
-    return {"status": "success", "message": f"Round {round_name} deleted"}
+
+    round_name = round_obj.name
+    deleted_dirs = []
+
+    # 音声ファイルを削除: audio-save/{round_name}/
+    audio_dir = AUDIO_SAVE_DIR / round_name
+    if audio_dir.exists() and audio_dir.is_dir():
+        shutil.rmtree(audio_dir)
+        deleted_dirs.append(str(audio_dir))
+        logger.info(f"Deleted audio directory: {audio_dir}")
+
+    # 文字起こしファイルを削除: transcriptions/results_{round_name}/
+    results_dir = TRANSCRIPTION_DIR / f"results_{round_name}"
+    if results_dir.exists() and results_dir.is_dir():
+        shutil.rmtree(results_dir)
+        deleted_dirs.append(str(results_dir))
+        logger.info(f"Deleted transcription results directory: {results_dir}")
+
+    return {
+        "status": "success",
+        "message": f"Round {round_name} (id={round_id}) deleted",
+        "deleted_dirs": deleted_dirs
+    }
 
 # ==================== Round Summary Endpoints ====================
 
