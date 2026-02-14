@@ -89,8 +89,8 @@ async def download_audio(request: AudioDownloadRequest):
 
 from fastapi.responses import FileResponse
 
-@router.get("/audio/{video_id}")
-async def get_audio_file(video_id: str):
+@router.get("/downloaded-audio/{video_id}")
+async def get_downloaded_audio_file(video_id: str):
     """
     Serve the downloaded audio file for the given video_id.
     """
