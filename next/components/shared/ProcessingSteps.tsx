@@ -58,29 +58,30 @@ export default function ProcessingSteps({
     // Timer states: { stepId: { startTime: number, duration?: number } }
     const [stepTimers, setStepTimers] = useState<Record<number, { startTime?: number, duration?: number }>>({});
 
-    // Track status changes to manage timers
+    // Track status changes to manage timers (including currentProcessingStep for Step 2-4)
     useEffect(() => {
         stepsStatus.forEach((status, index) => {
             const stepId = index + 1;
+            const processing = status === 'processing' || currentProcessingStep === String(stepId);
             setStepTimers(prev => {
                 const currentTimer = prev[stepId];
                 // Start timer if processing and not started
-                if (status === 'processing' && !currentTimer?.startTime) {
+                if (processing && !currentTimer?.startTime) {
                     return { ...prev, [stepId]: { startTime: Date.now() } };
                 }
                 // Stop timer if completed/error and running
-                if ((status === 'completed' || status === 'error') && currentTimer?.startTime && !currentTimer.duration) {
+                if (!processing && (status === 'completed' || status === 'error') && currentTimer?.startTime && !currentTimer.duration) {
                     return { ...prev, [stepId]: { ...currentTimer, duration: Date.now() - currentTimer.startTime } };
                 }
                 // Reset timer if pending (cleanup)
-                if (status === 'pending' && currentTimer) {
+                if (status === 'pending' && !processing && currentTimer) {
                     const { [stepId]: _, ...rest } = prev;
                     return rest;
                 }
                 return prev;
             });
         });
-    }, [stepsStatus]);
+    }, [stepsStatus, currentProcessingStep]);
 
     const handleResetClick = (stepId: number, subId: string | undefined, label: string) => {
         setTargetResetStep({ id: stepId, subId, label });
@@ -104,17 +105,33 @@ export default function ProcessingSteps({
         setTargetResetStep(null);
     };
 
+    // Check if a step is currently processing (via currentProcessingStep or stepsStatus)
+    const isStepProcessing = (stepId: number): boolean => {
+        if (stepsStatus[stepId - 1] === 'processing') return true;
+        if (currentProcessingStep === String(stepId)) return true;
+        return false;
+    };
+
     // Auto-expand current active step
     useEffect(() => {
-        if (isRegistrationComplete && currentStep > 0 && currentStep <= 5) {
-            setExpandedStep(currentStep);
+        // Auto-expand Step 2-4 if processing (via currentProcessingStep)
+        for (let stepId = 2; stepId <= 4; stepId++) {
+            if (isStepProcessing(stepId)) {
+                setExpandedStep(stepId);
+                return;
+            }
         }
 
         // Also auto-expand Step 1 if cancellation target is set (processing)
         if (isRegistrationComplete && currentJobCancellationTarget !== null) {
             setExpandedStep(1);
+            return;
         }
-    }, [currentStep, isRegistrationComplete, currentJobCancellationTarget]);
+
+        if (isRegistrationComplete && currentStep > 0 && currentStep <= 5) {
+            setExpandedStep(currentStep);
+        }
+    }, [currentStep, isRegistrationComplete, currentJobCancellationTarget, stepsStatus, currentProcessingStep]);
 
     const steps: Step[] = [
         {
@@ -184,6 +201,8 @@ export default function ProcessingSteps({
                     {/* Actual Steps */}
                     {!isLoadingProgress && steps.map((step, index) => {
                         const status = isRegistrationComplete ? stepsStatus[index] : 'disabled';
+                        const processing = isStepProcessing(step.id);
+                        const effectiveStatus = processing && status !== 'processing' ? 'processing' : status;
                         const isActive = expandedStep === step.id;
                         const isClickable = isRegistrationComplete && status !== 'disabled';
                         const hasWarning = warningSteps.includes(step.id);
@@ -193,7 +212,7 @@ export default function ProcessingSteps({
                                 key={step.id}
                                 className={`
                                 relative rounded-xl border transition-all duration-300 overflow-hidden
-                                ${hasWarning ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-300 dark:border-red-800' : getStatusColor(status)}
+                                ${hasWarning ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-300 dark:border-red-800' : getStatusColor(effectiveStatus)}
                                 ${isActive ? (hasWarning ? 'ring-2 ring-red-500/50 dark:ring-red-400/50 shadow-md' : 'ring-2 ring-indigo-500/50 dark:ring-indigo-400/50 shadow-md') : ''}
                             `}
                             >
@@ -204,14 +223,14 @@ export default function ProcessingSteps({
                                 >
                                     <div className={`
                                     w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0 relative
-                                    ${hasWarning ? 'bg-red-500 text-white' : status === 'completed' ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
+                                    ${hasWarning ? 'bg-red-500 text-white' : effectiveStatus === 'completed' ? 'bg-green-500 text-white' : effectiveStatus === 'processing' ? 'bg-blue-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
                                 `}>
-                                        {getStatusIcon(status) || <span className="text-base font-bold leading-none">{step.id}</span>}
-                                        {/* Green spinning border for Steps 2-4 when processing */}
-                                        {status === 'processing' && step.id >= 2 && step.id <= 4 && (
+                                        {getStatusIcon(effectiveStatus) || <span className="text-base font-bold leading-none">{step.id}</span>}
+                                        {/* Spinning border for Steps 2-4 when processing */}
+                                        {effectiveStatus === 'processing' && step.id >= 2 && step.id <= 4 && (
                                             <div
                                                 className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
-                                                style={{ borderTopColor: '#16a34a' }}
+                                                style={{ borderTopColor: '#3b82f6' }}
                                             />
                                         )}
                                     </div>
@@ -222,12 +241,12 @@ export default function ProcessingSteps({
                                     </div>
 
                                     {/* Timer in Header (Right aligned) */}
-                                    {(status === 'processing' || (status === 'completed' && stepTimers[step.id]?.duration)) && (
+                                    {(effectiveStatus === 'processing' || (effectiveStatus === 'completed' && stepTimers[step.id]?.duration)) && (
                                         <div className="ml-2" onClick={(e) => e.stopPropagation()}>
                                             <StepTimer
                                                 startTime={stepTimers[step.id]?.startTime}
                                                 duration={stepTimers[step.id]?.duration}
-                                                status={status}
+                                                status={effectiveStatus}
                                             />
                                         </div>
                                     )}
