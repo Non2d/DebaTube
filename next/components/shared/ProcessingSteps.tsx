@@ -341,7 +341,7 @@ export default function ProcessingSteps({
                                                                     )}
                                                                 </div>
                                                                 {/* Reset Button for SubSteps */}
-                                                                {subStatus === 'completed' && (
+                                                                {subStatus === 'completed' && process.env.NODE_ENV !== 'production' && (
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -367,7 +367,7 @@ export default function ProcessingSteps({
 
                                             <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-4">
                                                 <div>
-                                                    {status === 'completed' && (
+                                                    {status === 'completed' && process.env.NODE_ENV !== 'production' && (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -421,7 +421,7 @@ export default function ProcessingSteps({
                 </div>
             )}
 
-            <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+            {process.env.NODE_ENV !== 'production' && <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <div className="mx-auto bg-red-100 dark:bg-red-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
@@ -441,7 +441,7 @@ export default function ProcessingSteps({
                         </Button>
                     </div>
                 </DialogContent>
-            </Dialog>
+            </Dialog>}
         </div>
     );
 }
