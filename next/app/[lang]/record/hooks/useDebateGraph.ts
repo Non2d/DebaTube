@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from '../../../../context/LanguageContext';
+import { getAPIRoot } from '../../../../components/lib/utils';
 import toast from 'react-hot-toast';
 
 export interface GraphData {
@@ -26,7 +27,7 @@ export function useDebateGraph(roundName: string) {
         // Check if the version exists
         if (roundName) {
             try {
-                const url = `http://localhost:8080/rebuttal-graph/${roundName}?try_count=${newTryCount}`;
+                const url = `${getAPIRoot()}/rebuttal-graph/${roundName}?try_count=${newTryCount}`;
                 const response = await fetch(url);
 
                 if (!response.ok) {
@@ -54,7 +55,7 @@ export function useDebateGraph(roundName: string) {
 
         try {
             console.log(`[autoLoadGraphData] Loading graph for round: ${roundNameToLoad} (try: ${targetTryCount})`);
-            let url = `http://localhost:8080/rebuttal-graph/${roundNameToLoad}`;
+            let url = `${getAPIRoot()}/rebuttal-graph/${roundNameToLoad}`;
             if (targetTryCount !== null && targetTryCount !== undefined) {
                 url += `?try_count=${targetTryCount}`;
             }

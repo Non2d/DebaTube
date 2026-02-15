@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { SpeechFormat } from '../../../../constants/constants';
 import { useTranslation } from '../../../../context/LanguageContext';
+import { getAPIRoot } from '../../../../components/lib/utils';
 import { getAudioDuration } from '../../../../components/lib/audioUtils';
 
 export interface RecordingData {
@@ -34,7 +35,7 @@ export function useRecordings(
             if (!roundName) return;
 
             try {
-                const response = await fetch(`http://localhost:8080/audio/match/${roundName}`);
+                const response = await fetch(`${getAPIRoot()}/audio/match/${roundName}`);
 
                 if (!response.ok) {
                     if (response.status === 404) {
@@ -75,7 +76,7 @@ export function useRecordings(
 
                     if (speechIndex === null || isNaN(speechIndex)) continue;
 
-                    const audioResponse = await fetch(`http://localhost:8080/audio/file/${roundName}/${fileInfo.filename}`);
+                    const audioResponse = await fetch(`${getAPIRoot()}/audio/file/${roundName}/${fileInfo.filename}`);
                     if (!audioResponse.ok) {
                         console.error(`Failed to fetch audio file: ${fileInfo.filename}`);
                         continue;
@@ -152,7 +153,7 @@ export function useRecordings(
                     formData.append('file', blob, `${speechName}.webm`);
                     formData.append('duration', durationRef.current.toString());
 
-                    const response = await fetch('http://localhost:8080/audio/save', {
+                    const response = await fetch(`${getAPIRoot()}/audio/save`, {
                         method: 'POST',
                         body: formData,
                     });

@@ -518,7 +518,6 @@ const DebateGraphs = () => {
                               onNodeClick={(nodeId, startTime) => onGraphNodeRightClicked(item.id, startTime, nodeId)}
                               debateFormat={format}
                               showNodeIds={false}
-                              showPoiColors={true}
                             />
                           </div>
                         </div>

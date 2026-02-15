@@ -4,6 +4,8 @@ services:
     build:
       context: ./next
       dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_ROOT: "http://localhost:7781"
     ports:
       - "7780:3000"
     networks:
@@ -16,11 +18,23 @@ services:
       dockerfile: Dockerfile.prod
     ports:
       - "7781:8080"
+    depends_on:
+      - db
+    volumes:
+      - ./fastapi/main-service/audio-save:/app/audio-save
+      - ./fastapi/main-service/tmp-audio-save:/app/tmp-audio-save
+      - ./fastapi/main-service/credentials:/app/credentials
+    env_file:
+      - ./fastapi/main-service/app/.env
     networks:
       - dsv_network
     environment:
-      PYTHONPATH: /app #これ、apiか？と思ったけど、DockerfileのWORKDIRで/appに移動しているので、appになる
+      PYTHONPATH: /app
       ENV: production
+      MYSQL_USER: root
+      MYSQL_PASSWORD: rootgamemode
+      MYSQL_HOST: db
+      MYSQL_DATABASE: debate
 
   db:
     container_name: dsv-db
@@ -32,7 +46,7 @@ services:
     env_file:
       - ./mysql/.env
     volumes:
-      - dsv_mysql_cn:/var/lib/mysql
+      - dt_live_first_release_prod:/var/lib/mysql
     networks:
       - dsv_network
 
@@ -41,11 +55,13 @@ services:
     image: phpmyadmin:latest
     ports:
       - "7783:80"
+    environment:
+      PMA_HOST: db
     networks:
       - dsv_network
 
 volumes:
-  dsv_mysql_cn: # amami->cn
+  dt_live_first_release_prod:
 
 networks:
   dsv_network:

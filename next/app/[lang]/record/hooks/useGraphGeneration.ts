@@ -1,6 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../../../../context/LanguageContext';
+import { getAPIRoot } from '../../../../components/lib/utils';
 import { SpeechFormat } from '../../../../constants/constants';
 import toast from 'react-hot-toast';
 
@@ -99,7 +100,7 @@ export function useGraphGeneration({
         try {
             console.log(`[resumeManualWorkflow] Resuming ${roundName} try ${targetTryCount} (Auto: ${isAutoCheck})`);
 
-            const response = await fetch('http://localhost:8080/manual/resume', {
+            const response = await fetch(`${getAPIRoot()}/manual/resume`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -290,7 +291,7 @@ export function useGraphGeneration({
 
             console.log(`[generateDebateGraph] Uploading ${totalFiles} audio files... ManualMode=${manualMode}`);
 
-            const response = await fetch('http://localhost:8080/audio-to-debate-graph-batch', {
+            const response = await fetch(`${getAPIRoot()}/audio-to-debate-graph-batch`, {
                 method: 'POST',
                 body: formData,
             });
@@ -369,13 +370,13 @@ export function useGraphGeneration({
                 setManualState(prev => ({ ...prev, isProcessing: true }));
                 const { roundName, tryCount } = manualState;
 
-                await fetch('http://localhost:8080/manual/submit-adu', {
+                await fetch(`${getAPIRoot()}/manual/submit-adu`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ round_name: roundName, try_count: tryCount, adu_json: jsonResult })
                 }).then(res => { if (!res.ok) throw new Error("Failed to submit ADU results") });
 
-                const promptRes = await fetch(`http://localhost:8080/manual/rebuttal-prompt/${roundName}?try_count=${tryCount}`);
+                const promptRes = await fetch(`${getAPIRoot()}/manual/rebuttal-prompt/${roundName}?try_count=${tryCount}`);
                 if (!promptRes.ok) throw new Error("Failed to fetch rebuttal prompt");
                 const promptData = await promptRes.json();
 
@@ -397,7 +398,7 @@ export function useGraphGeneration({
                 setManualState(prev => ({ ...prev, isProcessing: true }));
                 const { roundName, tryCount } = manualState;
 
-                const res = await fetch('http://localhost:8080/manual/submit-rebuttal', {
+                const res = await fetch(`${getAPIRoot()}/manual/submit-rebuttal`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ round_name: roundName, try_count: tryCount, rebuttal_json: jsonResult })

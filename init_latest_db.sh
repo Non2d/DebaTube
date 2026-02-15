@@ -1,7 +1,10 @@
 #!/bin/bash
 
+# Load MySQL root password from .env
+MYSQL_PWD=$(grep MYSQL_ROOT_PASSWORD mysql/.env | cut -d '=' -f2)
+
 # Check if tables already exist
-TABLE_COUNT=$(docker compose exec -T db mysql -u root debate -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='debate' AND table_name != 'alembic_version';")
+TABLE_COUNT=$(docker compose exec -T -e MYSQL_PWD="$MYSQL_PWD" db mysql -u root debate -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='debate' AND table_name != 'alembic_version';")
 TABLE_COUNT=$(echo "$TABLE_COUNT" | tr -d ' \r\n')
 
 if [ "$TABLE_COUNT" != "0" ]; then
@@ -19,7 +22,7 @@ if [ ! -f "$SQL_FILE" ]; then
 fi
 
 echo "Loading $SQL_FILE ..."
-docker compose exec -T db mysql -u root debate < "$SQL_FILE"
+docker compose exec -T -e MYSQL_PWD="$MYSQL_PWD" db mysql -u root debate < "$SQL_FILE"
 
 if [ $? -ne 0 ]; then
     echo "Failed to load SQL file!"

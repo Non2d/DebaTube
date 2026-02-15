@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { AppProvider } from '../../context/context';
 import { LanguageProvider } from '../../context/LanguageContext';
 
@@ -16,10 +17,12 @@ export default function Layout({
     const lang = (params.lang === 'ja') ? 'ja' : 'en';
 
     return (
-        <LanguageProvider lang={lang}>
-            <AppProvider>
-                {children}
-            </AppProvider>
-        </LanguageProvider>
+        <Suspense>
+            <LanguageProvider lang={lang}>
+                <AppProvider>
+                    {children}
+                </AppProvider>
+            </LanguageProvider>
+        </Suspense>
     )
 }

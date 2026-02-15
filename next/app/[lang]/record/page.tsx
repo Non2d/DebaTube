@@ -9,6 +9,7 @@ import UnifiedAudioPlayer from './components/UnifiedAudioPlayer';
 import Header from '../../../components/shared/Header';
 import { DEBATE_FORMATS, DebateFormatType, SpeechFormat, PROTECTED_ROUND_NAMES } from '../../../constants/constants';
 import { logTabSwitch } from '../../../utils/userLogger';
+import { getAPIRoot } from '../../../components/lib/utils';
 import { useTranslation } from '../../../context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/dialog';
@@ -163,7 +164,7 @@ export default function RecordPage() {
     }
 
     // Fetch round candidates (type=record only)
-    fetch('http://localhost:8080/rounds')
+    fetch(`${getAPIRoot()}/rounds`)
       .then(res => res.json())
       .then(data => {
         // Filter by type=record and get unique names
@@ -194,8 +195,8 @@ export default function RecordPage() {
   useEffect(() => {
     if (roundName) {
       const url = tryCount
-        ? `http://localhost:8080/rounds/${roundName}?try_count=${tryCount}`
-        : `http://localhost:8080/rounds/${roundName}`;
+        ? `${getAPIRoot()}/rounds/${roundName}?try_count=${tryCount}`
+        : `${getAPIRoot()}/rounds/${roundName}`;
       fetch(url)
         .then(res => {
           if (!res.ok) { setRoundId(null); return null; }
@@ -350,7 +351,7 @@ export default function RecordPage() {
     if (!roundName || !roundId) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`http://localhost:8080/rounds/${roundId}`, { method: 'DELETE' });
+      const res = await fetch(`${getAPIRoot()}/rounds/${roundId}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || res.statusText);
