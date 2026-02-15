@@ -806,20 +806,24 @@ export default function VideoDashboard() {
             ) : (
               <div>
                 {/* Thread Status Info */}
-                {threadStatus && (
-                  <div className="mb-4">
-                    <div className="text-sm mb-2 text-right">
+                <div className="mb-4">
+                  <div className="text-sm mb-2 text-right">
+                    {threadStatus ? (
                       <div className={`${threadStatus.total_zombie_tasks > 6 ? "text-red-600 dark:text-red-400" : "text-slate-600 dark:text-slate-400"}`}>
                         {t('dashboard.thread.activeProcesses')}: <span className="font-semibold">{threadStatus.total_active_tasks}</span> / {t('dashboard.thread.zombieTasks')}: <span className="font-semibold">{threadStatus.total_zombie_tasks}</span>
                       </div>
-                    </div>
-                    {threadStatus.total_zombie_tasks > 6 && (
-                      <div className="text-red-600 dark:text-red-400 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
-                        キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
+                    ) : (
+                      <div className="text-slate-600 dark:text-slate-400">
+                        {t('dashboard.thread.activeProcesses')}: ... / {t('dashboard.thread.zombieTasks')}: ...
                       </div>
                     )}
                   </div>
-                )}
+                  {threadStatus && threadStatus.total_zombie_tasks > 6 && (
+                    <div className="text-red-600 dark:text-red-400 text-sm p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                      キャンセルが完了していないプロセスが多く，文字起こしのパフォーマンスが低下しています．STEP1-Aおよび1-Bの実行はしばらく控えることを推奨します．
+                    </div>
+                  )}
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -1044,6 +1048,13 @@ export default function VideoDashboard() {
                                     const hasActiveJob = cancellationTarget !== null && cancellationTarget !== undefined;
                                     const progress = jobProgress.get(round.id);
                                     const isAllStepsCompleted = progress?.step_4 === 'done';
+
+                                    // Loading skeleton when progress data is not yet loaded
+                                    if (progress === undefined) {
+                                      return (
+                                        <div className="animate-pulse bg-gray-300 dark:bg-gray-600 h-6 w-16 rounded"></div>
+                                      );
+                                    }
 
                                     // Show stop button if has active cancellation target
                                     if (hasActiveJob) {
