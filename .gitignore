@@ -21,6 +21,9 @@ backups/
 # Test results
 test_results/
 
+# Future plans
+future_plans/
+
 # Audio files
 fastapi/main-service/tmp-audio-save/*
 
