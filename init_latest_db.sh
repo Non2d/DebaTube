@@ -11,10 +11,26 @@ fi
 
 echo "No tables found. Initializing DB..."
 
-docker compose exec fastapi python -m alembic upgrade head
+SQL_FILE="sql/first_release_20260215_135628.sql"
+
+if [ ! -f "$SQL_FILE" ]; then
+    echo "SQL file not found: $SQL_FILE"
+    exit 1
+fi
+
+echo "Loading $SQL_FILE ..."
+docker compose exec -T db mysql -u root debate < "$SQL_FILE"
 
 if [ $? -ne 0 ]; then
-    echo "Failed to apply migration!"
+    echo "Failed to load SQL file!"
+    exit 1
+fi
+
+echo "Stamping alembic version..."
+docker compose exec fastapi python -m alembic stamp head
+
+if [ $? -ne 0 ]; then
+    echo "Failed to stamp alembic version!"
     exit 1
 fi
 
