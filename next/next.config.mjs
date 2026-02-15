@@ -2,7 +2,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    basePath: process.env.NODE_ENV === 'production' ? '/debates' : '',
+    basePath: '',
     output: 'standalone',
     images: {
         domains: ['img.youtube.com', 'i.ytimg.com'],
