@@ -12,7 +12,7 @@ import shutil
 import httpx
 from enum import Enum
 
-from clients import client, async_client, client_studio_gemini, client_vertex_gemini, vertex_ai_available, async_groq_client
+from clients import client_studio_gemini, client_vertex_gemini, vertex_ai_available, async_groq_client
 from .utils import (
     clean_gemini_markdown_response,
     merge_adus_to_unified_csv,
@@ -645,16 +645,7 @@ async def transcribe_single_audio(
                     logger.info(f"Transcribed via Groq ({groq_model_id}): {speech_key}")
 
             else:
-                # Default: OpenAI Whisper
-                with open(temp_file_path, "rb") as audio_file:
-                    transcription = await async_client.audio.transcriptions.create(
-                        file=audio_file,
-                        model="whisper-1",
-                        response_format="verbose_json",
-                        timestamp_granularities=["word"],
-                        language="en",
-                    )
-                    logger.info(f"Transcribed via OpenAI: {speech_key}")
+                logger.info(f"Unsupported transcription model: {transcription_model}")
 
         finally:
             os.unlink(temp_file_path)
