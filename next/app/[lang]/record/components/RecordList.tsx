@@ -12,11 +12,12 @@ export default function RecordList({ onSelectRound }: RecordListProps) {
     const { rounds, loading, error } = useRounds();
     const { t, language } = useTranslation();
 
-    // Count unique match titles (combining multiple attempts)
-    const totalRounds = new Set(rounds.map(r => r.title)).size;
-    const totalPois = rounds.reduce((sum, round) => sum + round.poi_count, 0);
-    const totalRebuttals = rounds.reduce((sum, round) => sum + round.rebuttal_count, 0);
-    const totalArgumentUnits = rounds.reduce((sum, round) => sum + round.total_argument_units, 0);
+    // Only count record-type rounds (exclude external_video etc.)
+    const recordRounds = rounds.filter(r => r.type === 'record');
+    const totalRounds = new Set(recordRounds.map(r => r.title)).size;
+    const totalPois = recordRounds.reduce((sum, round) => sum + round.poi_count, 0);
+    const totalRebuttals = recordRounds.reduce((sum, round) => sum + round.rebuttal_count, 0);
+    const totalArgumentUnits = recordRounds.reduce((sum, round) => sum + round.total_argument_units, 0);
 
     return (
         <div className="space-y-8">
