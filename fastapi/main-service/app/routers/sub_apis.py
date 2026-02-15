@@ -21,7 +21,7 @@ from sqlalchemy import delete, select, update
 import shutil
 from config import AUDIO_DIR
 from services.transcription_service import delete_background_transcription_batch_remote, delete_audio_cache_remote
-from clients import client, async_client, groq_client, client_studio_gemini, client_vertex_gemini
+from clients import client_studio_gemini, client_vertex_gemini
 
 router = APIRouter()
 
@@ -79,14 +79,13 @@ async def transcribe_single_file(file: UploadFile) -> Dict[str, Any]:
             temp_file_path = temp_file.name
 
         try:
-            # Call Whisper API for transcription (async version)
-            with open(temp_file_path, "rb") as audio_file:
-                transcription = await async_client.audio.transcriptions.create(
-                    file=audio_file,
-                    model="whisper-1",
-                    response_format="verbose_json",
-                    timestamp_granularities=["word"],
-                )
+            # Whisper API is disabled
+            logger.info(f"Whisper API is disabled")
+            return {
+                "filename": file.filename,
+                "status": "failed",
+                "error": "Whisper API is disabled"
+            }
         finally:
             # Clean up temporary file
             if temp_file_path and os.path.exists(temp_file_path):
