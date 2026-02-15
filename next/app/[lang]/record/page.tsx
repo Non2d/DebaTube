@@ -7,7 +7,7 @@ import RecordingCard from './components/RecordingCard';
 import RebuttalGraph from './components/RebuttalGraph';
 import UnifiedAudioPlayer from './components/UnifiedAudioPlayer';
 import Header from '../../../components/shared/Header';
-import { DEBATE_FORMATS, DebateFormatType, SpeechFormat } from '../../../constants/constants';
+import { DEBATE_FORMATS, DebateFormatType, SpeechFormat, PROTECTED_ROUND_NAMES } from '../../../constants/constants';
 import { logTabSwitch } from '../../../utils/userLogger';
 import { useTranslation } from '../../../context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
@@ -58,8 +58,8 @@ export default function RecordPage() {
   }, []);
   const [callLlmAllAtOnce, setCallLlmAllAtOnce] = useState(true);
   const [useLatestTranscription, setUseLatestTranscription] = useState(true);
-  const [aduModel, setAduModel] = useState("gemini-2.5-flash");
-  const [rebuttalModel, setRebuttalModel] = useState("gemini-2.5-flash");
+  const [aduModel, setAduModel] = useState("gemini_2_5_flash_studio");
+  const [rebuttalModel, setRebuttalModel] = useState("gemini_2_5_flash_studio");
   const [transcriptionModel, setTranscriptionModel] = useState("groq-whisper-large-v3-turbo");
   const [manualMode, setManualMode] = useState(false);
   // Removed independent resumeTryCount state to synchronize with Visualization tab
@@ -109,6 +109,9 @@ export default function RecordPage() {
     generationSuccess,
     generationElapsedTime,
     generateDebateGraph,
+    showConfirmDialog,
+    setShowConfirmDialog,
+    confirmAndGenerate,
     manualState,
     submitManualAdu,
     submitManualRebuttal
@@ -505,6 +508,7 @@ export default function RecordPage() {
                 <UnifiedAudioPlayer
                   speechRecordings={speechRecordings}
                   speechCount={DEBATE_SPEECHES.length}
+                  debateSpeeches={DEBATE_SPEECHES}
                   isPlaying={isUnifiedPlaying}
                   onPlayPause={handleUnifiedPlayPause}
                   seekToGlobalTime={unifiedSeekTime}
@@ -527,7 +531,7 @@ export default function RecordPage() {
             </div>
           )}
           {/* Delete Round Button */}
-          {activeTab !== 'dashboard' && roundName && roundId && (
+          {activeTab !== 'dashboard' && roundName && roundId && !PROTECTED_ROUND_NAMES.includes(roundName) && (
             <div className="mt-8 mb-4 pt-4 border-t border-gray-200 dark:border-slate-700">
               <Button
                 variant="destructive"
@@ -563,6 +567,26 @@ export default function RecordPage() {
               disabled={isDeleting}
             >
               {isDeleting ? '...' : t('recordPage.deleteRound.confirm')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Generate Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-center">{t('recordPage.messages.confirmGenerateTitle')}</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              {t('recordPage.messages.confirmGenerateDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+              {t('recordPage.messages.confirmGenerateCancel')}
+            </Button>
+            <Button onClick={confirmAndGenerate}>
+              {t('recordPage.messages.confirmGenerateConfirm')}
             </Button>
           </div>
         </DialogContent>

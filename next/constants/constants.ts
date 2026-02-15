@@ -91,3 +91,8 @@ export const WSDC_ORDER = ASIAN_ORDER
 export const HPDU_ORDER = ASIAN_ORDER
 export const BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd", "Proposition_3rd", "Opposition_3rd", "Proposition_4th", "Opposition_4th"]
 export const OPENING_HALF_BP_ORDER = ["Proposition_1st", "Opposition_1st", "Proposition_2nd", "Opposition_2nd"]
+
+// Round names that cannot be deleted (e.g. sample/demo data)
+export const PROTECTED_ROUND_NAMES: string[] = [
+    "debate_record_sample_lUjrTQcY_Dw",
+];

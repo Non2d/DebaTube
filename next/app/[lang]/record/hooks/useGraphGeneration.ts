@@ -45,6 +45,8 @@ export function useGraphGeneration({
     const [generationElapsedTime, setGenerationElapsedTime] = useState<number>(0);
     const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
 
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
     // Manual Mode State
     const [manualState, setManualState] = useState<{
         step: 'initial' | 'adu_prompt_ready' | 'rebuttal_prompt_ready' | 'completed';
@@ -236,14 +238,11 @@ export function useGraphGeneration({
             return;
         }
 
-        const confirmed = window.confirm(
-            t('recordPage.messages.confirmGenerate')
-        );
+        setShowConfirmDialog(true);
+    };
 
-        if (!confirmed) {
-            return;
-        }
-
+    const confirmAndGenerate = async () => {
+        setShowConfirmDialog(false);
         setIsGeneratingGraph(true);
         setGenerationError(null);
         setGenerationSuccess(null);
@@ -359,6 +358,9 @@ export function useGraphGeneration({
         generationSuccess,
         generationElapsedTime,
         generateDebateGraph,
+        showConfirmDialog,
+        setShowConfirmDialog,
+        confirmAndGenerate,
         manualState,
         setManualState,
         resumeManualWorkflow,

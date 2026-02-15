@@ -106,7 +106,10 @@ export const en = {
         messages: {
             enterRoundId: "Please enter round ID",
             allAudioRequired: "All audio files required",
-            confirmGenerate: "Generate graph?\n\nThis may take several minutes to complete.",
+            confirmGenerateTitle: "Generate graph?",
+            confirmGenerateDescription: "This may take several minutes to complete.",
+            confirmGenerateCancel: "Cancel",
+            confirmGenerateConfirm: "Generate",
             invalidTryCount: 'Invalid Try Count. The next valid Try Count is {{next}}. You cannot skip numbers.',
             matchNotFound: 'Data for version {count} does not exist.',
             matchNotFoundReverting: 'Round data not found. Reverting to valid Try Count: {{next}}.',

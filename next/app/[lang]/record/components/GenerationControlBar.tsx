@@ -39,9 +39,9 @@ interface GenerationControlBarProps {
 }
 
 const DEFAULT_MODEL_OPTIONS = [
-    { value: "gemini-2.5-flash", label: "gemini-2.5-flash" },
-    { value: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite" },
-    { value: "gemini-3-flash-preview", label: "gemini-3-flash-preview" },
+    { value: "gemini_2_5_flash_studio", label: "gemini-2.5-flash" },
+    { value: "gemini_2_5_flash_lite_studio", label: "gemini-2.5-flash-lite" },
+    { value: "gemini_3_flash_studio", label: "gemini-3-flash" },
 ];
 
 export default function GenerationControlBar({

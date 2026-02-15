@@ -3,10 +3,12 @@ import { Play, Pause } from 'lucide-react';
 import { buildSpeechSegments, globalToLocalTime, getTotalDuration, SpeechSegment } from './speechTimeline';
 import { logPlaybackEvent } from '../../../../utils/userLogger';
 import { useTranslation } from '../../../../context/LanguageContext';
+import { SpeechFormat } from '../../../../constants/constants';
 
 interface UnifiedAudioPlayerProps {
   speechRecordings: { [key: number]: { blob: Blob; duration: number; timestamp: string }[] };
   speechCount: number;
+  debateSpeeches: SpeechFormat[];
   isPlaying: boolean;
   onPlayPause: () => void;
   seekToGlobalTime?: number; // External seek request (from graph node click)
@@ -24,6 +26,7 @@ const formatTime = (seconds: number) => {
 export default function UnifiedAudioPlayer({
   speechRecordings,
   speechCount,
+  debateSpeeches,
   isPlaying,
   onPlayPause,
   seekToGlobalTime
@@ -294,23 +297,29 @@ export default function UnifiedAudioPlayer({
             <div className="flex gap-1">
               {segments.map((segment, index) => {
                 const percentage = (segment.duration / totalDuration) * 100;
+                const team = debateSpeeches[segment.speechIndex]?.team;
                 return (
                   <div
                     key={segment.speechIndex}
-                    className="h-2 rounded"
-                    style={{
-                      width: `${percentage}%`,
-                      backgroundColor: index % 2 === 0 ? '#ef4444' : '#3b82f6',
-                      opacity: currentSegmentIndex === index ? 1 : 0.5,
-                    }}
-                    title={`Speech ${segment.speechIndex + 1}: ${formatTime(segment.duration)}`}
-                  />
+                    style={{ width: `${percentage}%` }}
+                    className="flex flex-col"
+                  >
+                    <div
+                      className="h-2 rounded"
+                      style={{
+                        backgroundColor: team === 'proposition' ? '#ef4444' : '#3b82f6',
+                        opacity: currentSegmentIndex === index ? 1 : 0.5,
+                      }}
+                      title={`${debateSpeeches[segment.speechIndex]?.name || `Speech ${segment.speechIndex + 1}`}: ${formatTime(segment.duration)}`}
+                    />
+                    {index < 2 && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
+                        {team === 'proposition' ? t('unifiedPlayer.prop') : t('unifiedPlayer.opp')}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
-            </div>
-            <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
-              <span>{t('unifiedPlayer.prop')}</span>
-              <span>{t('unifiedPlayer.opp')}</span>
             </div>
           </div>
         </div>
