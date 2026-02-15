@@ -1,6 +1,0 @@
-id,start_sentence_index,end_sentence_index,text,role,start_time,end_time
-1,0,2,,point_of_main_argument,0.9,31.4
-2,3,3,,definition,32.1,59.3
-3,4,5,,point_of_main_argument,60.5,143.2
-4,6,6,,point_of_main_argument,144.4,215.8
-5,7,7,,point_of_main_argument,215.8,258.9

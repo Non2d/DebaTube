@@ -18,6 +18,9 @@ fastapi/main-service/app/gemini-logs/*
 # Database backups
 backups/
 
+# Test results
+test_results/
+
 # Audio files
 fastapi/main-service/tmp-audio-save/*
 

@@ -1,7 +1,0 @@
-id,start_sentence_index,end_sentence_index,text,role,start_time,end_time
-1,0,3,,independent_rebuttal,2.6,45.5
-2,4,8,,independent_rebuttal,46.1,121.8
-3,9,15,,point_of_main_argument,122.4,185.2
-4,16,20,,independent_rebuttal,185.2,263.4
-5,21,23,,independent_rebuttal,263.4,313.6
-6,24,32,,point_of_main_argument,313.6,412.6
