@@ -53,8 +53,7 @@ app = FastAPI(lifespan=lifespan)
 origins = [
     "http://localhost",
     "http://localhost:3000",
-    "http://vps4.nkmr.io",
-    "https://vps4.nkmr.io",
+    "https://debatube.nkmr.io",
     "http://localhost:7000",
     "http://localhost:8000",
     "http://localhost:9000",
