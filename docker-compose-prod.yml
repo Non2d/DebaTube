@@ -5,7 +5,7 @@ services:
       context: ./next
       dockerfile: Dockerfile.prod
       args:
-        NEXT_PUBLIC_API_ROOT: "http://localhost:7781"
+        NEXT_PUBLIC_API_ROOT: "https://vps4.nkmr.io/debates/v1"
     ports:
       - "7780:3000"
     networks:
@@ -31,10 +31,7 @@ services:
     environment:
       PYTHONPATH: /app
       ENV: production
-      MYSQL_USER: root
-      MYSQL_PASSWORD: rootgamemode
       MYSQL_HOST: db
-      MYSQL_DATABASE: debate
 
   db:
     container_name: dsv-db
