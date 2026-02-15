@@ -8,14 +8,9 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai.types import HttpOptions
 from groq import Groq, AsyncGroq
-from openai import OpenAI, AsyncOpenAI
 
 # Load environment variables
 load_dotenv()
-
-# OpenAI clients
-client = OpenAI()
-async_client = AsyncOpenAI()
 
 # Groq clients
 groq_client = Groq()
