@@ -11,3 +11,7 @@ pytz
 mysql-connector-python
 google-genai
 python-multipart
+groq
+alembic
+youtube-transcript-api
+yt-dlp

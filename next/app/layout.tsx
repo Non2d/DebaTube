@@ -9,15 +9,25 @@ export const metadata = {
   description: 'Created for Competitive Debaters',
 };
 
+
+import { ThemeProvider } from '../components/theme-provider';
+
+
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="jp">
+    <html lang="jp" suppressHydrationWarning>
       <body>
         <Provider>
           <Toaster position="top-right" />
-          <AppProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
             {children}
-          </AppProvider>
+          </ThemeProvider>
         </Provider>
       </body>
     </html>

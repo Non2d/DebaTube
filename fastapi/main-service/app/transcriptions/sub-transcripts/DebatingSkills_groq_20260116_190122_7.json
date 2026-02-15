@@ -1,0 +1,1767 @@
+{
+  "text": " A debate is a discussion of a theme or question between two or more interlocutors. In a formal debate, the theme or question is called a motion. The motion is usually controversial and has no clear or correct answer. An example of a motion might be, everybody should get universal basic income. The two teams will then argue for or against the motion. The party for or in favour of the motion is called the proposition. The party against or opposed to the motion is called the opposition. Each team is usually given equal time to present their argument, which usually includes an introduction, reasons with examples or evidence, and a conclusion. At the end of the debate, a neutral third party, usually a judge or committee, will decide the winner. The winning team is the team that delivers the most cogent, convincing argument. Whether the judge personally agrees with the motion is not relevant to determining the winner. In fact, the teams are typically assigned their position at random, which means they may need to debate in favour of emotion with which they personally disagree The word debate comes from the Latin verb batere meaning to fight The practice goes back thousands of years to ancient Greece and India, where debate was considered essential to a functioning democracy. The debate structure used today first took form in the early 18th century England. The fundamental skills necessary to debate also apply to many other aspects of life. The ability to think critically and analyze a problem. The ability to present your thoughts logically and elegantly. The ability to speak confidently in public. And the ability to listen carefully and interpret information quickly are crucial skills for any leader, academic, researcher or artist. Debating a position you might not personally agree with also helps you to develop empathy and broaden your worldview. As you train for debate, you will learn how to analyze a problem, form a persuasive argument, respond to counter-arguments and ask questions. Along the way, you'll also discover new information, meet new people and gain new perspectives. Thank you.",
+  "task": "transcribe",
+  "language": "English",
+  "duration": 179.109365,
+  "words": [
+    {
+      "word": "A",
+      "start": 4.36,
+      "end": 4.38
+    },
+    {
+      "word": "debate",
+      "start": 4.38,
+      "end": 4.64
+    },
+    {
+      "word": "is",
+      "start": 4.64,
+      "end": 5.1
+    },
+    {
+      "word": "a",
+      "start": 5.1,
+      "end": 5.26
+    },
+    {
+      "word": "discussion",
+      "start": 5.26,
+      "end": 5.78
+    },
+    {
+      "word": "of",
+      "start": 5.78,
+      "end": 6.06
+    },
+    {
+      "word": "a",
+      "start": 6.06,
+      "end": 6.18
+    },
+    {
+      "word": "theme",
+      "start": 6.18,
+      "end": 6.58
+    },
+    {
+      "word": "or",
+      "start": 6.58,
+      "end": 6.78
+    },
+    {
+      "word": "question",
+      "start": 6.78,
+      "end": 7.24
+    },
+    {
+      "word": "between",
+      "start": 7.24,
+      "end": 7.82
+    },
+    {
+      "word": "two",
+      "start": 7.82,
+      "end": 8.26
+    },
+    {
+      "word": "or",
+      "start": 8.26,
+      "end": 8.54
+    },
+    {
+      "word": "more",
+      "start": 8.54,
+      "end": 8.88
+    },
+    {
+      "word": "interlocutors.",
+      "start": 8.88,
+      "end": 10.2
+    },
+    {
+      "word": "In",
+      "start": 11,
+      "end": 11.16
+    },
+    {
+      "word": "a",
+      "start": 11.16,
+      "end": 11.34
+    },
+    {
+      "word": "formal",
+      "start": 11.34,
+      "end": 11.7
+    },
+    {
+      "word": "debate,",
+      "start": 11.7,
+      "end": 12.82
+    },
+    {
+      "word": "the",
+      "start": 12.82,
+      "end": 12.84
+    },
+    {
+      "word": "theme",
+      "start": 12.84,
+      "end": 13.26
+    },
+    {
+      "word": "or",
+      "start": 13.26,
+      "end": 13.46
+    },
+    {
+      "word": "question",
+      "start": 13.46,
+      "end": 13.92
+    },
+    {
+      "word": "is",
+      "start": 13.92,
+      "end": 14.38
+    },
+    {
+      "word": "called",
+      "start": 14.38,
+      "end": 14.62
+    },
+    {
+      "word": "a",
+      "start": 14.62,
+      "end": 14.78
+    },
+    {
+      "word": "motion.",
+      "start": 14.78,
+      "end": 15.68
+    },
+    {
+      "word": "The",
+      "start": 15.94,
+      "end": 16.16
+    },
+    {
+      "word": "motion",
+      "start": 16.16,
+      "end": 16.52
+    },
+    {
+      "word": "is",
+      "start": 16.52,
+      "end": 16.8
+    },
+    {
+      "word": "usually",
+      "start": 16.8,
+      "end": 17.24
+    },
+    {
+      "word": "controversial",
+      "start": 17.24,
+      "end": 18.12
+    },
+    {
+      "word": "and",
+      "start": 18.12,
+      "end": 18.98
+    },
+    {
+      "word": "has",
+      "start": 18.98,
+      "end": 19.22
+    },
+    {
+      "word": "no",
+      "start": 19.22,
+      "end": 19.5
+    },
+    {
+      "word": "clear",
+      "start": 19.5,
+      "end": 19.98
+    },
+    {
+      "word": "or",
+      "start": 19.98,
+      "end": 20.26
+    },
+    {
+      "word": "correct",
+      "start": 20.26,
+      "end": 20.68
+    },
+    {
+      "word": "answer.",
+      "start": 20.68,
+      "end": 21.68
+    },
+    {
+      "word": "An",
+      "start": 22.18,
+      "end": 22.38
+    },
+    {
+      "word": "example",
+      "start": 22.38,
+      "end": 22.84
+    },
+    {
+      "word": "of",
+      "start": 22.84,
+      "end": 23.06
+    },
+    {
+      "word": "a",
+      "start": 23.06,
+      "end": 23.16
+    },
+    {
+      "word": "motion",
+      "start": 23.16,
+      "end": 23.52
+    },
+    {
+      "word": "might",
+      "start": 23.52,
+      "end": 23.9
+    },
+    {
+      "word": "be,",
+      "start": 23.9,
+      "end": 24.88
+    },
+    {
+      "word": "everybody",
+      "start": 24.88,
+      "end": 25.38
+    },
+    {
+      "word": "should",
+      "start": 25.38,
+      "end": 25.92
+    },
+    {
+      "word": "get",
+      "start": 25.92,
+      "end": 26.18
+    },
+    {
+      "word": "universal",
+      "start": 26.18,
+      "end": 26.9
+    },
+    {
+      "word": "basic",
+      "start": 26.9,
+      "end": 27.58
+    },
+    {
+      "word": "income.",
+      "start": 27.58,
+      "end": 28.6
+    },
+    {
+      "word": "The",
+      "start": 29.44,
+      "end": 29.54
+    },
+    {
+      "word": "two",
+      "start": 29.54,
+      "end": 29.78
+    },
+    {
+      "word": "teams",
+      "start": 29.78,
+      "end": 30.24
+    },
+    {
+      "word": "will",
+      "start": 30.24,
+      "end": 30.5
+    },
+    {
+      "word": "then",
+      "start": 30.5,
+      "end": 30.7
+    },
+    {
+      "word": "argue",
+      "start": 30.7,
+      "end": 31.24
+    },
+    {
+      "word": "for",
+      "start": 31.24,
+      "end": 31.66
+    },
+    {
+      "word": "or",
+      "start": 31.66,
+      "end": 32.02
+    },
+    {
+      "word": "against",
+      "start": 32.02,
+      "end": 32.46
+    },
+    {
+      "word": "the",
+      "start": 32.46,
+      "end": 32.78
+    },
+    {
+      "word": "motion.",
+      "start": 32.78,
+      "end": 33.66
+    },
+    {
+      "word": "The",
+      "start": 34.2,
+      "end": 34.36
+    },
+    {
+      "word": "party",
+      "start": 34.36,
+      "end": 34.68
+    },
+    {
+      "word": "for",
+      "start": 34.68,
+      "end": 35.14
+    },
+    {
+      "word": "or",
+      "start": 35.14,
+      "end": 35.7
+    },
+    {
+      "word": "in",
+      "start": 35.7,
+      "end": 35.88
+    },
+    {
+      "word": "favour",
+      "start": 35.88,
+      "end": 36.28
+    },
+    {
+      "word": "of",
+      "start": 36.28,
+      "end": 36.6
+    },
+    {
+      "word": "the",
+      "start": 36.6,
+      "end": 36.78
+    },
+    {
+      "word": "motion",
+      "start": 36.78,
+      "end": 37.12
+    },
+    {
+      "word": "is",
+      "start": 37.12,
+      "end": 37.74
+    },
+    {
+      "word": "called",
+      "start": 37.74,
+      "end": 38.06
+    },
+    {
+      "word": "the",
+      "start": 38.06,
+      "end": 38.24
+    },
+    {
+      "word": "proposition.",
+      "start": 38.24,
+      "end": 39.24
+    },
+    {
+      "word": "The",
+      "start": 39.78,
+      "end": 39.9
+    },
+    {
+      "word": "party",
+      "start": 39.9,
+      "end": 40.28
+    },
+    {
+      "word": "against",
+      "start": 40.28,
+      "end": 40.94
+    },
+    {
+      "word": "or",
+      "start": 40.94,
+      "end": 41.62
+    },
+    {
+      "word": "opposed",
+      "start": 41.62,
+      "end": 42.24
+    },
+    {
+      "word": "to",
+      "start": 42.24,
+      "end": 42.52
+    },
+    {
+      "word": "the",
+      "start": 42.52,
+      "end": 42.84
+    },
+    {
+      "word": "motion",
+      "start": 42.84,
+      "end": 43.18
+    },
+    {
+      "word": "is",
+      "start": 43.18,
+      "end": 43.82
+    },
+    {
+      "word": "called",
+      "start": 43.82,
+      "end": 44.06
+    },
+    {
+      "word": "the",
+      "start": 44.06,
+      "end": 44.22
+    },
+    {
+      "word": "opposition.",
+      "start": 44.22,
+      "end": 44.64
+    },
+    {
+      "word": "Each",
+      "start": 46.18,
+      "end": 46.4
+    },
+    {
+      "word": "team",
+      "start": 46.4,
+      "end": 46.76
+    },
+    {
+      "word": "is",
+      "start": 46.76,
+      "end": 46.94
+    },
+    {
+      "word": "usually",
+      "start": 46.94,
+      "end": 47.4
+    },
+    {
+      "word": "given",
+      "start": 47.4,
+      "end": 47.7
+    },
+    {
+      "word": "equal",
+      "start": 47.7,
+      "end": 48.18
+    },
+    {
+      "word": "time",
+      "start": 48.18,
+      "end": 48.66
+    },
+    {
+      "word": "to",
+      "start": 48.66,
+      "end": 48.96
+    },
+    {
+      "word": "present",
+      "start": 48.96,
+      "end": 49.36
+    },
+    {
+      "word": "their",
+      "start": 49.36,
+      "end": 49.64
+    },
+    {
+      "word": "argument,",
+      "start": 49.64,
+      "end": 50.56
+    },
+    {
+      "word": "which",
+      "start": 50.98,
+      "end": 51.12
+    },
+    {
+      "word": "usually",
+      "start": 51.12,
+      "end": 51.62
+    },
+    {
+      "word": "includes",
+      "start": 51.62,
+      "end": 52.08
+    },
+    {
+      "word": "an",
+      "start": 52.08,
+      "end": 52.26
+    },
+    {
+      "word": "introduction,",
+      "start": 52.26,
+      "end": 53.9
+    },
+    {
+      "word": "reasons",
+      "start": 53.9,
+      "end": 54.24
+    },
+    {
+      "word": "with",
+      "start": 54.24,
+      "end": 54.66
+    },
+    {
+      "word": "examples",
+      "start": 54.66,
+      "end": 55.14
+    },
+    {
+      "word": "or",
+      "start": 55.14,
+      "end": 55.46
+    },
+    {
+      "word": "evidence,",
+      "start": 55.46,
+      "end": 56.76
+    },
+    {
+      "word": "and",
+      "start": 56.76,
+      "end": 56.82
+    },
+    {
+      "word": "a",
+      "start": 56.82,
+      "end": 56.94
+    },
+    {
+      "word": "conclusion.",
+      "start": 56.94,
+      "end": 57.98
+    },
+    {
+      "word": "At",
+      "start": 59,
+      "end": 59.14
+    },
+    {
+      "word": "the",
+      "start": 59.14,
+      "end": 59.3
+    },
+    {
+      "word": "end",
+      "start": 59.3,
+      "end": 59.46
+    },
+    {
+      "word": "of",
+      "start": 59.46,
+      "end": 59.6
+    },
+    {
+      "word": "the",
+      "start": 59.6,
+      "end": 59.68
+    },
+    {
+      "word": "debate,",
+      "start": 59.68,
+      "end": 60.68
+    },
+    {
+      "word": "a",
+      "start": 60.68,
+      "end": 60.8
+    },
+    {
+      "word": "neutral",
+      "start": 60.8,
+      "end": 61.28
+    },
+    {
+      "word": "third",
+      "start": 61.28,
+      "end": 61.58
+    },
+    {
+      "word": "party,",
+      "start": 61.58,
+      "end": 62.06
+    },
+    {
+      "word": "usually",
+      "start": 62.06,
+      "end": 62.94
+    },
+    {
+      "word": "a",
+      "start": 62.94,
+      "end": 63.2
+    },
+    {
+      "word": "judge",
+      "start": 63.2,
+      "end": 63.5
+    },
+    {
+      "word": "or",
+      "start": 63.5,
+      "end": 63.8
+    },
+    {
+      "word": "committee,",
+      "start": 63.8,
+      "end": 64.74
+    },
+    {
+      "word": "will",
+      "start": 64.74,
+      "end": 64.82
+    },
+    {
+      "word": "decide",
+      "start": 64.82,
+      "end": 65.24
+    },
+    {
+      "word": "the",
+      "start": 65.24,
+      "end": 65.44
+    },
+    {
+      "word": "winner.",
+      "start": 65.44,
+      "end": 65.68
+    },
+    {
+      "word": "The",
+      "start": 67,
+      "end": 67.08
+    },
+    {
+      "word": "winning",
+      "start": 67.08,
+      "end": 67.36
+    },
+    {
+      "word": "team",
+      "start": 67.36,
+      "end": 67.8
+    },
+    {
+      "word": "is",
+      "start": 67.8,
+      "end": 68.24
+    },
+    {
+      "word": "the",
+      "start": 68.24,
+      "end": 68.4
+    },
+    {
+      "word": "team",
+      "start": 68.4,
+      "end": 68.72
+    },
+    {
+      "word": "that",
+      "start": 68.72,
+      "end": 68.9
+    },
+    {
+      "word": "delivers",
+      "start": 68.9,
+      "end": 69.3
+    },
+    {
+      "word": "the",
+      "start": 69.3,
+      "end": 69.52
+    },
+    {
+      "word": "most",
+      "start": 69.52,
+      "end": 69.84
+    },
+    {
+      "word": "cogent,",
+      "start": 69.84,
+      "end": 71.16
+    },
+    {
+      "word": "convincing",
+      "start": 71.16,
+      "end": 71.56
+    },
+    {
+      "word": "argument.",
+      "start": 71.56,
+      "end": 72.18
+    },
+    {
+      "word": "Whether",
+      "start": 73.76,
+      "end": 73.9
+    },
+    {
+      "word": "the",
+      "start": 73.9,
+      "end": 74.16
+    },
+    {
+      "word": "judge",
+      "start": 74.16,
+      "end": 74.42
+    },
+    {
+      "word": "personally",
+      "start": 74.42,
+      "end": 75.04
+    },
+    {
+      "word": "agrees",
+      "start": 75.04,
+      "end": 75.62
+    },
+    {
+      "word": "with",
+      "start": 75.62,
+      "end": 75.88
+    },
+    {
+      "word": "the",
+      "start": 75.88,
+      "end": 76
+    },
+    {
+      "word": "motion",
+      "start": 76,
+      "end": 76.28
+    },
+    {
+      "word": "is",
+      "start": 76.28,
+      "end": 76.86
+    },
+    {
+      "word": "not",
+      "start": 76.86,
+      "end": 77.08
+    },
+    {
+      "word": "relevant",
+      "start": 77.08,
+      "end": 77.56
+    },
+    {
+      "word": "to",
+      "start": 77.56,
+      "end": 77.94
+    },
+    {
+      "word": "determining",
+      "start": 77.94,
+      "end": 78.46
+    },
+    {
+      "word": "the",
+      "start": 78.46,
+      "end": 78.66
+    },
+    {
+      "word": "winner.",
+      "start": 78.66,
+      "end": 79.36
+    },
+    {
+      "word": "In",
+      "start": 79.68,
+      "end": 79.84
+    },
+    {
+      "word": "fact,",
+      "start": 79.84,
+      "end": 80.42
+    },
+    {
+      "word": "the",
+      "start": 80.42,
+      "end": 80.54
+    },
+    {
+      "word": "teams",
+      "start": 80.54,
+      "end": 80.86
+    },
+    {
+      "word": "are",
+      "start": 80.86,
+      "end": 81
+    },
+    {
+      "word": "typically",
+      "start": 81,
+      "end": 81.46
+    },
+    {
+      "word": "assigned",
+      "start": 81.46,
+      "end": 81.94
+    },
+    {
+      "word": "their",
+      "start": 81.94,
+      "end": 82.14
+    },
+    {
+      "word": "position",
+      "start": 82.14,
+      "end": 82.58
+    },
+    {
+      "word": "at",
+      "start": 82.58,
+      "end": 82.76
+    },
+    {
+      "word": "random,",
+      "start": 82.76,
+      "end": 83.12
+    },
+    {
+      "word": "which",
+      "start": 83.14,
+      "end": 84.1
+    },
+    {
+      "word": "means",
+      "start": 84.1,
+      "end": 84.42
+    },
+    {
+      "word": "they",
+      "start": 84.42,
+      "end": 84.68
+    },
+    {
+      "word": "may",
+      "start": 84.68,
+      "end": 84.94
+    },
+    {
+      "word": "need",
+      "start": 84.94,
+      "end": 85.16
+    },
+    {
+      "word": "to",
+      "start": 85.16,
+      "end": 85.36
+    },
+    {
+      "word": "debate",
+      "start": 85.36,
+      "end": 85.66
+    },
+    {
+      "word": "in",
+      "start": 85.66,
+      "end": 85.96
+    },
+    {
+      "word": "favour",
+      "start": 85.96,
+      "end": 86.3
+    },
+    {
+      "word": "of",
+      "start": 86.3,
+      "end": 86.56
+    },
+    {
+      "word": "emotion",
+      "start": 86.56,
+      "end": 86.92
+    },
+    {
+      "word": "with",
+      "start": 86.92,
+      "end": 87.44
+    },
+    {
+      "word": "which",
+      "start": 87.419365,
+      "end": 87.739365
+    },
+    {
+      "word": "they",
+      "start": 87.739365,
+      "end": 87.919365
+    },
+    {
+      "word": "personally",
+      "start": 87.919365,
+      "end": 88.47936
+    },
+    {
+      "word": "disagree.",
+      "start": 88.47936,
+      "end": 89.599365
+    },
+    {
+      "word": "The",
+      "start": 91.07936,
+      "end": 91.239365
+    },
+    {
+      "word": "word",
+      "start": 91.239365,
+      "end": 91.559364
+    },
+    {
+      "word": "debate",
+      "start": 91.559364,
+      "end": 92.01936
+    },
+    {
+      "word": "comes",
+      "start": 92.01936,
+      "end": 92.67937
+    },
+    {
+      "word": "from",
+      "start": 92.67937,
+      "end": 92.959366
+    },
+    {
+      "word": "the",
+      "start": 92.959366,
+      "end": 93.099365
+    },
+    {
+      "word": "Latin",
+      "start": 93.099365,
+      "end": 93.53937
+    },
+    {
+      "word": "verb",
+      "start": 93.53937,
+      "end": 94.01936
+    },
+    {
+      "word": "batere,",
+      "start": 94.01936,
+      "end": 95.57936
+    },
+    {
+      "word": "meaning",
+      "start": 95.57936,
+      "end": 95.85937
+    },
+    {
+      "word": "to",
+      "start": 95.85937,
+      "end": 96.139366
+    },
+    {
+      "word": "fight.",
+      "start": 96.139366,
+      "end": 96.99937
+    },
+    {
+      "word": "The",
+      "start": 97.419365,
+      "end": 97.559364
+    },
+    {
+      "word": "practice",
+      "start": 97.559364,
+      "end": 97.99937
+    },
+    {
+      "word": "goes",
+      "start": 97.99937,
+      "end": 98.31937
+    },
+    {
+      "word": "back",
+      "start": 98.31937,
+      "end": 98.639366
+    },
+    {
+      "word": "thousands",
+      "start": 98.639366,
+      "end": 99.139366
+    },
+    {
+      "word": "of",
+      "start": 99.139366,
+      "end": 99.379364
+    },
+    {
+      "word": "years",
+      "start": 99.379364,
+      "end": 99.69936
+    },
+    {
+      "word": "to",
+      "start": 99.69936,
+      "end": 99.97936
+    },
+    {
+      "word": "ancient",
+      "start": 99.97936,
+      "end": 100.47936
+    },
+    {
+      "word": "Greece",
+      "start": 100.47936,
+      "end": 100.89937
+    },
+    {
+      "word": "and",
+      "start": 100.89937,
+      "end": 101.17937
+    },
+    {
+      "word": "India,",
+      "start": 101.17937,
+      "end": 102.059364
+    },
+    {
+      "word": "where",
+      "start": 102.21936,
+      "end": 102.39937
+    },
+    {
+      "word": "debate",
+      "start": 102.39937,
+      "end": 102.83936
+    },
+    {
+      "word": "was",
+      "start": 102.83936,
+      "end": 103.01936
+    },
+    {
+      "word": "considered",
+      "start": 103.01936,
+      "end": 103.51936
+    },
+    {
+      "word": "essential",
+      "start": 103.51936,
+      "end": 104.21936
+    },
+    {
+      "word": "to",
+      "start": 104.21936,
+      "end": 104.47936
+    },
+    {
+      "word": "a",
+      "start": 104.47936,
+      "end": 104.61936
+    },
+    {
+      "word": "functioning",
+      "start": 104.61936,
+      "end": 105.099365
+    },
+    {
+      "word": "democracy.",
+      "start": 105.099365,
+      "end": 105.75937
+    },
+    {
+      "word": "The",
+      "start": 107.03937,
+      "end": 107.15936
+    },
+    {
+      "word": "debate",
+      "start": 107.15936,
+      "end": 107.61936
+    },
+    {
+      "word": "structure",
+      "start": 107.61936,
+      "end": 108.15936
+    },
+    {
+      "word": "used",
+      "start": 108.15936,
+      "end": 108.49937
+    },
+    {
+      "word": "today",
+      "start": 108.49937,
+      "end": 108.97936
+    },
+    {
+      "word": "first",
+      "start": 108.97936,
+      "end": 109.75937
+    },
+    {
+      "word": "took",
+      "start": 109.75937,
+      "end": 109.99937
+    },
+    {
+      "word": "form",
+      "start": 109.99937,
+      "end": 110.25937
+    },
+    {
+      "word": "in",
+      "start": 110.25937,
+      "end": 110.43936
+    },
+    {
+      "word": "the",
+      "start": 110.43936,
+      "end": 110.61936
+    },
+    {
+      "word": "early",
+      "start": 110.61936,
+      "end": 111.01936
+    },
+    {
+      "word": "18th",
+      "start": 111.01936,
+      "end": 111.53937
+    },
+    {
+      "word": "century",
+      "start": 111.53937,
+      "end": 111.919365
+    },
+    {
+      "word": "England.",
+      "start": 111.919365,
+      "end": 112.31937
+    },
+    {
+      "word": "The",
+      "start": 112.33936,
+      "end": 113.779366
+    },
+    {
+      "word": "fundamental",
+      "start": 113.779366,
+      "end": 114.21936
+    },
+    {
+      "word": "skills",
+      "start": 114.21936,
+      "end": 114.81937
+    },
+    {
+      "word": "necessary",
+      "start": 114.81937,
+      "end": 115.33936
+    },
+    {
+      "word": "to",
+      "start": 115.33936,
+      "end": 115.639366
+    },
+    {
+      "word": "debate",
+      "start": 115.639366,
+      "end": 115.959366
+    },
+    {
+      "word": "also",
+      "start": 115.959366,
+      "end": 116.599365
+    },
+    {
+      "word": "apply",
+      "start": 116.599365,
+      "end": 116.93936
+    },
+    {
+      "word": "to",
+      "start": 116.93936,
+      "end": 117.139366
+    },
+    {
+      "word": "many",
+      "start": 117.139366,
+      "end": 117.379364
+    },
+    {
+      "word": "other",
+      "start": 117.379364,
+      "end": 117.71936
+    },
+    {
+      "word": "aspects",
+      "start": 117.71936,
+      "end": 118.099365
+    },
+    {
+      "word": "of",
+      "start": 118.099365,
+      "end": 118.39937
+    },
+    {
+      "word": "life.",
+      "start": 118.39937,
+      "end": 119.21936
+    },
+    {
+      "word": "The",
+      "start": 118.279366,
+      "end": 119.279366
+    },
+    {
+      "word": "ability",
+      "start": 119.279366,
+      "end": 119.599365
+    },
+    {
+      "word": "to",
+      "start": 119.599365,
+      "end": 119.89937
+    },
+    {
+      "word": "think",
+      "start": 119.89937,
+      "end": 120.17937
+    },
+    {
+      "word": "critically",
+      "start": 120.17937,
+      "end": 120.71936
+    },
+    {
+      "word": "and",
+      "start": 120.71936,
+      "end": 121.51936
+    },
+    {
+      "word": "analyze",
+      "start": 121.51936,
+      "end": 121.89937
+    },
+    {
+      "word": "a",
+      "start": 121.89937,
+      "end": 122.11937
+    },
+    {
+      "word": "problem.",
+      "start": 122.11937,
+      "end": 122.51936
+    },
+    {
+      "word": "The",
+      "start": 123.639366,
+      "end": 123.779366
+    },
+    {
+      "word": "ability",
+      "start": 123.779366,
+      "end": 124.139366
+    },
+    {
+      "word": "to",
+      "start": 124.139366,
+      "end": 124.39937
+    },
+    {
+      "word": "present",
+      "start": 124.39937,
+      "end": 124.779366
+    },
+    {
+      "word": "your",
+      "start": 124.779366,
+      "end": 125.03937
+    },
+    {
+      "word": "thoughts",
+      "start": 125.03937,
+      "end": 125.43936
+    },
+    {
+      "word": "logically",
+      "start": 125.43936,
+      "end": 125.99936
+    },
+    {
+      "word": "and",
+      "start": 125.99936,
+      "end": 126.49936
+    },
+    {
+      "word": "elegantly.",
+      "start": 126.49936,
+      "end": 127.01936
+    },
+    {
+      "word": "The",
+      "start": 128.27936,
+      "end": 128.47937
+    },
+    {
+      "word": "ability",
+      "start": 128.47937,
+      "end": 128.83936
+    },
+    {
+      "word": "to",
+      "start": 128.83936,
+      "end": 129.09937
+    },
+    {
+      "word": "speak",
+      "start": 129.09937,
+      "end": 129.39937
+    },
+    {
+      "word": "confidently",
+      "start": 129.39937,
+      "end": 130.09937
+    },
+    {
+      "word": "in",
+      "start": 130.09937,
+      "end": 130.35936
+    },
+    {
+      "word": "public.",
+      "start": 130.35936,
+      "end": 131.25937
+    },
+    {
+      "word": "And",
+      "start": 132.53937,
+      "end": 132.71936
+    },
+    {
+      "word": "the",
+      "start": 132.71936,
+      "end": 132.81937
+    },
+    {
+      "word": "ability",
+      "start": 132.81937,
+      "end": 133.19937
+    },
+    {
+      "word": "to",
+      "start": 133.19937,
+      "end": 133.45937
+    },
+    {
+      "word": "listen",
+      "start": 133.45937,
+      "end": 133.71936
+    },
+    {
+      "word": "carefully",
+      "start": 133.71936,
+      "end": 134.25937
+    },
+    {
+      "word": "and",
+      "start": 134.25937,
+      "end": 134.81937
+    },
+    {
+      "word": "interpret",
+      "start": 134.81937,
+      "end": 135.29936
+    },
+    {
+      "word": "information",
+      "start": 135.29936,
+      "end": 135.87936
+    },
+    {
+      "word": "quickly",
+      "start": 135.87936,
+      "end": 136.37936
+    },
+    {
+      "word": "are",
+      "start": 137.05936,
+      "end": 137.19937
+    },
+    {
+      "word": "crucial",
+      "start": 137.19937,
+      "end": 137.69937
+    },
+    {
+      "word": "skills",
+      "start": 137.69937,
+      "end": 138.09937
+    },
+    {
+      "word": "for",
+      "start": 138.09937,
+      "end": 138.29936
+    },
+    {
+      "word": "any",
+      "start": 138.29936,
+      "end": 138.57936
+    },
+    {
+      "word": "leader,",
+      "start": 138.57936,
+      "end": 139.43936
+    },
+    {
+      "word": "academic,",
+      "start": 139.43936,
+      "end": 140.43936
+    },
+    {
+      "word": "researcher",
+      "start": 140.43936,
+      "end": 140.99936
+    },
+    {
+      "word": "or",
+      "start": 140.99936,
+      "end": 141.65936
+    },
+    {
+      "word": "artist.",
+      "start": 141.65936,
+      "end": 142.05936
+    },
+    {
+      "word": "Debating",
+      "start": 143.49936,
+      "end": 143.81937
+    },
+    {
+      "word": "a",
+      "start": 143.81937,
+      "end": 144.01936
+    },
+    {
+      "word": "position",
+      "start": 144.01936,
+      "end": 144.39937
+    },
+    {
+      "word": "you",
+      "start": 144.39937,
+      "end": 144.61937
+    },
+    {
+      "word": "might",
+      "start": 144.61937,
+      "end": 144.89937
+    },
+    {
+      "word": "not",
+      "start": 144.89937,
+      "end": 145.13937
+    },
+    {
+      "word": "personally",
+      "start": 145.13937,
+      "end": 145.69937
+    },
+    {
+      "word": "agree",
+      "start": 145.69937,
+      "end": 146.07936
+    },
+    {
+      "word": "with",
+      "start": 146.07936,
+      "end": 146.43936
+    },
+    {
+      "word": "also",
+      "start": 146.43936,
+      "end": 146.97937
+    },
+    {
+      "word": "helps",
+      "start": 146.97937,
+      "end": 147.33936
+    },
+    {
+      "word": "you",
+      "start": 147.33936,
+      "end": 147.49936
+    },
+    {
+      "word": "to",
+      "start": 147.49936,
+      "end": 147.63937
+    },
+    {
+      "word": "develop",
+      "start": 147.63937,
+      "end": 147.99936
+    },
+    {
+      "word": "empathy",
+      "start": 147.99936,
+      "end": 148.59937
+    },
+    {
+      "word": "and",
+      "start": 148.59937,
+      "end": 149.27936
+    },
+    {
+      "word": "broaden",
+      "start": 149.27936,
+      "end": 149.65936
+    },
+    {
+      "word": "your",
+      "start": 149.65936,
+      "end": 149.93936
+    },
+    {
+      "word": "worldview.",
+      "start": 149.93936,
+      "end": 150.69937
+    },
+    {
+      "word": "As",
+      "start": 151.95937,
+      "end": 152.25937
+    },
+    {
+      "word": "you",
+      "start": 152.25937,
+      "end": 152.41937
+    },
+    {
+      "word": "train",
+      "start": 152.41937,
+      "end": 152.77936
+    },
+    {
+      "word": "for",
+      "start": 152.77936,
+      "end": 152.97937
+    },
+    {
+      "word": "debate,",
+      "start": 152.97937,
+      "end": 153.51936
+    },
+    {
+      "word": "you",
+      "start": 153.51936,
+      "end": 154.01936
+    },
+    {
+      "word": "will",
+      "start": 154.01936,
+      "end": 154.13937
+    },
+    {
+      "word": "learn",
+      "start": 154.13937,
+      "end": 154.39935
+    },
+    {
+      "word": "how",
+      "start": 154.39935,
+      "end": 154.59937
+    },
+    {
+      "word": "to",
+      "start": 154.59937,
+      "end": 154.99936
+    },
+    {
+      "word": "analyze",
+      "start": 154.99936,
+      "end": 155.19937
+    },
+    {
+      "word": "a",
+      "start": 155.19937,
+      "end": 155.39935
+    },
+    {
+      "word": "problem,",
+      "start": 155.39935,
+      "end": 156.15936
+    },
+    {
+      "word": "form",
+      "start": 156.15936,
+      "end": 156.91937
+    },
+    {
+      "word": "a",
+      "start": 156.91937,
+      "end": 157.09937
+    },
+    {
+      "word": "persuasive",
+      "start": 157.09937,
+      "end": 157.63937
+    },
+    {
+      "word": "argument,",
+      "start": 157.63937,
+      "end": 159.21936
+    },
+    {
+      "word": "respond",
+      "start": 159.21936,
+      "end": 159.51936
+    },
+    {
+      "word": "to",
+      "start": 159.51936,
+      "end": 159.77936
+    },
+    {
+      "word": "counter-arguments",
+      "start": 159.77936,
+      "end": 160.73936
+    },
+    {
+      "word": "and",
+      "start": 160.73936,
+      "end": 161.29936
+    },
+    {
+      "word": "ask",
+      "start": 161.29936,
+      "end": 161.59937
+    },
+    {
+      "word": "questions.",
+      "start": 161.59937,
+      "end": 162.65936
+    },
+    {
+      "word": "Along",
+      "start": 163.75937,
+      "end": 164.01936
+    },
+    {
+      "word": "the",
+      "start": 164.01936,
+      "end": 164.27936
+    },
+    {
+      "word": "way,",
+      "start": 164.27936,
+      "end": 164.73936
+    },
+    {
+      "word": "you'll",
+      "start": 164.73936,
+      "end": 164.85938
+    },
+    {
+      "word": "also",
+      "start": 164.85938,
+      "end": 165.17937
+    },
+    {
+      "word": "discover",
+      "start": 165.17937,
+      "end": 165.63937
+    },
+    {
+      "word": "new",
+      "start": 165.63937,
+      "end": 165.89935
+    },
+    {
+      "word": "information,",
+      "start": 165.89935,
+      "end": 167.23936
+    },
+    {
+      "word": "meet",
+      "start": 167.23936,
+      "end": 167.41937
+    },
+    {
+      "word": "new",
+      "start": 167.41937,
+      "end": 167.69937
+    },
+    {
+      "word": "people",
+      "start": 167.69937,
+      "end": 168.21936
+    },
+    {
+      "word": "and",
+      "start": 168.21936,
+      "end": 168.85938
+    },
+    {
+      "word": "gain",
+      "start": 168.85938,
+      "end": 169.19937
+    },
+    {
+      "word": "new",
+      "start": 169.19937,
+      "end": 169.51936
+    },
+    {
+      "word": "perspectives.",
+      "start": 169.51936,
+      "end": 170.89935
+    },
+    {
+      "word": "Thank",
+      "start": 172.45937,
+      "end": 172.75937
+    },
+    {
+      "word": "you.",
+      "start": 172.75937,
+      "end": 175.33936
+    }
+  ],
+  "segments": null,
+  "x_groq": {
+    "id": "req_01kf34161dfn4am1hj5x4ydjwn"
+  }
+}

@@ -36,8 +36,14 @@ body {
   :root {
 
     --background: 0 0% 100%;
-
     --foreground: 0 0% 3.9%;
+    color-scheme: light;
+
+    /* Graph Colors */
+    --gov-node-color: red;
+    --opp-node-color: #0065bd;
+    --gov-edge-color: red;
+    --opp-edge-color: #0065bd;
 
     --card: 0 0% 100%;
 
@@ -83,12 +89,20 @@ body {
 
     --chart-5: 27 87% 67%;
 
-    --radius: 0.5rem}
+    --radius: 0.5rem
+  }
+
   .dark {
 
-    --background: 0 0% 3.9%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    color-scheme: dark;
 
-    --foreground: 0 0% 98%;
+    /* Graph Colors */
+    --gov-node-color: rgb(248, 113, 113);
+    --opp-node-color: rgb(96, 165, 250);
+    --gov-edge-color: #f87171;
+    --opp-edge-color: #60a5fa;
 
     --card: 0 0% 3.9%;
 
@@ -132,14 +146,50 @@ body {
 
     --chart-4: 280 65% 60%;
 
-    --chart-5: 340 75% 55%}
+    --chart-5: 340 75% 55%
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
+  html {
+    @apply h-full bg-background text-foreground;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply h-full bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .range-thumb-custom {
+    @apply h-1 w-full rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700;
+  }
+
+  /* Webkit (Chrome, Safari, Edge) */
+  .range-thumb-custom::-webkit-slider-thumb {
+    @apply appearance-none w-4 h-4 rounded-full bg-red-500 border-none cursor-pointer;
+    margin-top: 0;
+    /* User requested 0 to align properly */
+    box-shadow: 0 0 2px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  /* Firefox */
+  .range-thumb-custom::-moz-range-thumb {
+    @apply w-4 h-4 rounded-full bg-red-500 border-none cursor-pointer;
+    box-shadow: 0 0 2px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

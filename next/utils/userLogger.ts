@@ -3,7 +3,7 @@
  * すべてのログは日本時間のタイムスタンプとともに記録される
  */
 
-const API_BASE_URL = 'http://localhost:8080';
+import { getAPIRoot } from '../components/lib/utils';
 
 /**
  * 日本時間のタイムスタンプを取得
@@ -33,7 +33,7 @@ async function sendLog(
       data
     };
 
-    const response = await fetch(`${API_BASE_URL}/logs/event`, {
+    const response = await fetch(`${getAPIRoot()}/logs/event`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -67,7 +67,7 @@ export async function logTabSwitch(tab: string, matchName: string): Promise<void
  * 音声再生イベント（再生・一時停止・シーク）をログに記録
  */
 export async function logPlaybackEvent(
-  eventType: 'play' | 'pause' | 'seek',
+  eventType: 'play' | 'pause' | 'seek' | 'seek_start',
   speechIndex: number,
   timeSeconds: number
 ): Promise<void> {

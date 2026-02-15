@@ -7,7 +7,25 @@ data
 .claude
 storage
 # fastapi/main-service/app/transcriptions/*
-# fastapi/main-service/audio-save/*
+# Audio-save: ignore all except sample
+fastapi/main-service/audio-save/*
+!fastapi/main-service/audio-save/debate_record_sample_lUjrTQcY_Dw/
 fastapi/main-service/app/logs/old/*
 fastapi/main-service/app/logs/*
 fastapi/main-service/app/event-logs/*
+fastapi/main-service/app/gemini-logs/*
+
+# Database backups
+backups/
+
+# Test results
+test_results/
+
+# Future plans
+future_plans/
+
+# Audio files
+fastapi/main-service/tmp-audio-save/*
+
+# Credentials
+fastapi/main-service/credentials/

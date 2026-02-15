@@ -20,6 +20,8 @@ services:
     volumes:
       - ./fastapi/main-service/app:/app
       - ./fastapi/main-service/audio-save:/app/audio-save
+      - ./fastapi/main-service/tmp-audio-save:/app/tmp-audio-save
+      - ./fastapi/main-service/credentials:/app/credentials
     build:
       context: ./fastapi/main-service
       dockerfile: Dockerfile.dev
@@ -32,6 +34,10 @@ services:
     environment:
       PYTHONPATH: /app
       ENV: development
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ""
+      MYSQL_HOST: db
+      MYSQL_DATABASE: debate
 
   db: #ユーザ名：root, パスワード：なし
     container_name: db
@@ -46,7 +52,7 @@ services:
       MYSQL_DATABASE: "debate"
       TZ: "Asia/Tokyo"
     volumes:
-      - mysql_ct2025-2:/var/lib/mysql
+      - mysql_debatube_live_1st_release:/var/lib/mysql
     networks:
       - docker_network
 
@@ -60,7 +66,7 @@ services:
 
 volumes:
   node_modules:
-  mysql_ct2025-2:
+  mysql_debatube_live_1st_release:
 
 networks:
   docker_network:
