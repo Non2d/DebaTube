@@ -12,10 +12,6 @@ RUN npm install
 # アプリケーションのソースコードをコピー
 COPY . .
 
-# ビルド時に NEXT_PUBLIC_API_ROOT を受け取る（Next.js はビルド時に JS バンドルに埋め込む）
-ARG NEXT_PUBLIC_API_ROOT
-ENV NEXT_PUBLIC_API_ROOT=$NEXT_PUBLIC_API_ROOT
-
 # アプリケーションをビルド
 RUN npm run build
 
