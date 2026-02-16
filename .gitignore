@@ -6,7 +6,7 @@ data
 .DS_Store
 .claude
 storage
-# fastapi/main-service/app/transcriptions/*
+fastapi/main-service/app/transcriptions/
 # Audio-save: ignore all except sample
 fastapi/main-service/audio-save/*
 !fastapi/main-service/audio-save/debate_record_sample_lUjrTQcY_Dw/
