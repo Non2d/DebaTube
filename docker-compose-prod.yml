@@ -4,8 +4,6 @@ services:
     build:
       context: ./next
       dockerfile: Dockerfile.prod
-      args:
-        NEXT_PUBLIC_API_ROOT: "https://debatube.nkmr.io/v1"
     ports:
       - "7780:3000"
     networks:
