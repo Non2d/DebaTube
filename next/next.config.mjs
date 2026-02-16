@@ -2,7 +2,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    basePath: '',
+    basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
     output: 'standalone',
     images: {
         domains: ['img.youtube.com', 'i.ytimg.com'],
