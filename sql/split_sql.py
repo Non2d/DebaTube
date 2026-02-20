@@ -87,7 +87,17 @@ def split_sql_blocks(body):
 
 
 def main():
-    sql_file = Path(__file__).parent / 'first_release_20260215_135628.sql'
+    import sys
+
+    # Get file path from argument or use default
+    if len(sys.argv) > 1:
+        sql_file = Path(sys.argv[1])
+    else:
+        sql_file = Path(__file__).parent / 'first_release_20260215_135628.sql'
+
+    if not sql_file.exists():
+        print(f"Error: File not found: {sql_file}")
+        sys.exit(1)
 
     print(f"Reading {sql_file}...")
     content = sql_file.read_text(encoding='utf-8')
@@ -101,14 +111,25 @@ def main():
     print(f"  Found {len(schema_blocks)} schema blocks")
     print(f"  Found {len(data_blocks)} data blocks")
 
-    # Generate schema file
-    schema_file = sql_file.parent / 'schema_20260215_135628.sql'
+    # Generate output file paths based on input filename
+    stem = sql_file.stem
+    suffix = sql_file.suffix
+
+    # Replace common prefixes to generate consistent names
+    if 'record_only_init' in stem:
+        base_name = stem.replace('record_only_init_', '')
+    elif 'mobile_init' in stem:
+        base_name = stem.replace('mobile_init_', '')
+    else:
+        base_name = stem
+
+    schema_file = sql_file.parent / f'schema_{base_name}{suffix}'
+    data_file = sql_file.parent / f'data_{base_name}{suffix}'
+
     schema_content = header + '\n'.join(schema_blocks) + '\n' + footer
     print(f"\nWriting {schema_file}...")
     schema_file.write_text(schema_content, encoding='utf-8')
 
-    # Generate data file
-    data_file = sql_file.parent / 'data_20260215_135628.sql'
     data_content = header + '\n'.join(data_blocks) + '\n' + footer
     print(f"Writing {data_file}...")
     data_file.write_text(data_content, encoding='utf-8')

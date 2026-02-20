@@ -18,7 +18,6 @@
 --
 -- Table structure for table `adus`
 --
-DROP TABLE IF EXISTS `adus`;
 CREATE TABLE `adus` (
   `id` int NOT NULL AUTO_INCREMENT,
   `speech_id` int NOT NULL,
@@ -36,23 +35,23 @@ CREATE TABLE `adus` (
   CONSTRAINT `adus_ibfk_1` FOREIGN KEY (`first_sentence_id`) REFERENCES `sentences` (`id`),
   CONSTRAINT `adus_ibfk_2` FOREIGN KEY (`last_sentence_id`) REFERENCES `sentences` (`id`),
   CONSTRAINT `adus_ibfk_3` FOREIGN KEY (`speech_id`) REFERENCES `speeches` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `adus`
 --;
 
-DROP TABLE IF EXISTS `alembic_version`;
 CREATE TABLE `alembic_version` (
   `version_num` varchar(32) NOT NULL,
   PRIMARY KEY (`version_num`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `alembic_version`
 --;
 
-DROP TABLE IF EXISTS `external_videos`;
 CREATE TABLE `external_videos` (
   `video_id` varchar(255) NOT NULL,
   `title` text,
@@ -67,12 +66,12 @@ CREATE TABLE `external_videos` (
   `created_at` datetime DEFAULT NULL,
   PRIMARY KEY (`video_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `external_videos`
 --;
 
-DROP TABLE IF EXISTS `rebuttals`;
 CREATE TABLE `rebuttals` (
   `id` int NOT NULL AUTO_INCREMENT,
   `src_adu_id` int NOT NULL,
@@ -83,13 +82,13 @@ CREATE TABLE `rebuttals` (
   KEY `ix_rebuttals_id` (`id`),
   CONSTRAINT `rebuttals_ibfk_1` FOREIGN KEY (`src_adu_id`) REFERENCES `adus` (`id`) ON DELETE CASCADE,
   CONSTRAINT `rebuttals_ibfk_2` FOREIGN KEY (`tgt_adu_id`) REFERENCES `adus` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `rebuttals`
 --;
 
-DROP TABLE IF EXISTS `rounds`;
 CREATE TABLE `rounds` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
@@ -108,13 +107,13 @@ CREATE TABLE `rounds` (
   UNIQUE KEY `idx_rounds_name_try_count` (`name`,`try_count`),
   KEY `ix_rounds_id` (`id`),
   KEY `ix_rounds_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `rounds`
 --;
 
-DROP TABLE IF EXISTS `sentences`;
 CREATE TABLE `sentences` (
   `id` int NOT NULL AUTO_INCREMENT,
   `round_id` int NOT NULL,
@@ -129,13 +128,13 @@ CREATE TABLE `sentences` (
   CONSTRAINT `sentences_ibfk_1` FOREIGN KEY (`first_word_id`) REFERENCES `words` (`id`),
   CONSTRAINT `sentences_ibfk_2` FOREIGN KEY (`last_word_id`) REFERENCES `words` (`id`),
   CONSTRAINT `sentences_ibfk_3` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=285 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `sentences`
 --;
 
-DROP TABLE IF EXISTS `speeches`;
 CREATE TABLE `speeches` (
   `id` int NOT NULL AUTO_INCREMENT,
   `round_id` int NOT NULL,
@@ -153,13 +152,13 @@ CREATE TABLE `speeches` (
   CONSTRAINT `speeches_ibfk_1` FOREIGN KEY (`first_sentence_id`) REFERENCES `sentences` (`id`),
   CONSTRAINT `speeches_ibfk_2` FOREIGN KEY (`last_sentence_id`) REFERENCES `sentences` (`id`),
   CONSTRAINT `speeches_ibfk_3` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `speeches`
 --;
 
-DROP TABLE IF EXISTS `words`;
 CREATE TABLE `words` (
   `id` int NOT NULL AUTO_INCREMENT,
   `round_id` int NOT NULL,
@@ -171,7 +170,8 @@ CREATE TABLE `words` (
   KEY `ix_words_id` (`id`),
   KEY `ix_words_round_id` (`round_id`),
   CONSTRAINT `words_ibfk_1` FOREIGN KEY (`round_id`) REFERENCES `rounds` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4919 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `words`
@@ -181,4 +181,4 @@ CREATE TABLE `words` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-02-15 13:56:29
+-- Dump completed on 2026-02-20 17:05:09
