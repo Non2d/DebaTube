@@ -19,7 +19,7 @@ else
     MYSQL_CMD="docker compose exec -T db mysql -u $DB_USER -p$DB_PASSWORD"
 fi
 
-SCHEMA_FILE="sql/schema_20260215_135628.sql"
+SCHEMA_FILE="sql/schema_first_release_20260215_135628.sql"
 
 if [ ! -f "$SCHEMA_FILE" ]; then
     echo "SQL file not found: $SCHEMA_FILE"

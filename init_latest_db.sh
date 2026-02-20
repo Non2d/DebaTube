@@ -30,8 +30,8 @@ fi
 
 echo "No tables found. Initializing DB..."
 
-SCHEMA_FILE="sql/schema_20260215_135628.sql"
-DATA_FILE="sql/data_20260215_135628.sql"
+SCHEMA_FILE="sql/schema_first_release_20260215_135628.sql"
+DATA_FILE="sql/data_first_release_20260215_135628.sql"
 
 if [ ! -f "$SCHEMA_FILE" ]; then
     echo "SQL file not found: $SCHEMA_FILE"
