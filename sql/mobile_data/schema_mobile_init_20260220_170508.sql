@@ -42,16 +42,6 @@ CREATE TABLE `adus` (
 -- Dumping data for table `adus`
 --;
 
-CREATE TABLE `alembic_version` (
-  `version_num` varchar(32) NOT NULL,
-  PRIMARY KEY (`version_num`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `alembic_version`
---;
-
 CREATE TABLE `external_videos` (
   `video_id` varchar(255) NOT NULL,
   `title` text,
