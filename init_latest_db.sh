@@ -14,18 +14,32 @@ fi
 
 echo "No tables found. Initializing DB..."
 
-SQL_FILE="sql/first_release_20260215_135628.sql"
+SCHEMA_FILE="sql/schema_20260215_135628.sql"
+DATA_FILE="sql/data_20260215_135628.sql"
 
-if [ ! -f "$SQL_FILE" ]; then
-    echo "SQL file not found: $SQL_FILE"
+if [ ! -f "$SCHEMA_FILE" ]; then
+    echo "SQL file not found: $SCHEMA_FILE"
     exit 1
 fi
 
-echo "Loading $SQL_FILE ..."
-docker compose exec -T -e MYSQL_PWD="$MYSQL_PWD" db mysql -u root debate < "$SQL_FILE"
+if [ ! -f "$DATA_FILE" ]; then
+    echo "SQL file not found: $DATA_FILE"
+    exit 1
+fi
+
+echo "Loading schema from $SCHEMA_FILE ..."
+docker compose exec -T -e MYSQL_PWD="$MYSQL_PWD" db mysql -u root debate < "$SCHEMA_FILE"
 
 if [ $? -ne 0 ]; then
-    echo "Failed to load SQL file!"
+    echo "Failed to load schema file!"
+    exit 1
+fi
+
+echo "Loading data from $DATA_FILE ..."
+docker compose exec -T -e MYSQL_PWD="$MYSQL_PWD" db mysql -u root debate < "$DATA_FILE"
+
+if [ $? -ne 0 ]; then
+    echo "Failed to load data file!"
     exit 1
 fi
 
